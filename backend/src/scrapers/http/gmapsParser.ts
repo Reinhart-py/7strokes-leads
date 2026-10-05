@@ -17,6 +17,7 @@ export class GmapsParser {
 
   public static stripXssi(text: string): string {
     let cleaned = text.trim();
+    cleaned = cleaned.replace(/\/\*""\*\//g, '').trim();
     if (cleaned.startsWith(")]}'")) {
       cleaned = cleaned.substring(4);
     }

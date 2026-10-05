@@ -13,5 +13,10 @@ yarn-debug.log*
 yarn-error.log*
 exports/*.csv
 exports/*.xlsx
+exports/*.json
+exports/*.html
+*.sqlite
+*.sqlite3
+*.log
 .DS_Store
 Thumbs.db

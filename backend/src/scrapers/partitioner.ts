@@ -30,6 +30,52 @@ export class GeographicPartitioner {
       'Al Sulaimaniyah',
       'King Fahd District',
       'Al Murabba'
+    ],
+    jeddah: [
+      'Al Balad',
+      'Al Hamra',
+      'Al Rawdah',
+      'Al Salamah',
+      'Al Zahra'
+    ],
+    doha: [
+      'West Bay',
+      'The Pearl',
+      'Al Sadd',
+      'Lusail',
+      'Old Airport'
+    ],
+    london: [
+      'Westminster',
+      'Camden',
+      'City of London',
+      'Kensington',
+      'Canary Wharf',
+      'Islington',
+      'Chelsea',
+      'Soho'
+    ],
+    new_york: [
+      'Midtown Manhattan',
+      'Downtown Manhattan',
+      'Brooklyn',
+      'Queens',
+      'Williamsburg',
+      'Financial District'
+    ],
+    toronto: [
+      'Downtown Toronto',
+      'North York',
+      'Scarborough',
+      'Etobicoke',
+      'Yorkville'
+    ],
+    los_angeles: [
+      'Downtown Los Angeles',
+      'Beverly Hills',
+      'Santa Monica',
+      'Hollywood',
+      'Pasadena'
     ]
   };
 
@@ -38,10 +84,26 @@ export class GeographicPartitioner {
     for (const [cityKey, subAreas] of Object.entries(this.PRESET_PARTITIONS)) {
       const cityName = cityKey.replace('_', ' ');
       if (lower.includes(cityName)) {
-        const baseQuery = targetQuery.replace(new RegExp(cityName, 'gi'), '').trim();
+        const baseQuery = targetQuery.replace(new RegExp(cityName, 'gi'), '').replace(/\bin\b/gi, '').trim();
         return subAreas.map(area => `${baseQuery} in ${area}, ${cityName}`.trim());
       }
     }
+
+    const inMatch = targetQuery.match(/\bin\s+([a-zA-Z\s]+)$/i);
+    if (inMatch && inMatch[1]) {
+      const city = inMatch[1].trim();
+      const base = targetQuery.replace(/\bin\s+([a-zA-Z\s]+)$/i, '').trim();
+      return [
+        `${base} in Downtown ${city}`,
+        `${base} in North ${city}`,
+        `${base} in South ${city}`,
+        `${base} in East ${city}`,
+        `${base} in West ${city}`,
+        `${base} in Central ${city}`,
+        targetQuery
+      ];
+    }
+
     return [targetQuery];
   }
 
