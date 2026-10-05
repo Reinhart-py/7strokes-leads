@@ -2,8 +2,9 @@ import { ScrapedLead } from '../types';
 
 export class GmapsParser {
   private static readonly FTID_REGEX = /0x[0-9a-f]{10,}:0x[0-9a-f]{10,}/i;
-  private static readonly PHONE_REGEX = /(?:\+?\d{1,3}[\s-]?)?(?:\(?\d{2,4}\)?[\s-]?)?\d{3,4}[\s-]?\d{3,4}/;
-  private static readonly EMAIL_REGEX = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/;
+  private static readonly PHONE_REGEX = /(?:\+?\d{1,3}[\s-]?)?(?:\(?\d{2,4}\)?[\s-]?)?\d{3,4}[\s-]?\d{3,4}/g;
+  private static readonly EMAIL_REGEX = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
+  private static readonly PRICE_REGEX = /^\${1,4}$/;
   private static readonly SOCIAL_PLATFORMS: Record<string, string> = {
     'facebook.com': 'facebook',
     'instagram.com': 'instagram',
@@ -67,12 +68,15 @@ export class GmapsParser {
     return records;
   }
 
-  public static extractDeepEmail(raw: string): string | null {
-    const match = raw.match(this.EMAIL_REGEX);
-    return match ? match[0] : null;
+  public static extractEmails(raw: string): string[] {
+    const matches = raw.match(this.EMAIL_REGEX) || [];
+    const unique = Array.from(new Set(matches)).filter(
+      e => !e.endsWith('.png') && !e.endsWith('.jpg') && !e.endsWith('.webp') && !e.includes('google.com')
+    );
+    return unique;
   }
 
-  public static extractDeepSocials(raw: string): { platform: string; url: string }[] {
+  public static extractSocials(raw: string): { platform: string; url: string }[] {
     const socials: { platform: string; url: string }[] = [];
     const urlMatches = raw.match(/https?:\/\/[^\s"'\\]+/g) || [];
     const seen = new Set<string>();
@@ -88,6 +92,26 @@ export class GmapsParser {
       }
     }
     return socials;
+  }
+
+  public static parseOpeningHours(hoursNode: any): string[] {
+    if (!Array.isArray(hoursNode)) return [];
+    const days = this.safeGet(hoursNode, 0);
+    if (!Array.isArray(days)) return [];
+
+    const formatted: string[] = [];
+    for (const d of days) {
+      if (!Array.isArray(d)) continue;
+      const dayName = this.safeGet(d, 0);
+      const hoursArray = this.safeGet(d, 3);
+      if (typeof dayName === 'string' && Array.isArray(hoursArray) && hoursArray.length > 0) {
+        const timeStr = this.safeGet(hoursArray, 0, 0);
+        if (typeof timeStr === 'string') {
+          formatted.push(`${dayName}: ${timeStr}`);
+        }
+      }
+    }
+    return formatted;
   }
 
   public static parseSearchResponse(rawText: string, query: string): ScrapedLead[] {
@@ -128,9 +152,27 @@ export class GmapsParser {
       const primaryCategory = categories[0] || null;
 
       let address: string | null = null;
+      let city: string | null = null;
+      let state: string | null = null;
+      let country: string | null = null;
+      let postalCode: string | null = null;
+
       const addrNode = this.safeGet(record, 2);
       if (Array.isArray(addrNode)) {
-        address = addrNode.filter((a: any) => typeof a === 'string').join(', ');
+        const parts = addrNode.filter((a: any) => typeof a === 'string');
+        address = parts.join(', ');
+        if (parts.length > 1) {
+          country = parts[parts.length - 1];
+        }
+        if (parts.length > 2) {
+          city = parts[parts.length - 2];
+        }
+      }
+
+      let plusCode: string | null = null;
+      const pcNode = this.safeGet(record, 2, 2);
+      if (typeof pcNode === 'string' && pcNode.length > 0) {
+        plusCode = pcNode;
       }
 
       let rating: string | null = null;
@@ -164,42 +206,101 @@ export class GmapsParser {
         lon = typeof coordNode[3] === 'number' ? coordNode[3] : null;
       }
 
-      let phone: string | null = null;
+      let phone1: string | null = null;
+      let phone2: string | null = null;
       const phoneNode = this.safeGet(record, 178);
       if (Array.isArray(phoneNode)) {
-        const pVal = this.safeGet(phoneNode, 0, 0);
-        if (typeof pVal === 'string' && pVal.length >= 7) {
-          phone = pVal.trim();
+        const p1 = this.safeGet(phoneNode, 0, 0);
+        if (typeof p1 === 'string' && p1.length >= 7) {
+          phone1 = p1.trim();
+        }
+        const p2 = this.safeGet(phoneNode, 0, 1);
+        if (typeof p2 === 'string' && p2.length >= 7 && !p2.toLowerCase().includes('fax')) {
+          phone2 = p2.trim();
         }
       }
 
       const recordJson = JSON.stringify(record);
-      if (!phone) {
-        const match = recordJson.match(this.PHONE_REGEX);
-        if (match && match[0].replace(/\D/g, '').length >= 7) {
-          phone = match[0].trim();
-        }
+
+      if (!phone1) {
+        const allPhones = recordJson.match(this.PHONE_REGEX) || [];
+        const validPhones = allPhones.filter(p => p.replace(/\D/g, '').length >= 7);
+        if (validPhones[0]) phone1 = validPhones[0].trim();
+        if (validPhones[1]) phone2 = validPhones[1].trim();
       }
 
-      const email = this.extractDeepEmail(recordJson);
-      const socials = this.extractDeepSocials(recordJson);
+      const emails = this.extractEmails(recordJson);
+      const socials = this.extractSocials(recordJson);
+
+      let status: string | null = null;
+      const statusNode = this.safeGet(record, 34, 4, 4) || this.safeGet(record, 34);
+      if (typeof statusNode === 'string') {
+        status = statusNode;
+      }
+
+      let priceLevel: string | null = null;
+      const priceNode = this.safeGet(record, 4, 2);
+      if (typeof priceNode === 'string' && this.PRICE_REGEX.test(priceNode)) {
+        priceLevel = priceNode;
+      }
+
+      let timezone: string | null = null;
+      const tzNode = this.safeGet(record, 30);
+      if (typeof tzNode === 'string') {
+        timezone = tzNode;
+      }
+
+      const openingHours = this.parseOpeningHours(this.safeGet(record, 203));
+
+      let aboutList: any[] = [];
+      const aboutNode = this.safeGet(record, 100);
+      if (Array.isArray(aboutNode)) {
+        const groups = this.safeGet(aboutNode, 1) || aboutNode;
+        if (Array.isArray(groups)) {
+          for (const g of groups) {
+            if (Array.isArray(g) && typeof g[1] === 'string' && Array.isArray(g[2])) {
+              const attrs = g[2].map((attr: any) => this.safeGet(attr, 1)).filter(Boolean);
+              if (attrs.length > 0) {
+                aboutList.push({ category: g[1], items: attrs });
+              }
+            }
+          }
+        }
+      }
 
       leads.push({
         query,
         place_id: placeId || null,
         title,
         category: primaryCategory,
-        categories,
-        phone_1: phone || null,
-        phone_2: null,
+        categories: categories.length > 0 ? categories : undefined,
+        phone_1: phone1 || null,
+        phone_2: phone2 || null,
+        email: emails[0] || null,
         website: website || null,
         address: address || null,
+        city: city || null,
+        state: state || null,
+        country: country || null,
+        postal_code: postalCode || null,
         rating,
         reviews,
+        price_level: priceLevel || null,
+        status: status || null,
         latitude: lat,
         longitude: lon,
-        email: email || null,
-        social_links: socials.length > 0 ? socials : undefined
+        plus_code: plusCode || null,
+        timezone: timezone || null,
+        opening_hours: openingHours.length > 0 ? openingHours : undefined,
+        social_links: socials.length > 0 ? socials : undefined,
+        about: aboutList.length > 0 ? aboutList : undefined,
+        extra_data: {
+          emails,
+          all_categories: categories,
+          opening_hours: openingHours,
+          social_links: socials,
+          about: aboutList
+        }
       });
     }
 

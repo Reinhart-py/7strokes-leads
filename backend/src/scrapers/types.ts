@@ -6,15 +6,25 @@ export interface ScrapedLead {
   categories?: string[];
   phone_1?: string | null;
   phone_2?: string | null;
+  email?: string | null;
   website?: string | null;
   address?: string | null;
+  city?: string | null;
+  state?: string | null;
+  country?: string | null;
+  postal_code?: string | null;
   rating?: string | null;
   reviews?: string | null;
+  price_level?: string | null;
+  status?: string | null;
   latitude?: number | null;
   longitude?: number | null;
-  email?: string | null;
-  social_links?: { platform: string; url: string }[];
+  plus_code?: string | null;
+  timezone?: string | null;
   opening_hours?: string[];
+  social_links?: { platform: string; url: string }[];
+  about?: any[];
+  extra_data?: Record<string, any>;
 }
 
 export interface GridBoundingBox {

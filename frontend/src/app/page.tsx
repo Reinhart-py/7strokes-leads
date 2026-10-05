@@ -2,6 +2,31 @@
 
 import { useState, useEffect } from "react";
 
+const AVAILABLE_COLUMNS: { key: string; label: string }[] = [
+  { key: "title", label: "Business Name" },
+  { key: "category", label: "Category" },
+  { key: "categories", label: "All Categories" },
+  { key: "phone_1", label: "Primary Phone" },
+  { key: "phone_2", label: "Secondary Phone" },
+  { key: "email", label: "Email Address" },
+  { key: "website", label: "Website" },
+  { key: "address", label: "Address" },
+  { key: "city", label: "City" },
+  { key: "state", label: "State" },
+  { key: "country", label: "Country" },
+  { key: "postal_code", label: "Postal Code" },
+  { key: "rating", label: "Rating" },
+  { key: "reviews", label: "Reviews Count" },
+  { key: "price_level", label: "Price Level" },
+  { key: "status", label: "Operational Status" },
+  { key: "latitude", label: "Latitude" },
+  { key: "longitude", label: "Longitude" },
+  { key: "plus_code", label: "Plus Code" },
+  { key: "timezone", label: "Timezone" },
+  { key: "opening_hours", label: "Opening Hours" },
+  { key: "place_id", label: "Place ID" }
+];
+
 export default function Home() {
   const [token, setToken] = useState("");
   const [user, setUser] = useState<{ name: string; email: string } | null>(null);
@@ -16,6 +41,13 @@ export default function Home() {
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
   const [jobResults, setJobResults] = useState<any[]>([]);
   const [loadingResults, setLoadingResults] = useState(false);
+  const [filterQuery, setFilterQuery] = useState("");
+
+  const [exportModalJobId, setExportModalJobId] = useState<string | null>(null);
+  const [selectedColumns, setSelectedColumns] = useState<string[]>(
+    AVAILABLE_COLUMNS.map(c => c.key)
+  );
+  const [exportFormat, setExportFormat] = useState<"csv" | "xlsx" | "json" | "html">("csv");
 
   useEffect(() => {
     const savedToken = localStorage.getItem("token");
@@ -71,7 +103,7 @@ export default function Home() {
     setSelectedJobId(jobId);
     if (showLoading) setLoadingResults(true);
     try {
-      const res = await fetch(`http://localhost:4000/api/jobs/${jobId}/results?limit=200`, {
+      const res = await fetch(`http://localhost:4000/api/jobs/${jobId}/results?limit=300`, {
         headers: { Authorization: `Bearer ${t}` },
       });
       if (res.ok) {
@@ -129,22 +161,45 @@ export default function Home() {
     }
   };
 
-  const downloadExport = async (jobId: string, format: 'csv' | 'xlsx') => {
+  const triggerExport = async () => {
+    if (!exportModalJobId) return;
+    const colsParam = selectedColumns.join(',');
+    const url = `http://localhost:4000/api/jobs/${exportModalJobId}/export/${exportFormat}?columns=${encodeURIComponent(colsParam)}`;
+    
     try {
-      const res = await fetch(`http://localhost:4000/api/jobs/${jobId}/export/${format}`, {
+      const res = await fetch(url, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (!res.ok) return;
       const blob = await res.blob();
-      const url = window.URL.createObjectURL(blob);
+      const blobUrl = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
-      a.href = url;
-      a.download = `leads_${jobId}.${format}`;
+      a.href = blobUrl;
+      a.download = `leads_${exportModalJobId}.${exportFormat}`;
       document.body.appendChild(a);
       a.click();
       a.remove();
-      window.URL.revokeObjectURL(url);
+      window.URL.revokeObjectURL(blobUrl);
+      setExportModalJobId(null);
     } catch {}
+  };
+
+  const toggleColumn = (key: string) => {
+    if (selectedColumns.includes(key)) {
+      if (selectedColumns.length > 1) {
+        setSelectedColumns(selectedColumns.filter(c => c !== key));
+      }
+    } else {
+      setSelectedColumns([...selectedColumns, key]);
+    }
+  };
+
+  const selectAllColumns = () => {
+    setSelectedColumns(AVAILABLE_COLUMNS.map(c => c.key));
+  };
+
+  const deselectAllColumns = () => {
+    setSelectedColumns(["title"]);
   };
 
   const deleteJob = async (jobId: string) => {
@@ -160,6 +215,18 @@ export default function Home() {
       fetchJobs(token);
     } catch {}
   };
+
+  const filteredResults = jobResults.filter(r => {
+    if (!filterQuery) return true;
+    const q = filterQuery.toLowerCase();
+    return (
+      (r.title && r.title.toLowerCase().includes(q)) ||
+      (r.phone_1 && r.phone_1.toLowerCase().includes(q)) ||
+      (r.email && r.email.toLowerCase().includes(q)) ||
+      (r.category && r.category.toLowerCase().includes(q)) ||
+      (r.address && r.address.toLowerCase().includes(q))
+    );
+  });
 
   if (!token || !user) {
     return (
@@ -230,7 +297,7 @@ export default function Home() {
             <div className="space-y-6">
               <div>
                 <h1 className="text-2xl font-black text-gray-900 tracking-tight">Dashboard Overview</h1>
-                <p className="text-xs text-gray-500 mt-1">High-performance HTTP extraction pipeline</p>
+                <p className="text-xs text-gray-500 mt-1">Full-spectrum direct HTTP scraping engine</p>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
                 <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
@@ -242,8 +309,8 @@ export default function Home() {
                   <div className="text-3xl font-black text-gray-900 mt-2">{jobs.reduce((acc, curr) => acc + (curr.total_saved || 0), 0)}</div>
                 </div>
                 <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-                  <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Primary Engine</div>
-                  <div className="text-xl font-black text-emerald-600 mt-2">Direct HTTP First</div>
+                  <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Extraction Detail</div>
+                  <div className="text-xl font-black text-emerald-600 mt-2">All Details Included</div>
                 </div>
               </div>
 
@@ -252,7 +319,7 @@ export default function Home() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <button onClick={() => setActiveTab('gmaps')} className="p-4 rounded-xl border border-emerald-100 bg-emerald-50/50 hover:bg-emerald-50 text-left transition">
                     <div className="text-sm font-bold text-emerald-950">Google Maps HTTP Engine</div>
-                    <div className="text-xs text-gray-500 mt-1">High speed payload parser with auto grid partitioning</div>
+                    <div className="text-xs text-gray-500 mt-1">Deep extraction: emails, phones, categories, ratings, opening hours</div>
                   </button>
                   <button onClick={() => setActiveTab('2gis')} className="p-4 rounded-xl border border-blue-100 bg-blue-50/50 hover:bg-blue-50 text-left transition">
                     <div className="text-sm font-bold text-blue-950">2GIS Direct Catalog API</div>
@@ -267,7 +334,7 @@ export default function Home() {
             <div className="space-y-6">
               <div>
                 <h1 className="text-2xl font-black text-gray-900 tracking-tight">Google Maps Search</h1>
-                <p className="text-xs text-gray-500 mt-1">Direct Protobuf HTTP extraction with automatic city grid partitioning</p>
+                <p className="text-xs text-gray-500 mt-1">Extracts phone, email, website, categories, rating, reviews, coordinates, plus code & hours</p>
               </div>
               <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 space-y-4 max-w-2xl">
                 <div>
@@ -325,7 +392,7 @@ export default function Home() {
               <div className="flex justify-between items-center">
                 <div>
                   <h1 className="text-2xl font-black text-gray-900 tracking-tight">Job History & Leads</h1>
-                  <p className="text-xs text-gray-500 mt-1">Live queue execution and exports</p>
+                  <p className="text-xs text-gray-500 mt-1">Inspect leads and export with custom column filtering</p>
                 </div>
                 <button onClick={() => fetchJobs(token)} className="text-xs font-bold px-3 py-2 bg-white rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50">
                   Refresh
@@ -350,11 +417,8 @@ export default function Home() {
                       <button onClick={() => fetchJobResults(job.id)} className="px-3 py-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 rounded-lg hover:bg-emerald-100 transition">
                         View Leads
                       </button>
-                      <button onClick={() => downloadExport(job.id, 'csv')} className="px-3 py-1.5 text-xs font-bold text-blue-700 bg-blue-50 rounded-lg hover:bg-blue-100 transition">
-                        CSV
-                      </button>
-                      <button onClick={() => downloadExport(job.id, 'xlsx')} className="px-3 py-1.5 text-xs font-bold text-purple-700 bg-purple-50 rounded-lg hover:bg-purple-100 transition">
-                        Excel
+                      <button onClick={() => setExportModalJobId(job.id)} className="px-3 py-1.5 text-xs font-bold text-indigo-700 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition flex items-center gap-1.5">
+                        Export & Filter
                       </button>
                       {job.status === 'running' && (
                         <button onClick={async () => {
@@ -379,39 +443,60 @@ export default function Home() {
 
               {selectedJobId && (
                 <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 mt-6">
-                  <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-sm font-bold text-gray-900">Extracted Results ({jobResults.length} leads loaded)</h3>
-                    <button onClick={() => setSelectedJobId(null)} className="text-xs text-gray-400 hover:text-gray-700">Close</button>
+                  <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3 mb-4">
+                    <div>
+                      <h3 className="text-sm font-bold text-gray-900">Extracted Results ({filteredResults.length} of {jobResults.length} leads)</h3>
+                      <p className="text-[11px] text-gray-400">Click Export & Filter to download selected columns in CSV, Excel, JSON or HTML</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <input 
+                        type="text" 
+                        placeholder="Search loaded leads..." 
+                        value={filterQuery} 
+                        onChange={(e) => setFilterQuery(e.target.value)} 
+                        className="px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-xs outline-none focus:border-emerald-600 w-48"
+                      />
+                      <button onClick={() => setExportModalJobId(selectedJobId)} className="px-3 py-1.5 text-xs font-bold text-indigo-700 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition">
+                        Export
+                      </button>
+                      <button onClick={() => setSelectedJobId(null)} className="text-xs text-gray-400 hover:text-gray-700 px-2 py-1">
+                        Close
+                      </button>
+                    </div>
                   </div>
 
                   {loadingResults ? (
                     <div className="py-8 text-center text-xs text-gray-500">Loading leads...</div>
-                  ) : jobResults.length === 0 ? (
-                    <div className="py-8 text-center text-xs text-gray-400">No leads extracted yet for this job.</div>
+                  ) : filteredResults.length === 0 ? (
+                    <div className="py-8 text-center text-xs text-gray-400">No leads found matching your search.</div>
                   ) : (
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-left text-xs">
-                        <thead>
+                    <div className="overflow-x-auto max-h-[500px]">
+                      <table className="w-full text-left text-xs whitespace-nowrap">
+                        <thead className="sticky top-0 bg-white">
                           <tr className="border-b border-gray-100 text-gray-400 font-semibold uppercase">
                             <th className="py-2.5 px-3">Title</th>
+                            <th className="py-2.5 px-3">Category</th>
                             <th className="py-2.5 px-3">Phone</th>
                             <th className="py-2.5 px-3">Email</th>
                             <th className="py-2.5 px-3">Website</th>
                             <th className="py-2.5 px-3">Address</th>
                             <th className="py-2.5 px-3">Rating</th>
+                            <th className="py-2.5 px-3">Status</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-50">
-                          {jobResults.map((r, i) => (
+                          {filteredResults.map((r, i) => (
                             <tr key={i} className="hover:bg-gray-50/50">
                               <td className="py-2 px-3 font-semibold text-gray-900">{r.title}</td>
-                              <td className="py-2 px-3 text-gray-600">{r.phone_1 || '-'}</td>
-                              <td className="py-2 px-3 text-gray-600">{r.email || '-'}</td>
-                              <td className="py-2 px-3 text-blue-600 truncate max-w-[150px]">
+                              <td className="py-2 px-3 text-emerald-700 font-medium">{r.category || r.categories || '-'}</td>
+                              <td className="py-2 px-3 text-gray-700">{r.phone_1 || '-'}</td>
+                              <td className="py-2 px-3 text-gray-700">{r.email || '-'}</td>
+                              <td className="py-2 px-3 text-blue-600 truncate max-w-[140px]">
                                 {r.website ? <a href={r.website} target="_blank" rel="noreferrer" className="hover:underline">{r.website}</a> : '-'}
                               </td>
-                              <td className="py-2 px-3 text-gray-500 truncate max-w-[200px]">{r.address || '-'}</td>
-                              <td className="py-2 px-3 text-amber-600 font-medium">{r.rating ? `★ ${r.rating}` : '-'}</td>
+                              <td className="py-2 px-3 text-gray-500 truncate max-w-[180px]">{r.address || '-'}</td>
+                              <td className="py-2 px-3 text-amber-600 font-medium">{r.rating ? `★ ${r.rating} (${r.reviews || 0})` : '-'}</td>
+                              <td className="py-2 px-3 text-gray-500 text-[10px]">{r.status || '-'}</td>
                             </tr>
                           ))}
                         </tbody>
@@ -424,6 +509,74 @@ export default function Home() {
           )}
         </section>
       </main>
+
+      {exportModalJobId && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-lg w-full shadow-2xl border border-gray-100 space-y-5">
+            <div className="flex justify-between items-center">
+              <div>
+                <h3 className="text-lg font-black text-gray-900 tracking-tight">Export & Filter Columns</h3>
+                <p className="text-xs text-gray-500 mt-0.5">Select which columns to include in your export</p>
+              </div>
+              <button onClick={() => setExportModalJobId(null)} className="text-gray-400 hover:text-gray-700 text-sm font-bold">✕</button>
+            </div>
+
+            <div>
+              <label className="text-xs font-bold text-gray-700 block mb-2">Export Format</label>
+              <div className="grid grid-cols-4 gap-2">
+                {(["csv", "xlsx", "json", "html"] as const).map(fmt => (
+                  <button 
+                    key={fmt} 
+                    onClick={() => setExportFormat(fmt)}
+                    className={`py-2 rounded-xl text-xs font-extrabold uppercase border transition ${exportFormat === fmt ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm' : 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100'}`}
+                  >
+                    {fmt}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <div className="flex justify-between items-center mb-2">
+                <label className="text-xs font-bold text-gray-700">Columns to Include ({selectedColumns.length} selected)</label>
+                <div className="space-x-2 text-[11px]">
+                  <button onClick={selectAllColumns} className="text-indigo-600 hover:underline font-bold">Select All</button>
+                  <span className="text-gray-300">|</span>
+                  <button onClick={deselectAllColumns} className="text-gray-500 hover:underline">Reset</button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 max-h-56 overflow-y-auto p-2 bg-gray-50 rounded-2xl border border-gray-200 text-xs">
+                {AVAILABLE_COLUMNS.map(col => {
+                  const isChecked = selectedColumns.includes(col.key);
+                  return (
+                    <label key={col.key} className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-white cursor-pointer select-none">
+                      <input 
+                        type="checkbox" 
+                        checked={isChecked} 
+                        onChange={() => toggleColumn(col.key)} 
+                        className="rounded text-indigo-600 focus:ring-0"
+                      />
+                      <span className={`text-[11px] ${isChecked ? 'text-gray-900 font-semibold' : 'text-gray-400'}`}>
+                        {col.label}
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2">
+              <button onClick={() => setExportModalJobId(null)} className="px-4 py-2.5 text-xs font-bold text-gray-500 hover:text-gray-800">
+                Cancel
+              </button>
+              <button onClick={triggerExport} className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black rounded-xl shadow-md transition">
+                Download {exportFormat.toUpperCase()}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -8,6 +8,54 @@ const router = Router();
 
 router.use(authMiddleware);
 
+const COLUMN_DEFINITIONS: Record<string, string> = {
+  title: 'Business Name',
+  category: 'Category',
+  categories: 'All Categories',
+  phone_1: 'Phone 1',
+  phone_2: 'Phone 2',
+  email: 'Email',
+  website: 'Website',
+  address: 'Address',
+  city: 'City',
+  state: 'State',
+  country: 'Country',
+  postal_code: 'Postal Code',
+  rating: 'Rating',
+  reviews: 'Reviews Count',
+  price_level: 'Price Level',
+  status: 'Operational Status',
+  latitude: 'Latitude',
+  longitude: 'Longitude',
+  plus_code: 'Plus Code',
+  timezone: 'Timezone',
+  opening_hours: 'Opening Hours',
+  place_id: 'Place ID',
+  query: 'Search Query'
+};
+
+function getFilteredRows(rawRows: any[], requestedColumns?: string): { headers: string[]; keys: string[]; data: any[] } {
+  let activeKeys = Object.keys(COLUMN_DEFINITIONS);
+  if (requestedColumns && typeof requestedColumns === 'string') {
+    const selected = requestedColumns.split(',').map(s => s.trim().toLowerCase());
+    const valid = activeKeys.filter(k => selected.includes(k));
+    if (valid.length > 0) {
+      activeKeys = valid;
+    }
+  }
+
+  const headers = activeKeys.map(k => COLUMN_DEFINITIONS[k]);
+  const data = rawRows.map(row => {
+    const obj: Record<string, any> = {};
+    for (const key of activeKeys) {
+      obj[COLUMN_DEFINITIONS[key]] = row[key] !== null && row[key] !== undefined ? String(row[key]) : '';
+    }
+    return obj;
+  });
+
+  return { headers, keys: activeKeys, data };
+}
+
 router.post('/', async (req: AuthRequest, res) => {
   try {
     const { engine, target, cap } = req.body;
@@ -40,6 +88,10 @@ router.get('/', async (req: AuthRequest, res) => {
   }
 });
 
+router.get('/columns', async (_req, res) => {
+  res.json(COLUMN_DEFINITIONS);
+});
+
 router.get('/:id', async (req: AuthRequest, res) => {
   try {
     const result = await query(
@@ -61,7 +113,7 @@ router.get('/:id/results', async (req: AuthRequest, res) => {
     );
     if (jobCheck.rowCount === 0) return res.status(404).json({ error: 'Job not found' });
 
-    const limit = parseInt(req.query.limit as string) || 100;
+    const limit = parseInt(req.query.limit as string) || 200;
     const offset = parseInt(req.query.offset as string) || 0;
 
     const result = await query(
@@ -109,25 +161,21 @@ router.get('/:id/export/csv', async (req: AuthRequest, res) => {
     if (jobCheck.rowCount === 0) return res.status(404).json({ error: 'Job not found' });
 
     const results = await query(
-      'SELECT title, phone_1, phone_2, email, website, address, category, rating, reviews, query FROM results WHERE job_id = $1 ORDER BY created_at ASC',
+      'SELECT * FROM results WHERE job_id = $1 ORDER BY created_at ASC',
       [req.params.id]
     );
 
-    const headers = ['Business Name', 'Phone 1', 'Phone 2', 'Email', 'Website', 'Address', 'Category', 'Rating', 'Reviews', 'Query'];
-    const rows = results.rows.map(r => [
-      `"${(r.title || '').replace(/"/g, '""')}"`,
-      `"${(r.phone_1 || '').replace(/"/g, '""')}"`,
-      `"${(r.phone_2 || '').replace(/"/g, '""')}"`,
-      `"${(r.email || '').replace(/"/g, '""')}"`,
-      `"${(r.website || '').replace(/"/g, '""')}"`,
-      `"${(r.address || '').replace(/"/g, '""')}"`,
-      `"${(r.category || '').replace(/"/g, '""')}"`,
-      `"${(r.rating || '').replace(/"/g, '""')}"`,
-      `"${(r.reviews || '').replace(/"/g, '""')}"`,
-      `"${(r.query || '').replace(/"/g, '""')}"`
-    ].join(','));
+    const { headers, keys } = getFilteredRows(results.rows, req.query.columns as string);
 
-    const csvContent = [headers.join(','), ...rows].join('\n');
+    const csvRows = results.rows.map(row => {
+      return keys.map(k => {
+        const val = row[k] !== null && row[k] !== undefined ? String(row[k]) : '';
+        return `"${val.replace(/"/g, '""')}"`;
+      }).join(',');
+    });
+
+    const csvContent = [headers.map(h => `"${h}"`).join(','), ...csvRows].join('\n');
+
     res.setHeader('Content-Type', 'text/csv');
     res.setHeader('Content-Disposition', `attachment; filename="leads_${req.params.id}.csv"`);
     res.status(200).send(csvContent);
@@ -145,11 +193,13 @@ router.get('/:id/export/xlsx', async (req: AuthRequest, res) => {
     if (jobCheck.rowCount === 0) return res.status(404).json({ error: 'Job not found' });
 
     const results = await query(
-      'SELECT title as "Business Name", phone_1 as "Phone 1", phone_2 as "Phone 2", email as "Email", website as "Website", address as "Address", category as "Category", rating as "Rating", reviews as "Reviews", query as "Query" FROM results WHERE job_id = $1 ORDER BY created_at ASC',
+      'SELECT * FROM results WHERE job_id = $1 ORDER BY created_at ASC',
       [req.params.id]
     );
 
-    const worksheet = XLSX.utils.json_to_sheet(results.rows);
+    const { data } = getFilteredRows(results.rows, req.query.columns as string);
+
+    const worksheet = XLSX.utils.json_to_sheet(data);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Leads');
     const buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
@@ -157,6 +207,95 @@ router.get('/:id/export/xlsx', async (req: AuthRequest, res) => {
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Disposition', `attachment; filename="leads_${req.params.id}.xlsx"`);
     res.status(200).send(buffer);
+  } catch (err) {
+    res.status(500).json({ error: 'Export failed' });
+  }
+});
+
+router.get('/:id/export/json', async (req: AuthRequest, res) => {
+  try {
+    const jobCheck = await query(
+      'SELECT id, target, engine FROM jobs WHERE id = $1 AND user_id = $2',
+      [req.params.id, req.user?.id]
+    );
+    if (jobCheck.rowCount === 0) return res.status(404).json({ error: 'Job not found' });
+
+    const results = await query(
+      'SELECT * FROM results WHERE job_id = $1 ORDER BY created_at ASC',
+      [req.params.id]
+    );
+
+    const { data } = getFilteredRows(results.rows, req.query.columns as string);
+
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Content-Disposition', `attachment; filename="leads_${req.params.id}.json"`);
+    res.status(200).send(JSON.stringify(data, null, 2));
+  } catch (err) {
+    res.status(500).json({ error: 'Export failed' });
+  }
+});
+
+router.get('/:id/export/html', async (req: AuthRequest, res) => {
+  try {
+    const jobCheck = await query(
+      'SELECT id, target, engine FROM jobs WHERE id = $1 AND user_id = $2',
+      [req.params.id, req.user?.id]
+    );
+    if (jobCheck.rowCount === 0) return res.status(404).json({ error: 'Job not found' });
+
+    const job = jobCheck.rows[0];
+    const results = await query(
+      'SELECT * FROM results WHERE job_id = $1 ORDER BY created_at ASC',
+      [req.params.id]
+    );
+
+    const { headers, keys } = getFilteredRows(results.rows, req.query.columns as string);
+
+    const htmlContent = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Leads Export - ${job.target}</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0b1311; color: #e2e8f0; margin: 0; padding: 24px; }
+    h1 { font-size: 20px; color: #10b981; margin-bottom: 4px; }
+    p { font-size: 12px; color: #94a3b8; margin-top: 0; margin-bottom: 20px; }
+    .table-container { overflow-x: auto; background: #131c19; border-radius: 12px; border: 1px solid #1e293b; }
+    table { width: 100%; border-collapse: collapse; font-size: 11px; text-align: left; }
+    th { background: #192420; color: #10b981; padding: 10px 12px; font-weight: 700; text-transform: uppercase; border-bottom: 1px solid #1e293b; white-space: nowrap; }
+    td { padding: 8px 12px; border-bottom: 1px solid #1a2522; color: #cbd5e1; white-space: nowrap; }
+    tr:hover { background: #18221f; }
+    a { color: #38bdf8; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <h1>DashMin Leads Report: ${job.target}</h1>
+  <p>Engine: ${job.engine.toUpperCase()} | Total Records: ${results.rows.length} | Export Date: ${new Date().toISOString()}</p>
+  <div class="table-container">
+    <table>
+      <thead>
+        <tr>
+          ${headers.map(h => `<th>${h}</th>`).join('')}
+        </tr>
+      </thead>
+      <tbody>
+        ${results.rows.map(row => `<tr>${keys.map(k => {
+          const val = row[k] !== null && row[k] !== undefined ? String(row[k]) : '-';
+          if (k === 'website' && val !== '-') {
+            return `<td><a href="${val}" target="_blank">${val}</a></td>`;
+          }
+          return `<td>${val}</td>`;
+        }).join('')}</tr>`).join('\n')}
+      </tbody>
+    </table>
+  </div>
+</body>
+</html>`;
+
+    res.setHeader('Content-Type', 'text/html');
+    res.setHeader('Content-Disposition', `attachment; filename="leads_${req.params.id}.html"`);
+    res.status(200).send(htmlContent);
   } catch (err) {
     res.status(500).json({ error: 'Export failed' });
   }

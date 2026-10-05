@@ -32,24 +32,54 @@ const worker = new Worker(
       };
 
       const saveLead = async (data: ScrapedLead) => {
+        const categoriesStr = data.categories ? data.categories.join(', ') : (data.category || null);
+        const openingHoursStr = data.opening_hours ? data.opening_hours.join(' | ') : null;
+        const socialLinksJson = data.social_links ? JSON.stringify(data.social_links) : null;
+        const extraDataJson = data.extra_data ? JSON.stringify(data.extra_data) : null;
+
         await query(
-          `INSERT INTO results (job_id, query, place_id, title, category, phone_1, phone_2, email, website, address, rating, reviews, latitude, longitude) 
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
+          `INSERT INTO results (
+            job_id, query, place_id, title, category, categories,
+            phone_1, phone_2, email, website, address,
+            city, state, country, postal_code,
+            rating, reviews, price_level, status,
+            latitude, longitude, plus_code, timezone,
+            opening_hours, social_links, extra_data
+          ) VALUES (
+            $1, $2, $3, $4, $5, $6,
+            $7, $8, $9, $10, $11,
+            $12, $13, $14, $15,
+            $16, $17, $18, $19,
+            $20, $21, $22, $23,
+            $24, $25, $26
+          )`,
           [
             jobId,
             data.query,
             data.place_id || null,
             data.title,
             data.category || null,
+            categoriesStr,
             data.phone_1 || null,
             data.phone_2 || null,
             data.email || null,
             data.website || null,
             data.address || null,
+            data.city || null,
+            data.state || null,
+            data.country || null,
+            data.postal_code || null,
             data.rating || null,
             data.reviews || null,
+            data.price_level || null,
+            data.status || null,
             data.latitude ? data.latitude.toString() : null,
-            data.longitude ? data.longitude.toString() : null
+            data.longitude ? data.longitude.toString() : null,
+            data.plus_code || null,
+            data.timezone || null,
+            openingHoursStr,
+            socialLinksJson,
+            extraDataJson
           ]
         );
       };
