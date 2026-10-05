@@ -6,7 +6,7 @@ CREATE TABLE IF NOT EXISTS users (
     password_hash VARCHAR(255) NOT NULL,
     name VARCHAR(255),
     role VARCHAR(50) DEFAULT 'user',
-    status VARCHAR(50) DEFAULT 'active',
+    status VARCHAR(50) DEFAULT 'pending',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     expires_at TIMESTAMP WITH TIME ZONE
 );
@@ -57,3 +57,4 @@ CREATE TABLE IF NOT EXISTS results (
 
 CREATE INDEX IF NOT EXISTS idx_jobs_user_id ON jobs(user_id);
 CREATE INDEX IF NOT EXISTS idx_results_job_id ON results(job_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_results_job_place ON results(job_id, place_id) WHERE place_id IS NOT NULL;

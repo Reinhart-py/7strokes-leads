@@ -21,12 +21,13 @@
   - [Method 2: Manual Setup (Local Dev)](#method-2-manual-setup-local-dev)
 - [Dependencies & Prerequisites](#dependencies--prerequisites)
 - [Usage](#usage)
+  - [User Registration & Admin Approval](#user-registration--admin-approval)
   - [Starting a Google Maps Job](#starting-a-google-maps-job)
   - [Starting a 2GIS Job](#starting-a-2gis-job)
   - [Viewing Leads & Live Search](#viewing-leads--live-search)
   - [Exporting with Column Filters (CSV, XLSX, JSON, HTML)](#exporting-with-column-filters-csv-xlsx-json-html)
 - [What can I extract?](#what-can-i-extract)
-- [Configuration](#configuration)
+- [Configuration & Proxy Setup](#configuration--proxy-setup)
 - [How the Provider Engine Works](#how-the-provider-engine-works)
 - [Want to Contribute?](#want-to-contribute)
 
@@ -39,10 +40,12 @@ I wanted a lead generation tool that allows you to:
 - Extract leads **without starting heavy Chromium browser instances** on every query.
 - Bypass Google Maps' ~120 results ceiling using **mathematical geographic grid cells**.
 - Extract **all details without skipping anything**: phones, emails, websites, all categories, ratings, reviews, addresses, price tiers, operating status, weekly opening hours, plus codes, timezones, and social media links.
+- Avoid IP bans with **built-in rotating residential/datacenter proxy support**.
+- Prevent database bloat and duplicate inserts using **unique composite constraints**.
 - Choose **which columns to keep and which to exclude** before downloading.
-- Export leads in multiple formats: **CSV, Excel (.xlsx), JSON, and standalone HTML reports**.
+- Export leads in multiple formats: **CSV, Excel (.xlsx), JSON, and sanitized standalone HTML reports**.
+- Control user access with an **account registration and admin approval workflow**.
 - Run resilient scraping with a **multi-tiered provider hierarchy** (Direct HTTP &rarr; External API &rarr; Playwright browser fallback).
-- Manage jobs through a **modern web SaaS dashboard** instead of a desktop application.
 
 `DashMin` checks all of those boxes.
 
@@ -72,9 +75,9 @@ DashMin/
 │   ├── src/
 │   │   ├── scrapers/
 │   │   │   ├── http/
-│   │   │   │   ├── gmapsHttpProvider.ts      # Fast direct Google Maps HTTP search
+│   │   │   │   ├── gmapsHttpProvider.ts      # Fast direct Google Maps HTTP search with proxy agent
 │   │   │   │   ├── gmapsParser.ts            # Signature-based defensive payload parser (all fields)
-│   │   │   │   └── twoGisHttpProvider.ts     # Direct 2GIS Catalog API 3.0 scraper
+│   │   │   │   └── twoGisHttpProvider.ts     # Direct 2GIS Catalog API 3.0 scraper with proxy support
 │   │   │   ├── grid/
 │   │   │   │   └── geoGrid.ts                # Latitude/Longitude bounding box & cell generator
 │   │   │   ├── external/
@@ -86,30 +89,31 @@ DashMin/
 │   │   │   ├── scraperManager.ts             # Provider orchestrator & deduplicator
 │   │   │   └── types.ts                      # Core interfaces & data models
 │   │   ├── workers/
-│   │   │   └── scraperWorker.ts              # BullMQ queue background worker
+│   │   │   └── scraperWorker.ts              # BullMQ queue background worker with ON CONFLICT deduplication
 │   │   ├── routes/
 │   │   │   ├── auth.ts                       # User registration, login & session
-│   │   │   └── jobs.ts                       # Jobs, leads view & multi-format exports with column filters
+│   │   │   ├── admin.ts                      # Admin approval and user access control
+│   │   │   └── jobs.ts                       # Jobs, leads view & multi-format sanitized exports
 │   │   ├── middlewares/
 │   │   │   └── auth.ts                       # JWT Bearer token authentication
 │   │   ├── db.ts                             # PostgreSQL connection pool
 │   │   ├── redis.ts                          # Redis connection client
 │   │   ├── queue.ts                          # BullMQ job dispatch queue
-│   │   └── index.ts                          # Express server entry point
+│   │   └── index.ts                          # Express server with credentials CORS & routes
 │   ├── Dockerfile
 │   ├── package.json
-│   ├── schema.sql                            # Relational database schema with full fields
+│   ├── schema.sql                            # Relational database schema with unique constraints
 │   └── tsconfig.json
 ├── frontend/
 │   ├── src/
 │   │   └── app/
 │   │       ├── globals.css                   # Global styling & Tailwind utilities
 │   │       ├── layout.tsx                    # Root layout component
-│   │       └── page.tsx                      # Web dashboard, leads table, search & export modal
+│   │       └── page.tsx                      # Web dashboard, leads table, search, admin & export modal
 │   ├── Dockerfile
 │   ├── package.json
 │   └── tsconfig.json
-├── docker-compose.yml                        # Full container stack (PostgreSQL, Redis, API, UI)
+├── docker-compose.yml                        # Full container stack (PostgreSQL, Redis, API, Worker, UI)
 ├── .gitignore
 └── README.md
 ```
@@ -120,7 +124,7 @@ DashMin/
 
 #### Method 1: Docker Compose (Recommended)
 
-The easiest way to run the complete stack (Database, Redis, Backend, and Frontend) is with Docker Compose:
+The easiest way to run the complete stack (Database, Redis, API Server, Queue Worker, and Web UI) is with Docker Compose:
 
 ```bash
 git clone https://github.com/Reinhart-py/DashMin.git
@@ -154,8 +158,15 @@ npm install
 npm run dev
 ```
 
-**4. Setup and start the Frontend:**
-Open a new terminal window:
+**4. Start the Background Queue Worker:**
+In a separate terminal window:
+```bash
+cd backend
+npm run worker
+```
+
+**5. Setup and start the Frontend:**
+In another terminal window:
 ```bash
 cd frontend
 npm install
@@ -177,17 +188,20 @@ Visit `http://localhost:3000`.
 
 ### Usage
 
-1. Open `http://localhost:3000` and register/login with any test credentials.
-2. Navigate to **Google Maps** or **2GIS Catalog** in the sidebar.
-3. Enter your target keyword, location, and collection cap (e.g., `Real Estate in Dubai`, Cap: `200`).
-4. Click **Run Scraper Job**.
+#### User Registration & Admin Approval
+1. On `http://localhost:3000`, switch to **Register**.
+2. The **first registered account** automatically receives the `admin` role with immediate active status.
+3. Any subsequent accounts are created with `pending` status and cannot log in until an administrator approves them.
+4. Administrators can navigate to the **Admin / Users** tab to approve, suspend, or remove user accounts.
 
 #### Starting a Google Maps Job
-The system automatically:
-1. Detects city boundaries and generates geographic cells (e.g. 3km x 3km squares).
-2. Sends direct HTTP requests extracting business data directly from Google Maps response payloads.
-3. Paginates up to 120 leads per cell without launching Chromium.
-4. Deduplicates leads across overlapping cells and saves all extracted attributes to PostgreSQL in real-time.
+1. Navigate to **Google Maps** in the sidebar.
+2. Enter your keyword and target location (e.g. `Real Estate in Dubai`, Cap: `200`).
+3. The system automatically:
+   - Detects city boundaries and generates geographic cells (e.g. 3km x 3km squares).
+   - Sends direct HTTP requests extracting business data directly from Google Maps response payloads.
+   - Paginates up to 120 leads per cell without launching Chromium.
+   - Deduplicates leads using `(job_id, place_id)` unique indexing and saves records to PostgreSQL in real-time.
 
 #### Starting a 2GIS Job
 1. Select the **2GIS Catalog** tab.
@@ -205,7 +219,7 @@ The system automatically:
   - **CSV**: RFC-compliant comma-separated values.
   - **Excel (XLSX)**: Formatted Microsoft Excel workbook.
   - **JSON**: Formatted JSON array.
-  - **HTML**: Standalone dark-mode HTML table report with clickable links and summary stats.
+  - **HTML**: Standalone sanitized dark-mode HTML table report with clickable links and summary stats.
 - Check or uncheck individual columns (or click "Select All" / "Reset") to customize exactly which fields appear in your export file.
 - Click **Download** to save your customized dataset.
 
@@ -243,26 +257,33 @@ DashMin extracts and preserves all available data points without skipping detail
 
 ---
 
-### Configuration
+### Configuration & Proxy Setup
 
 Environment variables can be configured in `backend/.env`:
 
 ```env
 PORT=4000
-DATABASE_URL=postgresql://postgres:postgres@localhost:5432/dashmin
+DATABASE_URL=postgresql://postgres:postgrespassword@localhost:5432/dashmin
 REDIS_URL=redis://localhost:6379
 JWT_SECRET=super-secret-jwt-key
+CORS_ORIGIN=http://localhost:3000
+PROXY_URL=http://username:password@rotating.proxyprovider.com:8000
 SERPAPI_API_KEY=your_optional_serpapi_key_here
+```
+
+In `frontend/.env.local`:
+```env
+NEXT_PUBLIC_API_URL=http://localhost:4000
 ```
 
 ---
 
 ### How the Provider Engine Works
 
-1. **Direct HTTP First**: Requests Google Maps internal endpoints directly with custom protobuf parameters (`pb`) controlling viewport, location, and pagination offsets (`!8i${start}`).
+1. **Direct HTTP First with Proxy Dispatch**: Requests Google Maps internal endpoints directly with custom protobuf parameters (`pb`) controlling viewport, location, and pagination offsets (`!8i${start}`), automatically routing through rotating proxy agents when configured.
 2. **Signature-Based Parsing**: Rather than relying on fragile CSS locators or fixed JSON paths, the parser searches for record signatures (`0x...:0x...` feature IDs). If Google moves elements, extraction does not crash.
 3. **Resilient Fallbacks**: If direct HTTP is challenged or blocked, the engine cascades to external APIs (like SerpApi) or launches headless Playwright browser workers to ensure you never lose data.
-4. **Dynamic Column Filtering Engine**: The export layer filters database records on the fly based on your selected column list, generating clean, tailored files in any of the 4 supported formats.
+4. **Dynamic Column Filtering & Sanitized Export**: The export layer filters database records on the fly and sanitizes all cell contents against HTML injection before rendering downloads.
 
 ---
 

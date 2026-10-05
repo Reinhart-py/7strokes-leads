@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from "react";
 
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+
 const AVAILABLE_COLUMNS: { key: string; label: string }[] = [
   { key: "title", label: "Business Name" },
   { key: "category", label: "Category" },
@@ -29,14 +31,18 @@ const AVAILABLE_COLUMNS: { key: string; label: string }[] = [
 
 export default function Home() {
   const [token, setToken] = useState("");
-  const [user, setUser] = useState<{ name: string; email: string } | null>(null);
+  const [user, setUser] = useState<{ id: string; name: string; email: string; role: string } | null>(null);
   
+  const [authMode, setAuthMode] = useState<"login" | "register">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [name, setName] = useState("");
   const [authError, setAuthError] = useState("");
+  const [authSuccess, setAuthSuccess] = useState("");
 
   const [activeTab, setActiveTab] = useState("dashboard");
   const [jobs, setJobs] = useState<any[]>([]);
+  const [adminUsers, setAdminUsers] = useState<any[]>([]);
 
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
   const [jobResults, setJobResults] = useState<any[]>([]);
@@ -67,13 +73,16 @@ export default function Home() {
           fetchJobResults(selectedJobId, token, false);
         }
       }
+      if (activeTab === 'users' && user?.role === 'admin') {
+        fetchAdminUsers(token);
+      }
     }, 3000);
     return () => clearInterval(interval);
-  }, [token, jobs, activeTab, selectedJobId]);
+  }, [token, jobs, activeTab, selectedJobId, user]);
 
   const fetchUser = async (t: string) => {
     try {
-      const res = await fetch("http://localhost:4000/api/auth/me", {
+      const res = await fetch(`${API_BASE}/api/auth/me`, {
         headers: { Authorization: `Bearer ${t}` },
       });
       if (res.ok) {
@@ -90,7 +99,7 @@ export default function Home() {
 
   const fetchJobs = async (t: string) => {
     try {
-      const res = await fetch("http://localhost:4000/api/jobs", {
+      const res = await fetch(`${API_BASE}/api/jobs`, {
         headers: { Authorization: `Bearer ${t}` },
       });
       if (res.ok) {
@@ -99,11 +108,22 @@ export default function Home() {
     } catch {}
   };
 
+  const fetchAdminUsers = async (t = token) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/users`, {
+        headers: { Authorization: `Bearer ${t}` },
+      });
+      if (res.ok) {
+        setAdminUsers(await res.json());
+      }
+    } catch {}
+  };
+
   const fetchJobResults = async (jobId: string, t = token, showLoading = true) => {
     setSelectedJobId(jobId);
     if (showLoading) setLoadingResults(true);
     try {
-      const res = await fetch(`http://localhost:4000/api/jobs/${jobId}/results?limit=300`, {
+      const res = await fetch(`${API_BASE}/api/jobs/${jobId}/results?limit=300`, {
         headers: { Authorization: `Bearer ${t}` },
       });
       if (res.ok) {
@@ -114,26 +134,54 @@ export default function Home() {
     }
   };
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleAuthSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setAuthError("");
-    try {
-      const res = await fetch("http://localhost:4000/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-      });
-      const data = await res.json();
-      if (res.ok) {
-        setToken(data.token);
-        localStorage.setItem("token", data.token);
-        setUser(data.user);
-        fetchJobs(data.token);
-      } else {
-        setAuthError(data.error || "Login failed");
+    setAuthSuccess("");
+
+    if (authMode === "login") {
+      try {
+        const res = await fetch(`${API_BASE}/api/auth/login`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password }),
+        });
+        const data = await res.json();
+        if (res.ok) {
+          setToken(data.token);
+          localStorage.setItem("token", data.token);
+          setUser(data.user);
+          fetchJobs(data.token);
+        } else {
+          setAuthError(data.error || "Login failed");
+        }
+      } catch {
+        setAuthError("Could not connect to API server");
       }
-    } catch {
-      setAuthError("Could not connect to API server");
+    } else {
+      try {
+        const res = await fetch(`${API_BASE}/api/auth/register`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password, name }),
+        });
+        const data = await res.json();
+        if (res.ok) {
+          if (data.requiresApproval) {
+            setAuthSuccess("Account registered successfully! An administrator must approve your account before you can log in.");
+            setAuthMode("login");
+          } else {
+            setToken(data.token);
+            localStorage.setItem("token", data.token);
+            setUser(data.user);
+            fetchJobs(data.token);
+          }
+        } else {
+          setAuthError(data.error || "Registration failed");
+        }
+      } catch {
+        setAuthError("Could not connect to API server");
+      }
     }
   };
 
@@ -147,7 +195,7 @@ export default function Home() {
 
   const startJob = async (engine: string, target: string, cap: number) => {
     if (!target.trim()) return;
-    const res = await fetch("http://localhost:4000/api/jobs", {
+    const res = await fetch(`${API_BASE}/api/jobs`, {
       method: "POST",
       headers: { 
         "Content-Type": "application/json",
@@ -164,7 +212,7 @@ export default function Home() {
   const triggerExport = async () => {
     if (!exportModalJobId) return;
     const colsParam = selectedColumns.join(',');
-    const url = `http://localhost:4000/api/jobs/${exportModalJobId}/export/${exportFormat}?columns=${encodeURIComponent(colsParam)}`;
+    const url = `${API_BASE}/api/jobs/${exportModalJobId}/export/${exportFormat}?columns=${encodeURIComponent(colsParam)}`;
     
     try {
       const res = await fetch(url, {
@@ -204,7 +252,7 @@ export default function Home() {
 
   const deleteJob = async (jobId: string) => {
     try {
-      await fetch(`http://localhost:4000/api/jobs/${jobId}`, {
+      await fetch(`${API_BASE}/api/jobs/${jobId}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -213,6 +261,36 @@ export default function Home() {
         setJobResults([]);
       }
       fetchJobs(token);
+    } catch {}
+  };
+
+  const approveUser = async (userId: string) => {
+    try {
+      await fetch(`${API_BASE}/api/admin/users/${userId}/approve`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      fetchAdminUsers(token);
+    } catch {}
+  };
+
+  const suspendUser = async (userId: string) => {
+    try {
+      await fetch(`${API_BASE}/api/admin/users/${userId}/suspend`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      fetchAdminUsers(token);
+    } catch {}
+  };
+
+  const deleteUser = async (userId: string) => {
+    try {
+      await fetch(`${API_BASE}/api/admin/users/${userId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      fetchAdminUsers(token);
     } catch {}
   };
 
@@ -232,18 +310,47 @@ export default function Home() {
     return (
       <div className="flex h-screen w-full items-center justify-center p-4 bg-gradient-to-br from-[#0D3824] to-[#020906]">
         <div className="w-full max-w-[420px] bg-white rounded-[32px] p-8 sm:p-10 shadow-2xl text-center border border-neutral-100">
-          <div className="mb-5 flex items-center justify-center">
+          <div className="mb-4 flex items-center justify-center">
             <span className="text-2xl font-black tracking-tight text-neutral-900">DashMin</span>
           </div>
-          <h1 className="text-xl font-bold tracking-tight text-neutral-900">Login to your account</h1>
+
+          <div className="flex rounded-xl bg-gray-100 p-1 mb-6 text-xs font-bold">
+            <button 
+              onClick={() => { setAuthMode('login'); setAuthError(''); }}
+              className={`flex-1 py-2 rounded-lg transition ${authMode === 'login' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}
+            >
+              Sign In
+            </button>
+            <button 
+              onClick={() => { setAuthMode('register'); setAuthError(''); }}
+              className={`flex-1 py-2 rounded-lg transition ${authMode === 'register' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}
+            >
+              Register
+            </button>
+          </div>
+
+          <h1 className="text-lg font-bold tracking-tight text-neutral-900">
+            {authMode === 'login' ? 'Sign in to your account' : 'Request account access'}
+          </h1>
           
-          <form className="mt-6 space-y-3" onSubmit={handleLogin}>
+          <form className="mt-5 space-y-3" onSubmit={handleAuthSubmit}>
+            {authMode === 'register' && (
+              <input 
+                type="text" 
+                placeholder="Full Name" 
+                className="w-full px-4 py-3 bg-neutral-50 border border-neutral-200 rounded-xl text-sm outline-none focus:border-emerald-600"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required
+              />
+            )}
             <input 
               type="email" 
-              placeholder="Email" 
+              placeholder="Email address" 
               className="w-full px-4 py-3 bg-neutral-50 border border-neutral-200 rounded-xl text-sm outline-none focus:border-emerald-600"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              required
             />
             <input 
               type="password" 
@@ -251,10 +358,12 @@ export default function Home() {
               className="w-full px-4 py-3 bg-neutral-50 border border-neutral-200 rounded-xl text-sm outline-none focus:border-emerald-600"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              required
             />
             {authError && <div className="text-xs text-rose-500 font-medium">{authError}</div>}
+            {authSuccess && <div className="text-xs text-emerald-600 font-medium">{authSuccess}</div>}
             <button type="submit" className="w-full py-3 bg-neutral-900 text-white text-xs font-semibold rounded-xl hover:bg-neutral-800 transition">
-              Login
+              {authMode === 'login' ? 'Login' : 'Submit Registration'}
             </button>
           </form>
         </div>
@@ -284,10 +393,18 @@ export default function Home() {
               <button onClick={() => { setActiveTab('history'); setSelectedJobId(null); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold text-left transition ${activeTab === 'history' ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white'}`}>
                 Job History
               </button>
+              {user.role === 'admin' && (
+                <button onClick={() => { setActiveTab('users'); setSelectedJobId(null); fetchAdminUsers(token); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold text-left transition ${activeTab === 'users' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'text-gray-400 hover:text-white'}`}>
+                  Admin / Users
+                </button>
+              )}
             </nav>
           </div>
           <div className="flex items-center justify-between p-3 rounded-2xl bg-white/5 border border-white/5">
-            <div className="truncate text-white text-xs font-semibold">{user.name || user.email}</div>
+            <div className="truncate text-white text-xs font-semibold">
+              {user.name || user.email}
+              {user.role === 'admin' && <span className="ml-1 text-[9px] bg-emerald-400/20 text-emerald-300 px-1 py-0.5 rounded font-black">ADMIN</span>}
+            </div>
             <button onClick={logout} className="text-gray-400 hover:text-rose-400 text-xs font-medium">Logout</button>
           </div>
         </aside>
@@ -422,7 +539,7 @@ export default function Home() {
                       </button>
                       {job.status === 'running' && (
                         <button onClick={async () => {
-                          await fetch(`http://localhost:4000/api/jobs/${job.id}/stop`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
+                          await fetch(`${API_BASE}/api/jobs/${job.id}/stop`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
                           fetchJobs(token);
                         }} className="px-3 py-1.5 text-xs font-bold text-rose-600 bg-rose-50 rounded-lg hover:bg-rose-100 transition">
                           Stop
@@ -505,6 +622,72 @@ export default function Home() {
                   )}
                 </div>
               )}
+            </div>
+          )}
+
+          {activeTab === 'users' && user?.role === 'admin' && (
+            <div className="space-y-6">
+              <div className="flex justify-between items-center">
+                <div>
+                  <h1 className="text-2xl font-black text-gray-900 tracking-tight">Account Access Control</h1>
+                  <p className="text-xs text-gray-500 mt-1">Approve or suspend registered user accounts</p>
+                </div>
+                <button onClick={() => fetchAdminUsers(token)} className="text-xs font-bold px-3 py-2 bg-white rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50">
+                  Refresh
+                </button>
+              </div>
+
+              <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 overflow-x-auto">
+                <table className="w-full text-left text-xs whitespace-nowrap">
+                  <thead>
+                    <tr className="border-b border-gray-100 text-gray-400 font-semibold uppercase">
+                      <th className="py-2.5 px-3">Name</th>
+                      <th className="py-2.5 px-3">Email</th>
+                      <th className="py-2.5 px-3">Role</th>
+                      <th className="py-2.5 px-3">Status</th>
+                      <th className="py-2.5 px-3">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50">
+                    {adminUsers.map(u => (
+                      <tr key={u.id} className="hover:bg-gray-50/50">
+                        <td className="py-2.5 px-3 font-bold text-gray-900">{u.name || '-'}</td>
+                        <td className="py-2.5 px-3 text-gray-600">{u.email}</td>
+                        <td className="py-2.5 px-3 font-semibold uppercase text-[10px]">{u.role}</td>
+                        <td className="py-2.5 px-3">
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${u.status === 'active' ? 'bg-emerald-100 text-emerald-800' : u.status === 'pending' ? 'bg-amber-100 text-amber-800' : 'bg-rose-100 text-rose-800'}`}>
+                            {u.status}
+                          </span>
+                        </td>
+                        <td className="py-2.5 px-3">
+                          <div className="flex gap-2">
+                            {u.status === 'pending' && (
+                              <button onClick={() => approveUser(u.id)} className="px-2.5 py-1 text-xs font-bold text-emerald-700 bg-emerald-50 rounded hover:bg-emerald-100">
+                                Approve
+                              </button>
+                            )}
+                            {u.status === 'active' && u.id !== user.id && (
+                              <button onClick={() => suspendUser(u.id)} className="px-2.5 py-1 text-xs font-bold text-amber-700 bg-amber-50 rounded hover:bg-amber-100">
+                                Suspend
+                              </button>
+                            )}
+                            {u.status === 'suspended' && (
+                              <button onClick={() => approveUser(u.id)} className="px-2.5 py-1 text-xs font-bold text-emerald-700 bg-emerald-50 rounded hover:bg-emerald-100">
+                                Reactivate
+                              </button>
+                            )}
+                            {u.id !== user.id && (
+                              <button onClick={() => deleteUser(u.id)} className="px-2 py-1 text-xs font-bold text-gray-400 hover:text-rose-600">
+                                Delete
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
         </section>

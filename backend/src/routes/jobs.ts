@@ -34,6 +34,16 @@ const COLUMN_DEFINITIONS: Record<string, string> = {
   query: 'Search Query'
 };
 
+function escapeHtml(str: any): string {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
 function getFilteredRows(rawRows: any[], requestedColumns?: string): { headers: string[]; keys: string[]; data: any[] } {
   let activeKeys = Object.keys(COLUMN_DEFINITIONS);
   if (requestedColumns && typeof requestedColumns === 'string') {
@@ -251,11 +261,16 @@ router.get('/:id/export/html', async (req: AuthRequest, res) => {
 
     const { headers, keys } = getFilteredRows(results.rows, req.query.columns as string);
 
+    const safeTarget = escapeHtml(job.target);
+    const safeEngine = escapeHtml(job.engine.toUpperCase());
+    const safeDate = escapeHtml(new Date().toISOString());
+
     const htmlContent = `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Leads Export - ${job.target}</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Leads Export - ${safeTarget}</title>
   <style>
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0b1311; color: #e2e8f0; margin: 0; padding: 24px; }
     h1 { font-size: 20px; color: #10b981; margin-bottom: 4px; }
@@ -270,22 +285,24 @@ router.get('/:id/export/html', async (req: AuthRequest, res) => {
   </style>
 </head>
 <body>
-  <h1>DashMin Leads Report: ${job.target}</h1>
-  <p>Engine: ${job.engine.toUpperCase()} | Total Records: ${results.rows.length} | Export Date: ${new Date().toISOString()}</p>
+  <h1>DashMin Leads Report: ${safeTarget}</h1>
+  <p>Engine: ${safeEngine} | Total Records: ${results.rows.length} | Export Date: ${safeDate}</p>
   <div class="table-container">
     <table>
       <thead>
         <tr>
-          ${headers.map(h => `<th>${h}</th>`).join('')}
+          ${headers.map(h => `<th>${escapeHtml(h)}</th>`).join('')}
         </tr>
       </thead>
       <tbody>
         ${results.rows.map(row => `<tr>${keys.map(k => {
-          const val = row[k] !== null && row[k] !== undefined ? String(row[k]) : '-';
-          if (k === 'website' && val !== '-') {
-            return `<td><a href="${val}" target="_blank">${val}</a></td>`;
+          const rawVal = row[k] !== null && row[k] !== undefined ? String(row[k]) : '-';
+          if (k === 'website' && rawVal !== '-') {
+            const isSafeUrl = rawVal.startsWith('http://') || rawVal.startsWith('https://');
+            const href = isSafeUrl ? escapeHtml(rawVal) : '#';
+            return `<td><a href="${href}" target="_blank" rel="noopener noreferrer">${escapeHtml(rawVal)}</a></td>`;
           }
-          return `<td>${val}</td>`;
+          return `<td>${escapeHtml(rawVal)}</td>`;
         }).join('')}</tr>`).join('\n')}
       </tbody>
     </table>

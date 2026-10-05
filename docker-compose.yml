@@ -23,9 +23,11 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     environment:
+      PORT: 4000
       DATABASE_URL: postgresql://postgres:postgrespassword@postgres:5432/dashmin
       REDIS_URL: redis://redis:6379
       JWT_SECRET: supersecret
+      CORS_ORIGIN: http://localhost:3000
     ports:
       - "4000:4000"
     depends_on:
@@ -33,6 +35,34 @@ services:
       - redis
     volumes:
       - ./backend/exports:/app/exports
+
+  worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    command: ["node", "dist/workers/scraperWorker.js"]
+    environment:
+      DATABASE_URL: postgresql://postgres:postgrespassword@postgres:5432/dashmin
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: supersecret
+      PROXY_URL: ${PROXY_URL:-}
+      SERPAPI_API_KEY: ${SERPAPI_API_KEY:-}
+    depends_on:
+      - postgres
+      - redis
+    volumes:
+      - ./backend/exports:/app/exports
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:4000
+    depends_on:
+      - backend
 
 volumes:
   postgres_data:

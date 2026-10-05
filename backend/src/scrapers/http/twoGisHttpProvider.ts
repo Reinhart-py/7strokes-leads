@@ -1,3 +1,4 @@
+import { ProxyAgent } from 'undici';
 import { IScraperProvider, ScrapedLead, ScraperOptions, ScraperControl } from '../types';
 
 export class TwoGisHttpProvider implements IScraperProvider {
@@ -13,9 +14,19 @@ export class TwoGisHttpProvider implements IScraperProvider {
 
   private publicApiKey = 'rurbbn3440';
 
+  private getDispatcher() {
+    const proxyUrl = process.env.PROXY_URL || process.env.HTTP_PROXY || '';
+    return proxyUrl ? new ProxyAgent(proxyUrl) : undefined;
+  }
+
   public async search(options: ScraperOptions, control: ScraperControl): Promise<ScrapedLead[]> {
     const { query, cap = 0 } = options;
     const { checkCancelled, log, updateProgress, saveLead } = control;
+
+    const dispatcher = this.getDispatcher();
+    if (dispatcher) {
+      await log(`[HTTP Engine] Proxy agent attached for 2GIS request`);
+    }
 
     await log(`[HTTP] Initiating 2GIS catalog request for: "${query}"`);
 
@@ -27,17 +38,22 @@ export class TwoGisHttpProvider implements IScraperProvider {
       if (await checkCancelled()) break;
       if (cap > 0 && results.length >= cap) break;
 
-      const url = `https://catalog.api.2gis.com/3.0/items?q=${encodeURIComponent(query)}&page=${page}&page_size=${pageSize}&fields=items.contact_groups,items.address,items.rubrics,items.point&key=${this.publicApiKey}`;
+      const url = `https://catalog.api.2gis.com/3.0/items?q=${encodeURIComponent(query)}&page=${page}&page_size=${pageSize}&fields=items.contact_groups,items.address,items.rubrics,items.point,items.reviews&key=${this.publicApiKey}`;
 
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 15000);
 
       let data: any = null;
       try {
-        const response = await fetch(url, {
+        const fetchOptions: any = {
           headers: this.headers,
           signal: controller.signal
-        });
+        };
+        if (dispatcher) {
+          fetchOptions.dispatcher = dispatcher;
+        }
+
+        const response = await fetch(url, fetchOptions);
 
         if (!response.ok) {
           throw new Error(`2GIS API returned status ${response.status}`);
@@ -63,6 +79,7 @@ export class TwoGisHttpProvider implements IScraperProvider {
         let phone1: string | null = null;
         let phone2: string | null = null;
         let website: string | null = null;
+        let email: string | null = null;
 
         if (Array.isArray(item.contact_groups)) {
           for (const group of item.contact_groups) {
@@ -74,6 +91,8 @@ export class TwoGisHttpProvider implements IScraperProvider {
                   else if (!phone2) phone2 = val;
                 } else if (contact.type === 'website') {
                   if (!website) website = contact.text || contact.value;
+                } else if (contact.type === 'email') {
+                  if (!email) email = contact.text || contact.value;
                 }
               }
             }
@@ -85,14 +104,18 @@ export class TwoGisHttpProvider implements IScraperProvider {
 
         const lead: ScrapedLead = {
           query,
+          place_id: item.id ? String(item.id) : null,
           title,
           category,
           phone_1: phone1,
           phone_2: phone2,
+          email,
           website,
           address,
           rating: item.reviews?.rating ? item.reviews.rating.toString() : null,
-          reviews: item.reviews?.general_review_count ? item.reviews.general_review_count.toString() : null
+          reviews: item.reviews?.general_review_count ? item.reviews.general_review_count.toString() : null,
+          latitude: item.point?.lat || null,
+          longitude: item.point?.lon || null
         };
 
         await saveLead(lead);

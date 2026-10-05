@@ -1,3 +1,4 @@
+import { ProxyAgent } from 'undici';
 import { IScraperProvider, ScrapedLead, ScraperOptions, ScraperControl } from '../types';
 import { GmapsParser } from './gmapsParser';
 
@@ -18,6 +19,11 @@ export class GmapsHttpProvider implements IScraperProvider {
     'Upgrade-Insecure-Requests': '1'
   };
 
+  private getDispatcher(customProxy?: string) {
+    const proxyUrl = customProxy || process.env.PROXY_URL || process.env.HTTP_PROXY || '';
+    return proxyUrl ? new ProxyAgent(proxyUrl) : undefined;
+  }
+
   private buildProtobufParam(lat: number, lon: number, zoom: number, pageSize: number, start: number): string {
     const span = 360 / Math.pow(2, zoom);
     const dValue = span * 111320;
@@ -31,15 +37,20 @@ export class GmapsHttpProvider implements IScraperProvider {
     return pb;
   }
 
-  private async fetchEndpoint(url: string): Promise<string> {
+  private async fetchEndpoint(url: string, dispatcher?: any): Promise<string> {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 20000);
 
     try {
-      const response = await fetch(url, {
+      const fetchOptions: any = {
         headers: this.headers,
         signal: controller.signal
-      });
+      };
+      if (dispatcher) {
+        fetchOptions.dispatcher = dispatcher;
+      }
+
+      const response = await fetch(url, fetchOptions);
 
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}`);
@@ -62,6 +73,11 @@ export class GmapsHttpProvider implements IScraperProvider {
     } = options;
     const { checkCancelled, log, updateProgress, saveLead } = control;
 
+    const dispatcher = this.getDispatcher();
+    if (dispatcher) {
+      await log(`[HTTP Engine] Proxy agent attached for request`);
+    }
+
     await log(`[HTTP Engine] Executing direct HTTP search for: "${query}" (Lat: ${lat}, Lon: ${lon})`);
 
     const results: ScrapedLead[] = [];
@@ -78,11 +94,11 @@ export class GmapsHttpProvider implements IScraperProvider {
 
       let rawText = '';
       try {
-        rawText = await this.fetchEndpoint(url);
+        rawText = await this.fetchEndpoint(url, dispatcher);
       } catch (err: any) {
         if (page === 0) {
           const fallbackUrl = `https://www.google.com/maps/search/${encodeURIComponent(query)}?hl=en`;
-          rawText = await this.fetchEndpoint(fallbackUrl);
+          rawText = await this.fetchEndpoint(fallbackUrl, dispatcher);
         } else {
           break;
         }
@@ -93,7 +109,7 @@ export class GmapsHttpProvider implements IScraperProvider {
         if (page === 0) {
           const fallbackUrl = `https://www.google.com/maps/search/${encodeURIComponent(query)}?hl=en`;
           try {
-            rawText = await this.fetchEndpoint(fallbackUrl);
+            rawText = await this.fetchEndpoint(fallbackUrl, dispatcher);
             const fallbackBatch = GmapsParser.parseSearchResponse(rawText, query);
             for (const lead of fallbackBatch) {
               if (await checkCancelled()) break;
