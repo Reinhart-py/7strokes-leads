@@ -5,19 +5,30 @@ import { GmapsParser } from './gmapsParser';
 export class GmapsHttpProvider implements IScraperProvider {
   public readonly name = 'GoogleMaps-DirectHTTP';
 
-  private headers = {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
-    'Accept-Language': 'en-US,en;q=0.9',
-    'Sec-Ch-Ua': '"Chromium";v="124", "Google Chrome";v="124", "Not-A.Brand";v="99"',
-    'Sec-Ch-Ua-Mobile': '?0',
-    'Sec-Ch-Ua-Platform': '"Windows"',
-    'Sec-Fetch-Dest': 'document',
-    'Sec-Fetch-Mode': 'navigate',
-    'Sec-Fetch-Site': 'none',
-    'Sec-Fetch-User': '?1',
-    'Upgrade-Insecure-Requests': '1'
-  };
+  private userAgents = [
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:126.0) Gecko/20100101 Firefox/126.0',
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Safari/605.1.15'
+  ];
+
+  private getHeaders(): Record<string, string> {
+    const ua = this.userAgents[Math.floor(Math.random() * this.userAgents.length)];
+    return {
+      'User-Agent': ua,
+      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+      'Accept-Language': 'en-US,en;q=0.9',
+      'Sec-Ch-Ua': '"Chromium";v="125", "Google Chrome";v="125", "Not-A.Brand";v="99"',
+      'Sec-Ch-Ua-Mobile': '?0',
+      'Sec-Ch-Ua-Platform': '"Windows"',
+      'Sec-Fetch-Dest': 'document',
+      'Sec-Fetch-Mode': 'navigate',
+      'Sec-Fetch-Site': 'none',
+      'Sec-Fetch-User': '?1',
+      'Upgrade-Insecure-Requests': '1'
+    };
+  }
 
   private getDispatcher(customProxy?: string) {
     const proxyUrl = customProxy || process.env.PROXY_URL || process.env.HTTP_PROXY || '';
@@ -39,11 +50,11 @@ export class GmapsHttpProvider implements IScraperProvider {
 
   private async fetchEndpoint(url: string, dispatcher?: any): Promise<string> {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 20000);
+    const timeout = setTimeout(() => controller.abort(), 15000);
 
     try {
       const fetchOptions: any = {
-        headers: this.headers,
+        headers: this.getHeaders(),
         signal: controller.signal
       };
       if (dispatcher) {
@@ -68,20 +79,15 @@ export class GmapsHttpProvider implements IScraperProvider {
       cap = 0,
       lat = 25.2048,
       lon = 55.2708,
-      zoom = 13,
-      maxPagesPerCell = 6
+      zoom = 14,
+      maxPagesPerCell = 4,
+      seenKeys
     } = options;
     const { checkCancelled, log, updateProgress, saveLead } = control;
 
-    const dispatcher = this.getDispatcher();
-    if (dispatcher) {
-      await log(`[HTTP Engine] Proxy agent attached for request`);
-    }
-
-    await log(`[HTTP Engine] Executing direct HTTP search for: "${query}" (Lat: ${lat}, Lon: ${lon})`);
-
+    const dispatcher = this.getDispatcher(options.proxy);
     const results: ScrapedLead[] = [];
-    const seenTitles = new Set<string>();
+    const localSeen = new Set<string>();
     const pageSize = 20;
 
     for (let page = 0; page < maxPagesPerCell; page++) {
@@ -90,7 +96,8 @@ export class GmapsHttpProvider implements IScraperProvider {
 
       const start = page * pageSize;
       const pb = this.buildProtobufParam(lat, lon, zoom, pageSize, start);
-      const url = `https://www.google.com/search?tbm=map&authuser=0&hl=en&gl=us&pb=${pb}&q=${encodeURIComponent(query)}&tch=1&ech=1&psi=dummy.${Date.now()}.1`;
+      const psi = Math.random().toString(36).substring(2, 9) + `.${Date.now()}.1`;
+      const url = `https://www.google.com/search?tbm=map&authuser=0&hl=en&gl=us&pb=${pb}&q=${encodeURIComponent(query)}&tch=1&ech=1&psi=${psi}`;
 
       let rawText = '';
       try {
@@ -98,7 +105,7 @@ export class GmapsHttpProvider implements IScraperProvider {
       } catch (err: any) {
         if (page === 0) {
           const fallbackUrl = `https://www.google.com/maps/search/${encodeURIComponent(query)}?hl=en`;
-          rawText = await this.fetchEndpoint(fallbackUrl, dispatcher);
+          rawText = await this.fetchEndpoint(fallbackUrl, dispatcher).catch(() => '');
         } else {
           break;
         }
@@ -114,8 +121,10 @@ export class GmapsHttpProvider implements IScraperProvider {
             for (const lead of fallbackBatch) {
               if (await checkCancelled()) break;
               if (cap > 0 && results.length >= cap) break;
-              if (!seenTitles.has(lead.title)) {
-                seenTitles.add(lead.title);
+              const leadKey = (lead.phone_1 || lead.title).toLowerCase().trim();
+              if (!localSeen.has(leadKey) && (!seenKeys || !seenKeys.has(leadKey))) {
+                localSeen.add(leadKey);
+                if (seenKeys) seenKeys.add(leadKey);
                 await saveLead(lead);
                 results.push(lead);
                 await updateProgress(1, results.length);
@@ -131,8 +140,10 @@ export class GmapsHttpProvider implements IScraperProvider {
         if (await checkCancelled()) break;
         if (cap > 0 && results.length >= cap) break;
 
-        if (!seenTitles.has(lead.title)) {
-          seenTitles.add(lead.title);
+        const leadKey = (lead.phone_1 || lead.title).toLowerCase().trim();
+        if (!localSeen.has(leadKey) && (!seenKeys || !seenKeys.has(leadKey))) {
+          localSeen.add(leadKey);
+          if (seenKeys) seenKeys.add(leadKey);
           await saveLead(lead);
           results.push(lead);
           newCount++;
@@ -140,13 +151,11 @@ export class GmapsHttpProvider implements IScraperProvider {
         }
       }
 
-      await log(`[HTTP Engine] Page ${page + 1}: extracted ${newCount} new leads (total: ${results.length})`);
-
       if (batch.length < pageSize || newCount === 0) {
         break;
       }
 
-      await new Promise(r => setTimeout(r, 600));
+      await new Promise(r => setTimeout(r, 150));
     }
 
     return results;

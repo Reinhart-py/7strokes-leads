@@ -89,15 +89,28 @@ function initSqlite() {
     sqliteDb?.run(`
       CREATE UNIQUE INDEX IF NOT EXISTS idx_results_job_place ON results(job_id, place_id) WHERE place_id IS NOT NULL
     `);
+    sqliteDb?.run('ALTER TABLE users ADD COLUMN can_use_proxy INTEGER DEFAULT 0', () => {});
+    sqliteDb?.run('ALTER TABLE users ADD COLUMN custom_proxy TEXT', () => {});
+    sqliteDb?.run('ALTER TABLE users ADD COLUMN username TEXT', () => {});
+    sqliteDb?.run('ALTER TABLE users ADD COLUMN avatar TEXT', () => {});
+    sqliteDb?.run("UPDATE users SET username = 'admin' WHERE id = 'admin-001' AND (username IS NULL OR username = '')", () => {});
+    sqliteDb?.run('ALTER TABLE jobs ADD COLUMN proxy_url TEXT', () => {});
     sqliteDb?.run(`
-      INSERT OR IGNORE INTO users (id, email, password_hash, name, role, status)
+      CREATE TABLE IF NOT EXISTS settings (
+        key TEXT PRIMARY KEY,
+        value TEXT
+      )
+    `);
+    sqliteDb?.run(`
+      INSERT OR IGNORE INTO users (id, email, password_hash, name, role, status, username)
       VALUES (
         'admin-001',
         'admin@dashmin.local',
         '$2b$10$g/RU8afy27qTA/X6azjiO.K3PaeSFb5zYrvookDPnBJ3eEvTAg1e6',
         'Administrator',
         'admin',
-        'active'
+        'active',
+        'admin'
       )
     `);
   });
@@ -131,11 +144,21 @@ export async function query(text: string, params: any[] = []): Promise<{ rows: a
   }
 
   return new Promise((resolve, reject) => {
+    let finalParams = [...params];
+    const hasIndexedParams = /\$\d+/.test(text);
+    if (hasIndexedParams) {
+      finalParams = [];
+    }
+
     let sqliteSql = text
       .replace(/NOW\(\)/gi, "datetime('now')")
       .replace(/CURRENT_TIMESTAMP/gi, "datetime('now')")
       .replace(/uuid_generate_v4\(\)/gi, `'${generateUuid()}'`)
-      .replace(/\$(\d+)/g, '?');
+      .replace(/\$(\d+)/g, (_, idx) => {
+        const num = parseInt(idx, 10) - 1;
+        finalParams.push(params[num]);
+        return '?';
+      });
 
     const insertMatch = sqliteSql.match(/INSERT\s+INTO\s+(\w+)\s*\(([^)]*)\)\s*VALUES\s*\(([^)]*)\)/i);
     const hasReturning = /RETURNING\s+(.+)$/i.test(sqliteSql);
@@ -145,7 +168,7 @@ export async function query(text: string, params: any[] = []): Promise<{ rows: a
       const colList = insertMatch[2].split(',').map(c => c.trim().toLowerCase());
       if (!colList.includes('id')) {
         sqliteSql = sqliteSql.replace(insertMatch[0], `INSERT INTO ${insertMatch[1]} (id, ${insertMatch[2]}) VALUES (?, ${insertMatch[3]})`);
-        params = [generatedId, ...params];
+        finalParams = [generatedId, ...finalParams];
       }
     }
 
@@ -156,12 +179,12 @@ export async function query(text: string, params: any[] = []): Promise<{ rows: a
     const trimmed = sqliteSql.trim().toUpperCase();
 
     if (trimmed.startsWith('SELECT')) {
-      sqliteDb?.all(sqliteSql, params, (err, rows) => {
+      sqliteDb?.all(sqliteSql, finalParams, (err, rows) => {
         if (err) return reject(err);
         resolve({ rows: rows || [], rowCount: (rows || []).length });
       });
     } else {
-      sqliteDb?.run(sqliteSql, params, function (this: sqlite3.RunResult, err) {
+      sqliteDb?.run(sqliteSql, finalParams, function (this: sqlite3.RunResult, err) {
         if (err) return reject(err);
         const returningRow: any = { id: generatedId };
         if (insertMatch) {

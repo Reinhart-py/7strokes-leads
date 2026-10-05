@@ -61,51 +61,65 @@ export class ScraperManager {
       if (cells.length > 0) {
         await log(`[Geo Grid] Partitioned area into ${cells.length} geographic cells for maximum coverage`);
 
-        for (let i = 0; i < cells.length; i++) {
+        const concurrency = options.concurrency && options.concurrency > 0 ? options.concurrency : 6;
+        let consecutiveEmptyBatches = 0;
+        for (let i = 0; i < cells.length; i += concurrency) {
           if (await checkCancelled()) break;
           if (cap > 0 && allLeads.length >= cap) break;
 
-          const cell = cells[i];
-          await log(`[Geo Grid] Searching Cell ${i + 1}/${cells.length} at (${cell.lat}, ${cell.lon})`);
+          const beforeCount = allLeads.length;
+          const batch = cells.slice(i, i + concurrency);
+          await Promise.all(
+            batch.map(async (cell, cellOffset) => {
+              if (await checkCancelled()) return;
+              if (cap > 0 && allLeads.length >= cap) return;
 
-          let cellLeads: ScrapedLead[] = [];
-          try {
-            cellLeads = await this.gmapsHttp.search(
-              { ...options, lat: cell.lat, lon: cell.lon, zoom: 14, maxPagesPerCell: 3 },
-              {
-                checkCancelled,
-                log,
-                updateProgress: async () => {},
-                saveLead: async () => {}
-              }
-            );
-          } catch (err: any) {
-            await log(`[HTTP Error] Cell ${i + 1}: ${err.message}`);
-          }
-
-          if (cellLeads.length === 0 && !(await checkCancelled())) {
-            if (this.gmapsExternal.isAvailable()) {
+              const cellIndex = i + cellOffset + 1;
               try {
-                cellLeads = await this.gmapsExternal.search(
-                  { ...options, query: `${query} near ${cell.lat},${cell.lon}` },
+                const cellLeads = await this.gmapsHttp.search(
+                  {
+                    ...options,
+                    lat: cell.lat,
+                    lon: cell.lon,
+                    zoom: 14,
+                    maxPagesPerCell: 3,
+                    seenKeys: seenTitles
+                  },
                   {
                     checkCancelled,
-                    log,
+                    log: async () => {},
                     updateProgress: async () => {},
-                    saveLead: async () => {}
+                    saveLead: handleSave
                   }
                 );
-              } catch {}
+
+                if (cellLeads.length === 0 && !(await checkCancelled()) && this.gmapsExternal.isAvailable()) {
+                  await this.gmapsExternal.search(
+                    { ...options, query: `${query} near ${cell.lat},${cell.lon}`, seenKeys: seenTitles },
+                    {
+                      checkCancelled,
+                      log: async () => {},
+                      updateProgress: async () => {},
+                      saveLead: handleSave
+                    }
+                  );
+                }
+              } catch (err: any) {
+                await log(`[HTTP Error] Cell ${cellIndex}: ${err.message}`);
+              }
+            })
+          );
+
+          const addedThisBatch = allLeads.length - beforeCount;
+          if (addedThisBatch === 0) {
+            consecutiveEmptyBatches++;
+            if (consecutiveEmptyBatches >= 4 && allLeads.length > 50) {
+              await log(`[Completed] Exhausted regional results. No more new leads available.`);
+              break;
             }
+          } else {
+            consecutiveEmptyBatches = 0;
           }
-
-          for (const lead of cellLeads) {
-            if (await checkCancelled()) break;
-            if (cap > 0 && allLeads.length >= cap) break;
-            await handleSave(lead);
-          }
-
-          await new Promise(r => setTimeout(r, 600));
         }
 
         if (allLeads.length > 0) {
@@ -124,12 +138,12 @@ export class ScraperManager {
 
         try {
           subLeads = await this.gmapsHttp.search(
-            { ...options, query: subQ },
+            { ...options, query: subQ, seenKeys: seenTitles },
             {
               checkCancelled,
               log,
               updateProgress: async () => {},
-              saveLead: async () => {}
+              saveLead: handleSave
             }
           );
         } catch (err: any) {
@@ -141,12 +155,12 @@ export class ScraperManager {
             await log(`[External API Fallback] Triggering SerpApi for "${subQ}"`);
             try {
               subLeads = await this.gmapsExternal.search(
-                { ...options, query: subQ },
+                { ...options, query: subQ, seenKeys: seenTitles },
                 {
                   checkCancelled,
                   log,
                   updateProgress: async () => {},
-                  saveLead: async () => {}
+                  saveLead: handleSave
                 }
               );
             } catch (extErr: any) {
@@ -159,23 +173,17 @@ export class ScraperManager {
           await log(`[Playwright Fallback] Triggering browser automation for "${subQ}"`);
           try {
             subLeads = await this.gmapsPlaywright.search(
-              { ...options, query: subQ },
+              { ...options, query: subQ, seenKeys: seenTitles },
               {
                 checkCancelled,
                 log,
                 updateProgress: async () => {},
-                saveLead: async () => {}
+                saveLead: handleSave
               }
             );
           } catch (pwErr: any) {
             await log(`[Playwright Fallback Failed] ${pwErr.message}`);
           }
-        }
-
-        for (const lead of subLeads) {
-          if (await checkCancelled()) break;
-          if (cap > 0 && allLeads.length >= cap) break;
-          await handleSave(lead);
         }
       }
     } else {
@@ -185,7 +193,7 @@ export class ScraperManager {
           checkCancelled,
           log,
           updateProgress: async () => {},
-          saveLead: async () => {}
+          saveLead: handleSave
         });
       } catch (err: any) {
         await log(`[2GIS HTTP Failed] ${err.message}. Triggering Playwright fallback...`);
@@ -197,17 +205,11 @@ export class ScraperManager {
             checkCancelled,
             log,
             updateProgress: async () => {},
-            saveLead: async () => {}
+            saveLead: handleSave
           });
         } catch (pwErr: any) {
           await log(`[2GIS Playwright Failed] ${pwErr.message}`);
         }
-      }
-
-      for (const lead of leads) {
-        if (await checkCancelled()) break;
-        if (cap > 0 && allLeads.length >= cap) break;
-        await handleSave(lead);
       }
     }
 

@@ -11,39 +11,69 @@ const EXPORT_COLUMNS = [
   { key: "category", label: "Category" },
   { key: "address", label: "Full Address" },
   { key: "city", label: "City" },
-  { key: "rating", label: "Star Rating" },
-  { key: "reviews", label: "Reviews Count" },
-  { key: "opening_hours", label: "Opening Hours" },
+  { key: "rating", label: "Rating" },
+  { key: "reviews", label: "Reviews" },
+  { key: "opening_hours", label: "Hours" },
   { key: "place_id", label: "Place ID" }
 ];
 
 export default function Home() {
-  const [theme, setTheme] = useState<"dark" | "light">("dark");
-  const [token, setToken] = useState("");
-  const [user, setUser] = useState<{ id: string; name: string; email: string; role: string } | null>(null);
+  const [theme, setTheme] = useState<"light" | "dark">("light");
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [isTableZoomed, setIsTableZoomed] = useState(false);
 
-  const [authMode, setAuthMode] = useState<"login" | "register">("login");
+  const [token, setToken] = useState("");
+  const [user, setUser] = useState<{
+    id: string;
+    name: string;
+    email: string;
+    username?: string;
+    avatar?: string;
+    role: string;
+    can_use_proxy?: number;
+    custom_proxy?: string;
+  } | null>(null);
+
+  const [authMode, setAuthMode] = useState<"login" | "register" | "forgot">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
+  const [regUsername, setRegUsername] = useState("");
   const [authError, setAuthError] = useState("");
   const [authSuccess, setAuthSuccess] = useState("");
+  const [forgotResult, setForgotResult] = useState<any | null>(null);
 
   const [viewMode, setViewMode] = useState<"app" | "admin">("app");
-  const [activeTab, setActiveTab] = useState<"search" | "leads">("search");
-  const [adminTab, setAdminTab] = useState<"overview" | "users" | "settings">("overview");
+  const [activeTab, setActiveTab] = useState<"search" | "leads" | "settings">("search");
+  const [adminTab, setAdminTab] = useState<"overview" | "users" | "leads" | "settings">("overview");
 
   const [jobs, setJobs] = useState<any[]>([]);
   const [adminStats, setAdminStats] = useState<any>(null);
   const [adminUsers, setAdminUsers] = useState<any[]>([]);
+  const [adminGlobalLeads, setAdminGlobalLeads] = useState<any[]>([]);
+  const [adminGlobalTotal, setAdminGlobalTotal] = useState<number>(0);
+  const [adminLeadUserFilter, setAdminLeadUserFilter] = useState<string>("all");
+  const [adminLeadSearch, setAdminLeadSearch] = useState<string>("");
+  const [loadingAdminLeads, setLoadingAdminLeads] = useState<boolean>(false);
+
+  const [showProfileModal, setShowProfileModal] = useState<boolean>(false);
+  const [profileName, setProfileName] = useState<string>("");
+  const [profileUsername, setProfileUsername] = useState<string>("");
+  const [profileAvatar, setProfileAvatar] = useState<string>("");
+  const [profileCurrentPassword, setProfileCurrentPassword] = useState<string>("");
+  const [profileNewPassword, setProfileNewPassword] = useState<string>("");
+  const [profileConfirmPassword, setProfileConfirmPassword] = useState<string>("");
+  const [profileMsg, setProfileMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [profileLoading, setProfileLoading] = useState<boolean>(false);
 
   const [keyword, setKeyword] = useState("");
   const [location, setLocation] = useState("");
-  const [leadCount, setLeadCount] = useState<number>(0);
+  const [leadCount, setLeadCount] = useState<number>(50);
   const [customLeadCount, setCustomLeadCount] = useState<string>("");
-  const [source, setSource] = useState<"gmaps" | "2gis">("gmaps");
-  const [deepScan, setDeepScan] = useState(true);
   const [isStarting, setIsStarting] = useState(false);
+
+  const [userProxy, setUserProxy] = useState("");
+  const [proxySaveSuccess, setProxySaveSuccess] = useState(false);
 
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
   const [jobResults, setJobResults] = useState<any[]>([]);
@@ -59,6 +89,7 @@ export default function Home() {
   const [newUserEmail, setNewUserEmail] = useState("");
   const [newUserPassword, setNewUserPassword] = useState("");
   const [newUserRole, setNewUserRole] = useState("user");
+  const [newUserCanProxy, setNewUserCanProxy] = useState(false);
   const [createUserMsg, setCreateUserMsg] = useState("");
 
   const [editingUser, setEditingUser] = useState<any | null>(null);
@@ -67,19 +98,31 @@ export default function Home() {
   const [editUserRole, setEditUserRole] = useState("user");
   const [editUserStatus, setEditUserStatus] = useState("active");
   const [editUserPassword, setEditUserPassword] = useState("");
+  const [editUserCanProxy, setEditUserCanProxy] = useState(false);
 
   const [resetModalUser, setResetModalUser] = useState<any | null>(null);
   const [newResetPassword, setNewResetPassword] = useState("");
   const [resetResultData, setResetResultData] = useState<any | null>(null);
 
+  const [searchMode, setSearchMode] = useState<"single" | "bulk">("single");
+  const [bulkQueriesText, setBulkQueriesText] = useState("");
+  const [bulkFileName, setBulkFileName] = useState("");
+  const [isBulkStarting, setIsBulkStarting] = useState(false);
+  const [bulkStatusMsg, setBulkStatusMsg] = useState("");
+  const [parallelConcurrency, setParallelConcurrency] = useState<number>(6);
+
   const [platformName, setPlatformName] = useState("DashMin");
   const [publicRegistration, setPublicRegistration] = useState(true);
+  const [systemProxyEnabled, setSystemProxyEnabled] = useState(false);
+  const [systemProxyUrl, setSystemProxyUrl] = useState("");
   const [settingsSuccess, setSettingsSuccess] = useState(false);
 
   useEffect(() => {
     const savedTheme = localStorage.getItem("dashmin_theme") as "dark" | "light" | null;
     if (savedTheme) {
       setTheme(savedTheme);
+    } else {
+      setTheme("light");
     }
     const savedToken = localStorage.getItem("dashmin_token");
     if (savedToken) {
@@ -87,6 +130,16 @@ export default function Home() {
       fetchUserProfile(savedToken);
     }
   }, []);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && isTableZoomed) {
+        setIsTableZoomed(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isTableZoomed]);
 
   const toggleTheme = () => {
     const nextTheme = theme === "dark" ? "light" : "dark";
@@ -117,10 +170,14 @@ export default function Home() {
       if (res.ok) {
         const data = await res.json();
         setUser(data);
+        if (data.custom_proxy) {
+          setUserProxy(data.custom_proxy);
+        }
         fetchJobsList(t);
         if (data.role === "admin") {
           fetchAdminStats(t);
           fetchTeamList(t);
+          fetchSettings(t);
         }
       } else {
         logout();
@@ -163,6 +220,22 @@ export default function Home() {
     } catch {}
   };
 
+  const fetchSettings = async (t = token) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/settings`, {
+        headers: { Authorization: `Bearer ${t}` }
+      });
+      if (res.ok) {
+        const s = await res.json();
+        if (s.platform_name) setPlatformName(s.platform_name);
+        if (s.allow_registration !== undefined) setPublicRegistration(s.allow_registration === "true");
+        if (s.proxy_enabled !== undefined) setSystemProxyEnabled(s.proxy_enabled === "true");
+        if (s.proxy_url) setSystemProxyUrl(s.proxy_url);
+        if (s.parallel_concurrency) setParallelConcurrency(parseInt(s.parallel_concurrency) || 6);
+      }
+    } catch {}
+  };
+
   const fetchJobDetails = async (jobId: string, t = token, showLoading = true) => {
     setSelectedJobId(jobId);
     if (showLoading) setLoadingResults(true);
@@ -183,8 +256,29 @@ export default function Home() {
     setAuthError("");
     setAuthSuccess("");
 
+    if (authMode === "forgot") {
+      try {
+        const res = await fetch(`${API_BASE}/api/auth/forgot-password`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          setForgotResult(data);
+        } else {
+          setAuthError(data.error || "Password reset failed");
+        }
+      } catch {
+        setAuthError("Failed to reach server");
+      }
+      return;
+    }
+
     const endpoint = authMode === "login" ? "/api/auth/login" : "/api/auth/register";
-    const payload = authMode === "login" ? { email, password } : { email, password, name };
+    const payload = authMode === "login"
+      ? { identifier: email, password }
+      : { email, password, name, username: regUsername };
 
     try {
       const res = await fetch(`${API_BASE}${endpoint}`, {
@@ -196,23 +290,31 @@ export default function Home() {
 
       if (res.ok) {
         if (data.requiresApproval) {
-          setAuthSuccess("Account created! An administrator will approve your access shortly.");
+          setAuthSuccess("Account created. Please wait for admin approval.");
           setAuthMode("login");
         } else {
           setToken(data.token);
           localStorage.setItem("dashmin_token", data.token);
           setUser(data.user);
+          if (data.user.name) setProfileName(data.user.name);
+          if (data.user.username) setProfileUsername(data.user.username);
+          if (data.user.avatar) setProfileAvatar(data.user.avatar);
+          if (data.user.custom_proxy) {
+            setUserProxy(data.user.custom_proxy);
+          }
           fetchJobsList(data.token);
           if (data.user.role === "admin") {
             fetchAdminStats(data.token);
             fetchTeamList(data.token);
+            fetchSettings(data.token);
+            fetchAdminGlobalLeads(data.token);
           }
         }
       } else {
         setAuthError(data.error || "Authentication failed");
       }
     } catch {
-      setAuthError("Could not connect to the server");
+      setAuthError("Could not connect to server");
     }
   };
 
@@ -225,13 +327,29 @@ export default function Home() {
     localStorage.removeItem("dashmin_token");
   };
 
+  const handleSaveUserProxy = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/proxy`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ customProxy: userProxy })
+      });
+      if (res.ok) {
+        setProxySaveSuccess(true);
+        setTimeout(() => setProxySaveSuccess(false), 2000);
+      }
+    } catch {}
+  };
+
   const startLeadSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!keyword.trim()) return;
 
     setIsStarting(true);
     const targetQuery = location.trim() ? `${keyword.trim()} in ${location.trim()}` : keyword.trim();
-    const formattedTarget = source === "2gis" && location.trim() ? `${location.trim()}:${keyword.trim()}` : targetQuery;
     const finalCap = customLeadCount ? (parseInt(customLeadCount) || 0) : leadCount;
 
     try {
@@ -242,9 +360,10 @@ export default function Home() {
           Authorization: `Bearer ${token}`
         },
         body: JSON.stringify({
-          engine: source,
-          target: formattedTarget,
-          cap: finalCap
+          engine: "gmaps",
+          target: targetQuery,
+          cap: finalCap,
+          proxy: userProxy.trim()
         })
       });
 
@@ -260,6 +379,66 @@ export default function Home() {
       }
     } catch {} finally {
       setIsStarting(false);
+    }
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setBulkFileName(file.name);
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const content = event.target?.result as string;
+      if (!content) return;
+      const lines = content
+        .split(/\r?\n/)
+        .map(l => l.trim().replace(/^["']|["']$/g, '').trim())
+        .filter(l => l.length > 0 && !l.startsWith('#'));
+      setBulkQueriesText(lines.join("\n"));
+    };
+    reader.readAsText(file);
+  };
+
+  const startBulkSearch = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const queries = bulkQueriesText
+      .split(/\r?\n/)
+      .map(q => q.trim())
+      .filter(q => q.length > 0);
+
+    if (queries.length === 0) return;
+    setIsBulkStarting(true);
+    setBulkStatusMsg("");
+    const finalCap = customLeadCount ? (parseInt(customLeadCount) || 0) : leadCount;
+
+    try {
+      const res = await fetch(`${API_BASE}/api/jobs/batch`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          engine: "gmaps",
+          queries,
+          cap: finalCap,
+          proxy: userProxy.trim() || undefined
+        })
+      });
+
+      if (res.ok) {
+        setBulkQueriesText("");
+        setBulkFileName("");
+        await fetchJobsList(token);
+        setActiveTab("leads");
+      } else {
+        const data = await res.json();
+        setBulkStatusMsg(data.error || "Failed to start bulk searches");
+      }
+    } catch {
+      setBulkStatusMsg("Network error starting bulk searches");
+    } finally {
+      setIsBulkStarting(false);
     }
   };
 
@@ -285,6 +464,92 @@ export default function Home() {
       }
       fetchJobsList(token);
     } catch {}
+  };
+
+  const fetchAdminGlobalLeads = async (t = token, uFilter = adminLeadUserFilter, q = adminLeadSearch) => {
+    setLoadingAdminLeads(true);
+    try {
+      let url = `${API_BASE}/api/admin/leads?limit=500&userId=${encodeURIComponent(uFilter)}`;
+      if (q.trim()) url += `&search=${encodeURIComponent(q.trim())}`;
+      const res = await fetch(url, {
+        headers: { Authorization: `Bearer ${t}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setAdminGlobalLeads(data.leads || []);
+        setAdminGlobalTotal(data.total || 0);
+      }
+    } catch {} finally {
+      setLoadingAdminLeads(false);
+    }
+  };
+
+  const handleUpdateProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setProfileMsg(null);
+    if (profileNewPassword && profileNewPassword !== profileConfirmPassword) {
+      setProfileMsg({ type: "error", text: "New passwords do not match" });
+      return;
+    }
+    if (profileNewPassword && !profileCurrentPassword) {
+      setProfileMsg({ type: "error", text: "Current password is required to set a new password" });
+      return;
+    }
+
+    setProfileLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/profile`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          name: profileName,
+          username: profileUsername,
+          avatar: profileAvatar,
+          currentPassword: profileCurrentPassword || undefined,
+          newPassword: profileNewPassword || undefined
+        })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setUser(data.user);
+        setProfileCurrentPassword("");
+        setProfileNewPassword("");
+        setProfileConfirmPassword("");
+        setProfileMsg({ type: "success", text: "Profile updated successfully" });
+      } else {
+        setProfileMsg({ type: "error", text: data.error || "Failed to update profile" });
+      }
+    } catch {
+      setProfileMsg({ type: "error", text: "Server communication error" });
+    } finally {
+      setProfileLoading(false);
+    }
+  };
+
+  const handleProfileForgotPassword = async () => {
+    if (!user?.email) return;
+    setProfileMsg(null);
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/forgot-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: user.email })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setProfileMsg({
+          type: "success",
+          text: `Reset instructions generated. Temporary pass: ${data.temporaryPassword || "Check link"}`
+        });
+      } else {
+        setProfileMsg({ type: "error", text: data.error || "Failed to send reset email" });
+      }
+    } catch {
+      setProfileMsg({ type: "error", text: "Error contacting server" });
+    }
   };
 
   const downloadFile = async () => {
@@ -326,7 +591,8 @@ export default function Home() {
           email: newUserEmail,
           password: newUserPassword,
           role: newUserRole,
-          status: "active"
+          status: "active",
+          can_use_proxy: newUserCanProxy ? 1 : 0
         })
       });
       const data = await res.json();
@@ -335,6 +601,7 @@ export default function Home() {
         setNewUserName("");
         setNewUserEmail("");
         setNewUserPassword("");
+        setNewUserCanProxy(false);
         fetchTeamList(token);
         fetchAdminStats(token);
       } else {
@@ -353,7 +620,8 @@ export default function Home() {
         name: editUserName,
         email: editUserEmail,
         role: editUserRole,
-        status: editUserStatus
+        status: editUserStatus,
+        can_use_proxy: editUserCanProxy ? 1 : 0
       };
       if (editUserPassword.trim().length > 0) {
         payload.password = editUserPassword.trim();
@@ -374,6 +642,22 @@ export default function Home() {
     } catch {}
   };
 
+  const handleToggleUserProxy = async (userId: string) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/users/${userId}/toggle-proxy`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setAdminUsers(prev => prev.map(u => u.id === userId ? { ...u, can_use_proxy: data.can_use_proxy } : u));
+        if (user && user.id === userId) {
+          setUser(prev => prev ? { ...prev, can_use_proxy: data.can_use_proxy } : null);
+        }
+      }
+    } catch {}
+  };
+
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!resetModalUser) return;
@@ -389,6 +673,29 @@ export default function Home() {
       const data = await res.json();
       if (res.ok) {
         setResetResultData(data);
+      }
+    } catch {}
+  };
+
+  const handleSaveSettings = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/settings`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          platform_name: platformName,
+          allow_registration: String(publicRegistration),
+          proxy_enabled: String(systemProxyEnabled),
+          proxy_url: systemProxyUrl,
+          parallel_concurrency: String(parallelConcurrency)
+        })
+      });
+      if (res.ok) {
+        setSettingsSuccess(true);
+        setTimeout(() => setSettingsSuccess(false), 2000);
       }
     } catch {}
   };
@@ -415,7 +722,7 @@ export default function Home() {
   };
 
   const deleteUser = async (userId: string) => {
-    if (!confirm("Are you sure you want to permanently delete this user?")) return;
+    if (!confirm("Are you sure you want to delete this user?")) return;
     try {
       await fetch(`${API_BASE}/api/admin/users/${userId}`, {
         method: "DELETE",
@@ -439,97 +746,188 @@ export default function Home() {
   });
 
   const selectedJob = jobs.find(j => j.id === selectedJobId);
-
   const isDark = theme === "dark";
+  const userCanProxy = user?.role === "admin" || user?.can_use_proxy === 1;
 
   if (!token || !user) {
     return (
-      <div className={`flex min-h-screen w-full items-center justify-center p-4 transition-colors duration-300 ${isDark ? "bg-[#0A0C10] text-[#F5F5F7]" : "bg-[#F5F5F7] text-[#1D1D1F]"}`}>
-        <div className={`w-full max-w-[420px] rounded-[28px] p-8 sm:p-10 shadow-2xl backdrop-blur-2xl border transition-all ${isDark ? "bg-[#16181D]/80 border-white/[0.08] shadow-black/60" : "bg-white/80 border-black/[0.06] shadow-slate-200/50"}`}>
+      <div className={`relative flex min-h-screen w-full items-center justify-center p-4 transition-colors duration-300 ${isDark ? "bg-[#09090C] text-white" : "bg-[#F9FAFB] text-black"}`}>
+        <div className="absolute top-1/4 -left-20 w-80 h-80 rounded-full bg-green-500/10 blur-[100px] pointer-events-none"></div>
+        <div className="absolute bottom-1/4 -right-20 w-80 h-80 rounded-full bg-green-500/10 blur-[100px] pointer-events-none"></div>
+
+        <div className={`w-full max-w-[400px] rounded-3xl p-8 transition-all duration-300 ${isDark ? "glass-surface-dark text-white" : "glass-surface-light text-black shadow-lg"}`}>
           <div className="flex justify-between items-center mb-6">
             <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-emerald-500 to-teal-400 flex items-center justify-center text-white shadow-md shadow-emerald-500/20">
-                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+              <div className="w-8 h-8 rounded-xl bg-green-600 flex items-center justify-center text-white font-bold text-sm shadow-md shadow-green-600/25">
+                D
               </div>
-              <span className="text-xl font-bold tracking-tight">{platformName}</span>
+              <span className="text-lg font-bold tracking-tight">{platformName}</span>
             </div>
             <button
               onClick={toggleTheme}
-              className={`p-2 rounded-xl border transition ${isDark ? "bg-white/5 border-white/10 text-amber-400 hover:bg-white/10" : "bg-black/5 border-black/5 text-slate-600 hover:bg-black/10"}`}
+              className={`p-2 rounded-xl text-xs font-semibold btn-spring ${isDark ? "glass-icon-dark text-zinc-300 hover:text-white" : "glass-icon-light text-zinc-700 hover:text-black"}`}
             >
-              {isDark ? (
-                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clipRule="evenodd"></path></svg>
-              ) : (
-                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"></path></svg>
-              )}
+              {isDark ? "Light" : "Dark"}
             </button>
           </div>
 
-          <p className="text-xs text-slate-400 mb-6 font-medium">Apple-grade business intelligence and lead discovery</p>
-
-          <div className={`flex rounded-2xl p-1 mb-6 text-xs font-semibold border ${isDark ? "bg-black/30 border-white/[0.05]" : "bg-black/[0.04] border-black/[0.05]"}`}>
+          <div className={`flex rounded-xl p-1 mb-6 text-xs font-semibold ${isDark ? "bg-black/40 border border-white/5" : "bg-black/[0.04] border border-black/5"}`}>
             <button
-              onClick={() => { setAuthMode("login"); setAuthError(""); }}
-              className={`flex-1 py-2 rounded-xl transition ${authMode === "login" ? (isDark ? "bg-[#252830] text-white shadow-sm" : "bg-white text-black shadow-sm") : "text-slate-400 hover:text-white"}`}
+              onClick={() => { setAuthMode("login"); setAuthError(""); setForgotResult(null); }}
+              className={`flex-1 py-1.5 rounded-lg transition-all duration-200 ${authMode === "login" ? (isDark ? "bg-white/10 text-white font-bold shadow-sm" : "bg-white text-black font-bold shadow-sm") : "text-zinc-500"}`}
             >
               Sign In
             </button>
             <button
-              onClick={() => { setAuthMode("register"); setAuthError(""); }}
-              className={`flex-1 py-2 rounded-xl transition ${authMode === "register" ? (isDark ? "bg-[#252830] text-white shadow-sm" : "bg-white text-black shadow-sm") : "text-slate-400 hover:text-white"}`}
+              onClick={() => { setAuthMode("register"); setAuthError(""); setForgotResult(null); }}
+              className={`flex-1 py-1.5 rounded-lg transition-all duration-200 ${authMode === "register" ? (isDark ? "bg-white/10 text-white font-bold shadow-sm" : "bg-white text-black font-bold shadow-sm") : "text-zinc-500"}`}
             >
               Register
             </button>
           </div>
 
           {authError && (
-            <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 text-red-400 text-xs rounded-2xl font-medium text-left">
+            <div className="mb-4 p-3 rounded-xl text-xs font-semibold border border-red-500/20 bg-red-500/10 text-red-500">
               {authError}
             </div>
           )}
           {authSuccess && (
-            <div className="mb-4 p-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs rounded-2xl font-medium text-left">
+            <div className="mb-4 p-3 rounded-xl text-xs font-semibold border border-green-500/20 bg-green-500/10 text-green-500">
               {authSuccess}
             </div>
           )}
 
-          <form onSubmit={handleAuth} className="space-y-3">
-            {authMode === "register" && (
-              <input
-                type="text"
-                placeholder="Full Name"
-                value={name}
-                onChange={e => setName(e.target.value)}
-                className={`w-full px-4 py-3 rounded-2xl text-sm outline-none transition border ${isDark ? "bg-white/5 border-white/10 text-white placeholder-slate-500 focus:border-emerald-500" : "bg-black/[0.03] border-black/10 text-slate-900 placeholder-slate-400 focus:border-emerald-600"}`}
-                required
-              />
-            )}
-            <input
-              type="email"
-              placeholder="Email Address"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              className={`w-full px-4 py-3 rounded-2xl text-sm outline-none transition border ${isDark ? "bg-white/5 border-white/10 text-white placeholder-slate-500 focus:border-emerald-500" : "bg-black/[0.03] border-black/10 text-slate-900 placeholder-slate-400 focus:border-emerald-600"}`}
-              required
-            />
-            <input
-              type="password"
-              placeholder="Password"
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              className={`w-full px-4 py-3 rounded-2xl text-sm outline-none transition border ${isDark ? "bg-white/5 border-white/10 text-white placeholder-slate-500 focus:border-emerald-500" : "bg-black/[0.03] border-black/10 text-slate-900 placeholder-slate-400 focus:border-emerald-600"}`}
-              required
-            />
-            <button
-              type="submit"
-              className="w-full py-3.5 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white text-sm font-semibold rounded-2xl transition shadow-lg shadow-emerald-500/25 active:scale-[0.98]"
-            >
-              {authMode === "login" ? "Sign In" : "Create Account"}
-            </button>
-          </form>
+          {authMode === "forgot" ? (
+            <div className="space-y-4">
+              <div>
+                <h2 className="text-sm font-bold">Reset Password</h2>
+                <p className="text-xs text-zinc-500 mt-1">Enter your email to receive temporary login credentials.</p>
+              </div>
 
-          <div className="mt-8 pt-4 border-t border-white/[0.06] text-xs text-slate-500 text-center">
-            Admin Account: <span className="font-semibold text-slate-400">admin@dashmin.local</span> / <span className="font-semibold text-slate-400">admin123</span>
+              {!forgotResult ? (
+                <form onSubmit={handleAuth} className="space-y-3 pt-1">
+                  <input
+                    type="email"
+                    placeholder="Email address"
+                    value={email}
+                    onChange={e => setEmail(e.target.value)}
+                    className={`w-full px-4 py-2.5 rounded-xl text-xs outline-none transition-all duration-200 ${isDark ? "glass-input-dark text-white focus:border-green-500" : "glass-input-light text-black focus:border-black"}`}
+                    required
+                  />
+                  <button
+                    type="submit"
+                    className="w-full py-2.5 rounded-xl text-xs font-bold text-white bg-green-600 hover:bg-green-700 btn-spring shadow-lg shadow-green-600/25"
+                  >
+                    Reset Password
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setAuthMode("login"); setAuthError(""); setForgotResult(null); }}
+                    className="w-full py-1 text-xs text-zinc-500 hover:underline"
+                  >
+                    Back to Sign In
+                  </button>
+                </form>
+              ) : (
+                <div className="space-y-3 pt-1">
+                  <div className="p-3.5 rounded-xl text-xs border border-green-500/30 bg-green-500/10 text-green-500">
+                    <div className="font-bold mb-1">Temporary Password:</div>
+                    <code className="font-mono font-bold text-sm bg-black/20 px-2 py-0.5 rounded">{forgotResult.temporaryPassword}</code>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPassword(forgotResult.temporaryPassword);
+                      setAuthMode("login");
+                      setForgotResult(null);
+                    }}
+                    className="w-full py-2.5 rounded-xl text-xs font-bold text-white bg-green-600 hover:bg-green-700 btn-spring shadow-lg shadow-green-600/25"
+                  >
+                    Log In Now
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <form onSubmit={handleAuth} className="space-y-3.5">
+              {authMode === "register" && (
+                <>
+                  <div>
+                    <label className="text-xs font-semibold block mb-1">Full Name</label>
+                    <input
+                      type="text"
+                      placeholder="Your name"
+                      value={name}
+                      onChange={e => setName(e.target.value)}
+                      className={`w-full px-4 py-2.5 rounded-xl text-xs outline-none transition-all duration-200 ${isDark ? "glass-input-dark text-white focus:border-green-500" : "glass-input-light text-black focus:border-black"}`}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold block mb-1">Username</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. alex_leadgen"
+                      value={regUsername}
+                      onChange={e => setRegUsername(e.target.value)}
+                      className={`w-full px-4 py-2.5 rounded-xl text-xs outline-none transition-all duration-200 ${isDark ? "glass-input-dark text-white focus:border-green-500" : "glass-input-light text-black focus:border-black"}`}
+                      required
+                    />
+                  </div>
+                </>
+              )}
+              <div>
+                <label className="text-xs font-semibold block mb-1">
+                  {authMode === "login" ? "Username or Email" : "Work / Company Email"}
+                </label>
+                <input
+                  type={authMode === "login" ? "text" : "email"}
+                  placeholder={authMode === "login" ? "e.g. admin or user@company.com" : "alex@company.com"}
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  className={`w-full px-4 py-2.5 rounded-xl text-xs outline-none transition-all duration-200 ${isDark ? "glass-input-dark text-white focus:border-green-500" : "glass-input-light text-black focus:border-black"}`}
+                  required
+                />
+                {authMode === "register" && (
+                  <span className="text-[10px] text-zinc-500 mt-1 block">Only trusted business/company emails allowed.</span>
+                )}
+              </div>
+              <div>
+                <div className="flex justify-between items-center mb-1">
+                  <label className="text-xs font-semibold">Password</label>
+                  {authMode === "login" && (
+                    <button
+                      type="button"
+                      onClick={() => { setAuthMode("forgot"); setAuthError(""); }}
+                      className="text-[11px] text-zinc-500 hover:underline"
+                    >
+                      Forgot?
+                    </button>
+                  )}
+                </div>
+                <input
+                  type="password"
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  className={`w-full px-4 py-2.5 rounded-xl text-xs outline-none transition-all duration-200 ${isDark ? "glass-input-dark text-white focus:border-green-500" : "glass-input-light text-black focus:border-black"}`}
+                  required
+                />
+              </div>
+
+              <div className="pt-1">
+                <button
+                  type="submit"
+                  className={`w-full py-2.5 rounded-xl text-xs font-bold text-white btn-spring ${isDark ? "bg-green-600 hover:bg-green-700 shadow-lg shadow-green-600/25" : "bg-black hover:bg-zinc-800 shadow-md shadow-black/10"}`}
+                >
+                  {authMode === "login" ? "Sign In" : "Create Account"}
+                </button>
+              </div>
+            </form>
+          )}
+
+          <div className="mt-6 pt-4 border-t border-zinc-500/20 text-[11px] text-zinc-500 text-center">
+            Admin: <span className="font-semibold text-zinc-700 dark:text-zinc-300">admin@dashmin.local</span> / <span className="font-semibold text-zinc-700 dark:text-zinc-300">admin123</span>
           </div>
         </div>
       </div>
@@ -537,1029 +935,1536 @@ export default function Home() {
   }
 
   return (
-    <div className={`flex h-screen w-screen overflow-hidden font-sans transition-colors duration-300 ${isDark ? "bg-[#0A0C10] text-[#F5F5F7]" : "bg-[#F5F5F7] text-[#1D1D1F]"}`}>
-      <aside className={`w-72 flex flex-col justify-between p-6 shrink-0 border-r transition-colors duration-300 ${isDark ? "bg-[#111318] border-white/[0.06]" : "bg-white border-black/[0.06]"}`}>
-        <div>
-          <div className="flex items-center justify-between mb-8">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-400 flex items-center justify-center text-white shadow-md shadow-emerald-500/20">
-                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
-              </div>
-              <div>
-                <span className="text-base font-bold tracking-tight block leading-tight">{platformName}</span>
-                <span className="text-[10px] text-slate-400 font-medium">Lead Engine Pro</span>
-              </div>
-            </div>
-            <button
-              onClick={toggleTheme}
-              className={`p-2 rounded-xl border transition ${isDark ? "bg-white/5 border-white/10 text-amber-400 hover:bg-white/10" : "bg-black/5 border-black/5 text-slate-600 hover:bg-black/10"}`}
-              title="Toggle Light / Dark mode"
-            >
-              {isDark ? (
-                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clipRule="evenodd"></path></svg>
-              ) : (
-                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"></path></svg>
-              )}
-            </button>
-          </div>
+    <div className={`relative flex h-screen w-screen overflow-hidden transition-colors duration-300 ${isDark ? "bg-[#09090C] text-white" : "bg-[#F9FAFB] text-black"}`}>
+      <div className="absolute top-10 -left-20 w-96 h-96 rounded-full bg-green-500/5 blur-[120px] pointer-events-none"></div>
+      <div className="absolute bottom-10 -right-20 w-96 h-96 rounded-full bg-green-500/5 blur-[120px] pointer-events-none"></div>
 
-          {user.role === "admin" && (
-            <div className={`flex rounded-2xl p-1 mb-6 text-xs font-semibold border ${isDark ? "bg-black/30 border-white/[0.06]" : "bg-black/[0.04] border-black/[0.05]"}`}>
+      {sidebarOpen && (
+        <aside className={`w-64 flex flex-col justify-between p-5 shrink-0 z-20 transition-all duration-300 ${isDark ? "glass-surface-dark border-r border-white/5" : "glass-surface-light border-r border-zinc-200"}`}>
+          <div>
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-green-600 flex items-center justify-center text-white font-bold text-xs shadow-md shadow-green-600/25">
+                  D
+                </div>
+                <span className="text-base font-bold tracking-tight">{platformName}</span>
+              </div>
               <button
-                onClick={() => setViewMode("app")}
-                className={`flex-1 py-2 rounded-xl transition flex items-center justify-center gap-1.5 ${viewMode === "app" ? (isDark ? "bg-[#252830] text-white shadow-sm font-bold" : "bg-white text-black shadow-sm font-bold") : "text-slate-400 hover:text-white"}`}
+                onClick={() => setSidebarOpen(false)}
+                className={`p-1.5 rounded-lg text-xs btn-spring ${isDark ? "glass-icon-dark text-zinc-400 hover:text-white" : "glass-icon-light text-zinc-600 hover:text-black"}`}
+                title="Hide sidebar"
               >
-                <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
-                Lead Finder
-              </button>
-              <button
-                onClick={() => { setViewMode("admin"); fetchAdminStats(); fetchTeamList(); }}
-                className={`flex-1 py-2 rounded-xl transition flex items-center justify-center gap-1.5 ${viewMode === "admin" ? "bg-amber-500 text-slate-950 font-bold shadow-sm" : "text-slate-400 hover:text-white"}`}
-              >
-                <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
-                Control Center
+                ✕
               </button>
             </div>
-          )}
 
-          {viewMode === "app" ? (
-            <nav className="space-y-1">
-              <button
-                onClick={() => { setActiveTab("search"); setSelectedJobId(null); }}
-                className={`w-full flex items-center gap-3 px-3.5 py-3 rounded-2xl text-xs font-semibold text-left transition ${activeTab === "search" ? (isDark ? "bg-white/10 text-white font-bold" : "bg-black/[0.06] text-black font-bold") : "text-slate-400 hover:text-white hover:bg-white/5"}`}
-              >
-                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"></circle><path d="M21 21l-4.35-4.35"></path></svg>
-                Find Leads
-              </button>
-              <button
-                onClick={() => { setActiveTab("leads"); }}
-                className={`w-full flex items-center justify-between px-3.5 py-3 rounded-2xl text-xs font-semibold text-left transition ${activeTab === "leads" ? (isDark ? "bg-white/10 text-white font-bold" : "bg-black/[0.06] text-black font-bold") : "text-slate-400 hover:text-white hover:bg-white/5"}`}
-              >
-                <span className="flex items-center gap-3">
-                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
-                  My Saved Leads
-                </span>
-                {jobs.length > 0 && (
-                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${isDark ? "bg-white/10 text-slate-300" : "bg-black/5 text-slate-700"}`}>
-                    {jobs.length}
-                  </span>
-                )}
-              </button>
-            </nav>
-          ) : (
-            <nav className="space-y-1">
-              <div className="text-[10px] font-bold uppercase tracking-wider text-amber-400 px-3 mb-2">Admin Tools</div>
-              <button
-                onClick={() => setAdminTab("overview")}
-                className={`w-full flex items-center gap-3 px-3.5 py-3 rounded-2xl text-xs font-semibold text-left transition ${adminTab === "overview" ? "bg-amber-500/15 text-amber-300 font-bold" : "text-slate-400 hover:text-white hover:bg-white/5"}`}
-              >
-                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
-                System Health & DB
-              </button>
-              <button
-                onClick={() => setAdminTab("users")}
-                className={`w-full flex items-center justify-between px-3.5 py-3 rounded-2xl text-xs font-semibold text-left transition ${adminTab === "users" ? "bg-amber-500/15 text-amber-300 font-bold" : "text-slate-400 hover:text-white hover:bg-white/5"}`}
-              >
-                <span className="flex items-center gap-3">
-                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
-                  User Accounts
-                </span>
-                {adminUsers.length > 0 && (
-                  <span className="px-2 py-0.5 rounded-full text-[10px] bg-amber-500/20 text-amber-300 font-bold">
-                    {adminUsers.length}
-                  </span>
-                )}
-              </button>
-              <button
-                onClick={() => setAdminTab("settings")}
-                className={`w-full flex items-center gap-3 px-3.5 py-3 rounded-2xl text-xs font-semibold text-left transition ${adminTab === "settings" ? "bg-amber-500/15 text-amber-300 font-bold" : "text-slate-400 hover:text-white hover:bg-white/5"}`}
-              >
-                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
-                Platform Config
-              </button>
-            </nav>
-          )}
-        </div>
-
-        <div className={`p-4 rounded-2xl border transition-colors ${isDark ? "bg-white/[0.03] border-white/[0.06]" : "bg-black/[0.02] border-black/[0.05]"} flex items-center justify-between`}>
-          <div className="truncate text-xs">
-            <div className="font-bold truncate">{user.name || user.email}</div>
-            <div className="text-[10px] text-emerald-500 font-semibold uppercase">{user.role}</div>
-          </div>
-          <button onClick={logout} className="text-slate-400 hover:text-rose-500 text-xs transition font-semibold">
-            Logout
-          </button>
-        </div>
-      </aside>
-
-      <main className="flex-1 p-8 overflow-y-auto">
-        {viewMode === "app" && activeTab === "search" && (
-          <div className="max-w-3xl mx-auto space-y-6">
-            <div>
-              <h1 className="text-3xl font-extrabold tracking-tight">Find Local Leads</h1>
-              <p className="text-xs text-slate-400 mt-1 font-medium">Apple card layout • Multi-area city scanning bypassing the 120-place ceiling</p>
-            </div>
-
-            <form onSubmit={startLeadSearch} className={`rounded-[32px] p-8 shadow-sm border transition-all ${isDark ? "bg-[#14161D] border-white/[0.08]" : "bg-white border-black/[0.06]"}`}>
-              <div className="space-y-5">
-                <div>
-                  <label className="text-xs font-bold block mb-2 text-slate-400">What business or industry?</label>
-                  <input
-                    type="text"
-                    value={keyword}
-                    onChange={e => setKeyword(e.target.value)}
-                    placeholder="e.g. Real Estate Agencies, Coffee Shops, Dentists"
-                    className={`w-full px-5 py-4 rounded-2xl text-sm outline-none transition border ${isDark ? "bg-white/[0.04] border-white/[0.08] text-white focus:border-emerald-500 placeholder-slate-500" : "bg-black/[0.02] border-black/[0.08] text-black focus:border-emerald-600 placeholder-slate-400"}`}
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="text-xs font-bold block mb-2 text-slate-400">Target City or Metro Area</label>
-                  <input
-                    type="text"
-                    value={location}
-                    onChange={e => setLocation(e.target.value)}
-                    placeholder="e.g. Dubai, New York, London, Riyadh, Toronto"
-                    className={`w-full px-5 py-4 rounded-2xl text-sm outline-none transition border ${isDark ? "bg-white/[0.04] border-white/[0.08] text-white focus:border-emerald-500 placeholder-slate-500" : "bg-black/[0.02] border-black/[0.08] text-black focus:border-emerald-600 placeholder-slate-400"}`}
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 pt-1">
-                  <div>
-                    <label className="text-xs font-bold block mb-2 text-slate-400">Search Engine</label>
-                    <div className={`flex rounded-2xl p-1 text-xs font-semibold border ${isDark ? "bg-black/30 border-white/[0.06]" : "bg-black/[0.04] border-black/[0.05]"}`}>
-                      <button
-                        type="button"
-                        onClick={() => setSource("gmaps")}
-                        className={`flex-1 py-2.5 rounded-xl transition ${source === "gmaps" ? (isDark ? "bg-[#252830] text-white shadow-sm font-bold" : "bg-white text-black shadow-sm font-bold") : "text-slate-400 hover:text-white"}`}
-                      >
-                        Google Maps
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setSource("2gis")}
-                        className={`flex-1 py-2.5 rounded-xl transition ${source === "2gis" ? (isDark ? "bg-[#252830] text-white shadow-sm font-bold" : "bg-white text-black shadow-sm font-bold") : "text-slate-400 hover:text-white"}`}
-                      >
-                        2GIS Catalog
-                      </button>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="text-xs font-bold block mb-2 text-slate-400">Lead Target</label>
-                    <div className="flex gap-1.5">
-                      {[50, 100, 250, 500].map(amt => (
-                        <button
-                          key={amt}
-                          type="button"
-                          onClick={() => { setLeadCount(amt); setCustomLeadCount(""); }}
-                          className={`flex-1 py-2.5 rounded-xl text-xs font-bold border transition ${leadCount === amt && !customLeadCount ? "border-emerald-500 bg-emerald-500/10 text-emerald-400" : (isDark ? "border-white/[0.08] bg-white/[0.02] text-slate-400 hover:bg-white/[0.05]" : "border-black/[0.06] bg-black/[0.02] text-slate-600 hover:bg-black/[0.05]")}`}
-                        >
-                          {amt}
-                        </button>
-                      ))}
-                      <button
-                        type="button"
-                        onClick={() => { setLeadCount(0); setCustomLeadCount(""); }}
-                        className={`flex-1 py-2.5 rounded-xl text-xs font-black border transition ${leadCount === 0 && !customLeadCount ? "border-emerald-500 bg-emerald-500 text-white shadow-md shadow-emerald-500/25" : (isDark ? "border-white/[0.08] bg-white/[0.02] text-slate-400 hover:bg-white/[0.05]" : "border-black/[0.06] bg-black/[0.02] text-slate-600 hover:bg-black/[0.05]")}`}
-                      >
-                        Unlimited
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                <div className={`p-4 rounded-2xl border flex items-center justify-between transition-colors ${isDark ? "bg-white/[0.02] border-white/[0.06]" : "bg-black/[0.02] border-black/[0.05]"}`}>
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="checkbox"
-                      id="deepScan"
-                      checked={deepScan}
-                      onChange={e => setDeepScan(e.target.checked)}
-                      className="w-4 h-4 rounded text-emerald-500 focus:ring-emerald-400"
-                    />
-                    <label htmlFor="deepScan" className="text-xs font-bold cursor-pointer">
-                      Deep Multi-Area City Grid
-                    </label>
-                  </div>
-                  <div className="text-[11px] text-slate-400 font-medium">
-                    {leadCount === 0 ? "Scans all geographic cells until complete" : `Limit: ${leadCount} businesses`}
-                  </div>
-                </div>
-              </div>
-
-              <div className="mt-8">
+            {user.role === "admin" && (
+              <div className={`flex rounded-xl p-1 mb-5 text-xs font-semibold ${isDark ? "bg-black/40 border border-white/5" : "bg-black/[0.04] border border-black/5"}`}>
                 <button
-                  type="submit"
-                  disabled={isStarting || !keyword.trim()}
-                  className="w-full py-4 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 disabled:opacity-50 text-white font-bold text-sm rounded-2xl transition shadow-xl shadow-emerald-500/25 flex items-center justify-center gap-2.5 active:scale-[0.99]"
+                  onClick={() => setViewMode("app")}
+                  className={`flex-1 py-1.5 rounded-lg transition-all duration-200 ${viewMode === "app" ? (isDark ? "bg-white/10 text-white font-bold shadow-sm" : "bg-white text-black font-bold shadow-sm") : "text-zinc-500"}`}
                 >
-                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
-                  {isStarting ? "Initializing..." : (leadCount === 0 ? "Find All Leads (Unlimited)" : `Extract ${leadCount} Leads`)}
+                  App
+                </button>
+                <button
+                  onClick={() => { setViewMode("admin"); fetchAdminStats(); fetchTeamList(); fetchSettings(); }}
+                  className={`flex-1 py-1.5 rounded-lg transition-all duration-200 ${viewMode === "admin" ? "bg-green-600 text-white font-bold shadow-sm" : "text-zinc-500"}`}
+                >
+                  Admin
                 </button>
               </div>
-            </form>
+            )}
 
-            {jobs.length > 0 && (
-              <div className={`rounded-[32px] p-6 shadow-sm border transition-all ${isDark ? "bg-[#14161D] border-white/[0.08]" : "bg-white border-black/[0.06]"}`}>
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-sm font-bold">Recent Searches</h3>
-                  <button onClick={() => setActiveTab("leads")} className="text-xs text-emerald-500 hover:underline font-bold">
-                    View All ({jobs.length}) →
+            {viewMode === "app" ? (
+              <nav className="space-y-1">
+                <button
+                  onClick={() => { setActiveTab("search"); setSelectedJobId(null); }}
+                  className={`w-full flex items-center gap-2.5 px-3.5 py-2 rounded-xl text-xs font-semibold text-left transition-all duration-200 ${activeTab === "search" ? (isDark ? "bg-white/10 text-white font-bold shadow-sm" : "bg-black/[0.06] text-black font-bold shadow-sm") : "text-zinc-500 hover:text-black dark:hover:text-white"}`}
+                >
+                  Find Leads
+                </button>
+                <button
+                  onClick={() => setActiveTab("leads")}
+                  className={`w-full flex items-center justify-between px-3.5 py-2 rounded-xl text-xs font-semibold text-left transition-all duration-200 ${activeTab === "leads" ? (isDark ? "bg-white/10 text-white font-bold shadow-sm" : "bg-black/[0.06] text-black font-bold shadow-sm") : "text-zinc-500 hover:text-black dark:hover:text-white"}`}
+                >
+                  <span>Saved Leads</span>
+                  {jobs.length > 0 && (
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${isDark ? "bg-white/10 text-zinc-300" : "bg-black/5 text-zinc-700"}`}>
+                      {jobs.length}
+                    </span>
+                  )}
+                </button>
+                {userCanProxy && (
+                  <button
+                    onClick={() => setActiveTab("settings")}
+                    className={`w-full flex items-center gap-2.5 px-3.5 py-2 rounded-xl text-xs font-semibold text-left transition-all duration-200 ${activeTab === "settings" ? (isDark ? "bg-white/10 text-white font-bold shadow-sm" : "bg-black/[0.06] text-black font-bold shadow-sm") : "text-zinc-500 hover:text-black dark:hover:text-white"}`}
+                  >
+                    Proxy Settings
                   </button>
-                </div>
-                <div className="divide-y divide-white/[0.06]">
-                  {jobs.slice(0, 3).map(j => {
-                    const isRunning = j.status === "running" || j.status === "pending";
-                    return (
-                      <div key={j.id} className="py-3.5 flex items-center justify-between">
-                        <div>
-                          <div className="text-sm font-bold capitalize">{j.target}</div>
-                          <div className="text-[11px] text-slate-400 mt-1 flex items-center gap-2">
-                            <span>{j.total_saved || 0} leads saved</span>
-                            <span>•</span>
-                            {isRunning ? (
-                              <span className="flex items-center gap-1.5 text-amber-400 font-semibold">
-                                <svg className="w-3 h-3 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10" strokeDasharray="32" strokeLinecap="round"></circle></svg>
-                                Searching city grid...
-                              </span>
-                            ) : (
-                              <span className="text-emerald-500 font-semibold">Completed</span>
-                            )}
-                          </div>
-                        </div>
-                        <button
-                          onClick={() => {
-                            setSelectedJobId(j.id);
-                            fetchJobDetails(j.id, token, true);
-                            setActiveTab("leads");
-                          }}
-                          className={`px-4 py-2 rounded-xl text-xs font-bold border transition ${isDark ? "bg-white/5 border-white/10 hover:bg-white/10 text-white" : "bg-black/[0.04] border-black/[0.06] hover:bg-black/[0.08] text-black"}`}
-                        >
-                          View Leads
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
+                )}
+                <button
+                  onClick={() => {
+                    setProfileName(user?.name || "");
+                    setProfileUsername(user?.username || "");
+                    setProfileAvatar(user?.avatar || "");
+                    setProfileMsg(null);
+                    setShowProfileModal(true);
+                  }}
+                  className="w-full flex items-center gap-2.5 px-3.5 py-2 rounded-xl text-xs font-semibold text-left transition-all duration-200 text-zinc-500 hover:text-black dark:hover:text-white"
+                >
+                  My Profile
+                </button>
+              </nav>
+            ) : (
+              <nav className="space-y-1">
+                <div className="text-[10px] font-bold uppercase tracking-wider text-zinc-500 px-3.5 mb-2">Admin Tools</div>
+                <button
+                  onClick={() => setAdminTab("overview")}
+                  className={`w-full flex items-center gap-2.5 px-3.5 py-2 rounded-xl text-xs font-semibold text-left transition-all duration-200 ${adminTab === "overview" ? (isDark ? "bg-white/10 text-white font-bold shadow-sm" : "bg-black/[0.06] text-black font-bold shadow-sm") : "text-zinc-500 hover:text-black dark:hover:text-white"}`}
+                >
+                  System & Stats
+                </button>
+                <button
+                  onClick={() => setAdminTab("users")}
+                  className={`w-full flex items-center justify-between px-3.5 py-2 rounded-xl text-xs font-semibold text-left transition-all duration-200 ${adminTab === "users" ? (isDark ? "bg-white/10 text-white font-bold shadow-sm" : "bg-black/[0.06] text-black font-bold shadow-sm") : "text-zinc-500 hover:text-black dark:hover:text-white"}`}
+                >
+                  <span>Users & Proxies</span>
+                  {adminUsers.length > 0 && (
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-green-600 text-white shadow-sm">
+                      {adminUsers.length}
+                    </span>
+                  )}
+                </button>
+                <button
+                  onClick={() => { setAdminTab("leads"); fetchAdminGlobalLeads(); }}
+                  className={`w-full flex items-center justify-between px-3.5 py-2 rounded-xl text-xs font-semibold text-left transition-all duration-200 ${adminTab === "leads" ? (isDark ? "bg-white/10 text-white font-bold shadow-sm" : "bg-black/[0.06] text-black font-bold shadow-sm") : "text-zinc-500 hover:text-black dark:hover:text-white"}`}
+                >
+                  <span>All Users Leads</span>
+                  {adminGlobalTotal > 0 && (
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-green-600 text-white shadow-sm">
+                      {adminGlobalTotal}
+                    </span>
+                  )}
+                </button>
+                <button
+                  onClick={() => setAdminTab("settings")}
+                  className={`w-full flex items-center gap-2.5 px-3.5 py-2 rounded-xl text-xs font-semibold text-left transition-all duration-200 ${adminTab === "settings" ? (isDark ? "bg-white/10 text-white font-bold shadow-sm" : "bg-black/[0.06] text-black font-bold shadow-sm") : "text-zinc-500 hover:text-black dark:hover:text-white"}`}
+                >
+                  System Settings
+                </button>
+              </nav>
             )}
           </div>
-        )}
 
-        {viewMode === "app" && activeTab === "leads" && (
-          <div className="space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div>
-                <h1 className="text-3xl font-extrabold tracking-tight">Saved Leads & Searches</h1>
-                <p className="text-xs text-slate-400 mt-1 font-medium">Review discovered contacts or export directly to Excel and CSV</p>
-              </div>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between pt-3 border-t border-zinc-500/20 text-xs">
+              <span className="text-zinc-500">Theme</span>
               <button
-                onClick={() => { setActiveTab("search"); setSelectedJobId(null); }}
-                className="px-5 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white text-xs font-bold rounded-2xl transition shadow-md shadow-emerald-500/20 flex items-center gap-2 self-start"
+                onClick={toggleTheme}
+                className={`px-3 py-1 rounded-xl text-xs font-semibold btn-spring ${isDark ? "glass-icon-dark text-zinc-300" : "glass-icon-light text-zinc-700"}`}
               >
-                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-                New Search
+                {isDark ? "Light" : "Dark"}
               </button>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <div className="lg:col-span-1 space-y-3">
-                <div className="text-xs font-bold text-slate-400 uppercase tracking-wider px-1">Your Searches</div>
-                {jobs.length === 0 ? (
-                  <div className={`rounded-3xl p-8 text-center border text-xs text-slate-400 ${isDark ? "bg-[#14161D] border-white/[0.08]" : "bg-white border-black/[0.06]"}`}>
-                    No searches run yet. Click "New Search" to extract leads!
-                  </div>
+            <div
+              onClick={() => {
+                setProfileName(user?.name || "");
+                setProfileUsername(user?.username || "");
+                setProfileAvatar(user?.avatar || "");
+                setProfileMsg(null);
+                setShowProfileModal(true);
+              }}
+              className={`p-3 rounded-2xl border flex items-center justify-between text-xs cursor-pointer btn-spring ${isDark ? "glass-surface-dark border-white/5 hover:border-white/20" : "glass-surface-light border-zinc-200 hover:border-zinc-300"}`}
+            >
+              <div className="flex items-center gap-2.5 truncate">
+                {user.avatar ? (
+                  <img src={user.avatar} alt={user.name} className="w-8 h-8 rounded-full object-cover shrink-0 border border-zinc-500/20" />
                 ) : (
-                  jobs.map(j => {
-                    const isSelected = j.id === selectedJobId;
-                    const isRunning = j.status === "running" || j.status === "pending";
-                    return (
-                      <div
-                        key={j.id}
-                        onClick={() => fetchJobDetails(j.id, token, true)}
-                        className={`p-5 rounded-[24px] border transition cursor-pointer ${isSelected ? (isDark ? "bg-[#1C1F28] border-emerald-500/60 shadow-lg ring-1 ring-emerald-500/50" : "bg-white border-emerald-500 shadow-md ring-1 ring-emerald-500") : (isDark ? "bg-[#14161D] border-white/[0.08] hover:border-white/[0.15]" : "bg-white border-black/[0.06] hover:border-black/[0.12]")}`}
-                      >
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="font-bold text-sm capitalize truncate">{j.target}</div>
-                          {isRunning ? (
-                            <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 shrink-0">
-                              <svg className="w-2.5 h-2.5 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><circle cx="12" cy="12" r="10" strokeDasharray="32" strokeLinecap="round"></circle></svg>
-                              Active
-                            </span>
-                          ) : (
-                            <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-400 shrink-0">
-                              Completed
-                            </span>
-                          )}
-                        </div>
-
-                        {isRunning && (
-                          <div className="mt-3">
-                            <div className="w-full h-1.5 rounded-full overflow-hidden bg-white/10">
-                              <div className="h-full w-full bg-emerald-500 apple-progress-bar rounded-full"></div>
-                            </div>
-                            <div className="text-[10px] text-slate-400 mt-1 flex justify-between font-mono">
-                              <span>Scanning city zones...</span>
-                              <span className="text-emerald-400 font-bold">{j.total_saved || 0} leads</span>
-                            </div>
-                          </div>
-                        )}
-
-                        <div className="flex items-center justify-between text-xs text-slate-400 mt-3 pt-3 border-t border-white/[0.06]">
-                          <span>{j.total_saved || 0} leads {j.cap === 0 ? "(Unlimited)" : `(Cap: ${j.cap})`}</span>
-                          <span className="text-[10px] uppercase font-bold text-slate-500">{j.engine === "2gis" ? "2GIS" : "Google Maps"}</span>
-                        </div>
-
-                        <div className="flex items-center gap-3 mt-3">
-                          {isRunning && (
-                            <button
-                              onClick={(e) => { e.stopPropagation(); stopSearch(j.id); }}
-                              className="text-xs text-amber-400 hover:underline font-bold"
-                            >
-                              Stop Search
-                            </button>
-                          )}
-                          <button
-                            onClick={(e) => { e.stopPropagation(); setExportJobId(j.id); }}
-                            className="text-xs text-emerald-400 hover:underline font-bold flex items-center gap-1"
-                          >
-                            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-                            Export
-                          </button>
-                          <button
-                            onClick={(e) => { e.stopPropagation(); deleteSearch(j.id); }}
-                            className="text-xs text-slate-500 hover:text-rose-400 font-semibold ml-auto"
-                          >
-                            Delete
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })
+                  <div className="w-8 h-8 rounded-xl bg-zinc-800 text-white flex items-center justify-center font-bold text-xs shrink-0">
+                    {(user.username || user.name || user.email)[0].toUpperCase()}
+                  </div>
                 )}
+                <div className="truncate">
+                  <div className="font-bold truncate">{user.name || user.username || user.email}</div>
+                  <div className="text-[10px] text-zinc-500 truncate">@{user.username || user.email.split('@')[0]}</div>
+                </div>
+              </div>
+              <button onClick={(e) => { e.stopPropagation(); logout(); }} className="text-zinc-500 hover:text-red-500 font-semibold ml-2 btn-spring">
+                Exit
+              </button>
+            </div>
+          </div>
+        </aside>
+      )}
+
+      <main className="flex-1 flex flex-col h-full overflow-hidden z-10">
+        <header className={`h-14 border-b px-5 flex items-center justify-between shrink-0 transition-colors ${isDark ? "glass-surface-dark border-white/5" : "glass-surface-light border-zinc-200"}`}>
+          <div className="flex items-center gap-3">
+            {!sidebarOpen && (
+              <button
+                onClick={() => setSidebarOpen(true)}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold btn-spring ${isDark ? "glass-icon-dark text-white" : "glass-icon-light text-black"}`}
+              >
+                ☰ Menu
+              </button>
+            )}
+            <h2 className="text-sm font-bold tracking-tight">
+              {viewMode === "admin"
+                ? (adminTab === "overview" ? "System & Stats" : (adminTab === "users" ? "User Management" : (adminTab === "leads" ? "All Users Leads (Global Database)" : "System Settings")))
+                : (activeTab === "search" ? "Find Leads" : (activeTab === "leads" ? "Saved Leads" : "Proxy Settings"))}
+            </h2>
+          </div>
+
+          <div className="flex items-center gap-2.5">
+            <button
+              onClick={() => {
+                setProfileName(user?.name || "");
+                setProfileUsername(user?.username || "");
+                setProfileAvatar(user?.avatar || "");
+                setProfileMsg(null);
+                setShowProfileModal(true);
+              }}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold btn-spring ${isDark ? "glass-icon-dark text-white hover:border-white/30" : "glass-icon-light text-black hover:border-black/30"}`}
+              title="My Profile & Security"
+            >
+              {user?.avatar ? (
+                <img src={user.avatar} alt="Profile" className="w-4 h-4 rounded-full object-cover" />
+              ) : (
+                <span className="w-4 h-4 rounded-full bg-green-600 text-white text-[9px] flex items-center justify-center font-bold">
+                  {(user?.username || user?.name || user?.email || "U")[0].toUpperCase()}
+                </span>
+              )}
+              <span>Profile</span>
+            </button>
+            <button
+              onClick={toggleTheme}
+              className={`p-2 rounded-xl text-xs font-semibold btn-spring ${isDark ? "glass-icon-dark text-zinc-300" : "glass-icon-light text-zinc-700"}`}
+              title="Toggle Theme"
+            >
+              {isDark ? "Light" : "Dark"}
+            </button>
+          </div>
+        </header>
+
+        <div className="flex-1 p-6 md:p-8 overflow-y-auto">
+          {viewMode === "app" && activeTab === "search" && (
+            <div className="max-w-2xl mx-auto space-y-6">
+              <div>
+                <h1 className="text-xl font-bold tracking-tight">Find Local Leads</h1>
+                <p className="text-xs text-zinc-500 mt-0.5">Search businesses and export phone numbers, websites, and addresses.</p>
               </div>
 
-              <div className="lg:col-span-2">
-                {!selectedJobId ? (
-                  <div className={`rounded-[32px] p-12 text-center border text-slate-400 ${isDark ? "bg-[#14161D] border-white/[0.08]" : "bg-white border-black/[0.06]"}`}>
-                    <svg className="w-12 h-12 mx-auto text-slate-600 mb-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
-                    <div className="font-bold text-sm">Select a search to view contacts</div>
-                    <div className="text-xs mt-1">Choose any item from the left panel to inspect numbers, sites, and addresses.</div>
-                  </div>
-                ) : (
-                  <div className={`rounded-[32px] shadow-sm border overflow-hidden ${isDark ? "bg-[#14161D] border-white/[0.08]" : "bg-white border-black/[0.06]"}`}>
-                    <div className="p-6 border-b border-white/[0.06] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                      <div>
-                        <div className="flex items-center gap-2.5">
-                          <h2 className="text-lg font-extrabold capitalize">{selectedJob?.target}</h2>
-                          {selectedJob?.status === "running" && (
-                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 flex items-center gap-1">
-                              <svg className="w-2.5 h-2.5 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><circle cx="12" cy="12" r="10" strokeDasharray="32" strokeLinecap="round"></circle></svg>
-                              Live
-                            </span>
-                          )}
-                        </div>
-                        <div className="text-xs text-slate-400 mt-1 font-medium">
-                          {jobResults.length} leads collected • Live table preview
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <input
-                          type="text"
-                          placeholder="Filter in results..."
-                          value={searchFilter}
-                          onChange={e => setSearchFilter(e.target.value)}
-                          className={`px-4 py-2 rounded-xl text-xs outline-none border transition ${isDark ? "bg-white/5 border-white/10 text-white placeholder-slate-500 focus:border-emerald-500" : "bg-black/[0.03] border-black/10 text-black placeholder-slate-400 focus:border-emerald-600"}`}
-                        />
+              <div className={`rounded-3xl p-6 md:p-8 space-y-5 transition-all duration-300 ${isDark ? "glass-surface-dark" : "glass-surface-light shadow-sm"}`}>
+                <div className={`flex rounded-2xl p-1 text-xs font-semibold ${isDark ? "bg-black/40 border border-white/5" : "bg-black/[0.04] border border-black/5"}`}>
+                  <button
+                    type="button"
+                    onClick={() => setSearchMode("single")}
+                    className={`flex-1 py-2 rounded-xl transition-all duration-200 ${searchMode === "single" ? (isDark ? "bg-white/10 text-white font-bold shadow-sm" : "bg-white text-black font-bold shadow-sm") : "text-zinc-500"}`}
+                  >
+                    Single Search
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSearchMode("bulk")}
+                    className={`flex-1 py-2 rounded-xl transition-all duration-200 ${searchMode === "bulk" ? "bg-green-600 text-white font-bold shadow-sm" : "text-zinc-500"}`}
+                  >
+                    File / Bulk Search
+                  </button>
+                </div>
+
+                {searchMode === "single" ? (
+                  <form onSubmit={startLeadSearch} className="space-y-5">
+                    <div>
+                      <label className="text-xs font-semibold block mb-1.5">Business or Keyword</label>
+                      <input
+                        type="text"
+                        value={keyword}
+                        onChange={e => setKeyword(e.target.value)}
+                        placeholder="e.g. Real Estate, Coffee Shops, Dentists"
+                        className={`w-full px-4 py-3 rounded-2xl text-xs outline-none transition-all duration-200 ${isDark ? "glass-input-dark text-white focus:border-green-500" : "glass-input-light text-black focus:border-black"}`}
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-semibold block mb-1.5">City or Location</label>
+                      <input
+                        type="text"
+                        value={location}
+                        onChange={e => setLocation(e.target.value)}
+                        placeholder="e.g. Dubai, New York, London, Riyadh"
+                        className={`w-full px-4 py-3 rounded-2xl text-xs outline-none transition-all duration-200 ${isDark ? "glass-input-dark text-white focus:border-green-500" : "glass-input-light text-black focus:border-black"}`}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-semibold block mb-1.5">Number of Leads</label>
+                      <div className="flex gap-2">
+                        {[50, 100, 250, 500].map(amt => (
+                          <button
+                            key={amt}
+                            type="button"
+                            onClick={() => { setLeadCount(amt); setCustomLeadCount(""); }}
+                            className={`flex-1 py-2.5 rounded-xl text-xs font-bold btn-spring ${leadCount === amt && !customLeadCount ? (isDark ? "bg-green-600 text-white shadow-md shadow-green-600/30" : "bg-black text-white shadow-md shadow-black/15") : (isDark ? "glass-icon-dark text-zinc-400 hover:text-white" : "glass-icon-light text-zinc-600 hover:text-black")}`}
+                          >
+                            {amt}
+                          </button>
+                        ))}
                         <button
-                          onClick={() => setExportJobId(selectedJobId)}
-                          disabled={jobResults.length === 0}
-                          className="px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 disabled:opacity-50 text-white text-xs font-bold rounded-xl transition flex items-center gap-1.5 shadow-sm shadow-emerald-500/20"
+                          type="button"
+                          onClick={() => { setLeadCount(0); setCustomLeadCount(""); }}
+                          className={`flex-1 py-2.5 rounded-xl text-xs font-bold btn-spring ${leadCount === 0 && !customLeadCount ? (isDark ? "bg-green-600 text-white shadow-md shadow-green-600/30" : "bg-black text-white shadow-md shadow-black/15") : (isDark ? "glass-icon-dark text-zinc-400 hover:text-white" : "glass-icon-light text-zinc-600 hover:text-black")}`}
                         >
-                          <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-                          Download
+                          All
                         </button>
                       </div>
                     </div>
 
-                    {loadingResults ? (
-                      <div className="p-16 text-center text-xs text-slate-400 font-medium flex items-center justify-center gap-2">
-                        <svg className="w-4 h-4 animate-spin text-emerald-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10" strokeDasharray="32" strokeLinecap="round"></circle></svg>
-                        Retrieving leads...
+                    <div className="pt-2">
+                      <button
+                        type="submit"
+                        disabled={isStarting || !keyword.trim()}
+                        className={`w-full py-3.5 rounded-2xl text-xs font-bold text-white btn-spring ${isDark ? "bg-green-600 hover:bg-green-700 disabled:opacity-50 shadow-lg shadow-green-600/30" : "bg-black hover:bg-zinc-800 disabled:opacity-50 shadow-lg shadow-black/15"}`}
+                      >
+                        {isStarting ? "Starting..." : (leadCount === 0 ? "Find All Leads" : `Find ${leadCount} Leads`)}
+                      </button>
+                    </div>
+                  </form>
+                ) : (
+                  <form onSubmit={startBulkSearch} className="space-y-5">
+                    <div>
+                      <label className="text-xs font-semibold block mb-1.5">Upload Queries File (.txt or .csv)</label>
+                      <div className={`border-2 border-dashed rounded-2xl p-4 text-center cursor-pointer transition ${isDark ? "border-zinc-700 hover:border-green-500 bg-white/[0.02]" : "border-zinc-300 hover:border-black bg-black/[0.01]"}`}>
+                        <input
+                          type="file"
+                          accept=".txt,.csv"
+                          onChange={handleFileUpload}
+                          className="hidden"
+                          id="bulk-file-input"
+                        />
+                        <label htmlFor="bulk-file-input" className="cursor-pointer block">
+                          <div className="text-xs font-bold text-green-600">
+                            {bulkFileName ? `Selected File: ${bulkFileName}` : "Click to select a .txt or .csv file"}
+                          </div>
+                          <div className="text-[11px] text-zinc-500 mt-1">One search query per line</div>
+                        </label>
                       </div>
-                    ) : filteredResults.length === 0 ? (
-                      <div className="p-16 text-center text-xs text-slate-400">
-                        {jobResults.length === 0 ? "Searching for businesses... results appear here live." : "No businesses match your filter."}
+                    </div>
+
+                    <div>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <label className="text-xs font-semibold">Search Queries List</label>
+                        {bulkQueriesText.trim().length > 0 && (
+                          <span className="text-[11px] text-green-600 font-bold">
+                            {bulkQueriesText.split(/\r?\n/).filter(q => q.trim().length > 0).length} searches ready
+                          </span>
+                        )}
                       </div>
-                    ) : (
-                      <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
-                        <table className="w-full text-left text-xs">
-                          <thead className={`text-[11px] font-bold uppercase tracking-wider sticky top-0 border-b ${isDark ? "bg-[#14161D] text-slate-400 border-white/[0.08]" : "bg-slate-50 text-slate-500 border-black/[0.06]"}`}>
-                            <tr>
-                              <th className="px-5 py-3.5">Business Name</th>
-                              <th className="px-5 py-3.5">Phone Number</th>
-                              <th className="px-5 py-3.5">Website</th>
-                              <th className="px-5 py-3.5">Rating</th>
-                              <th className="px-5 py-3.5">Address</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-white/[0.04]">
-                            {filteredResults.map((lead, idx) => (
-                              <tr key={lead.id || idx} className={`transition ${isDark ? "hover:bg-white/[0.03]" : "hover:bg-black/[0.02]"}`}>
-                                <td className="px-5 py-3.5 font-bold max-w-[200px] truncate">
-                                  {lead.title || "—"}
-                                  {lead.category && (
-                                    <div className="text-[10px] text-slate-400 font-normal truncate mt-0.5">{lead.category}</div>
-                                  )}
-                                </td>
-                                <td className="px-5 py-3.5 whitespace-nowrap">
-                                  {lead.phone_1 ? (
-                                    <a href={`tel:${lead.phone_1}`} className="text-emerald-400 font-bold hover:underline">
-                                      {lead.phone_1}
-                                    </a>
-                                  ) : (
-                                    <span className="text-slate-500">—</span>
-                                  )}
-                                </td>
-                                <td className="px-5 py-3.5 max-w-[160px] truncate">
-                                  {lead.website ? (
-                                    <a href={lead.website} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline truncate block">
-                                      {lead.website.replace(/^https?:\/\/(www\.)?/, '').replace(/\/.*$/, '')}
-                                    </a>
-                                  ) : (
-                                    <span className="text-slate-500">—</span>
-                                  )}
-                                </td>
-                                <td className="px-5 py-3.5 whitespace-nowrap">
-                                  {lead.rating ? (
-                                    <span className="inline-flex items-center gap-1 font-bold text-amber-400">
-                                      ★ {lead.rating}
-                                    </span>
-                                  ) : (
-                                    <span className="text-slate-500">—</span>
-                                  )}
-                                </td>
-                                <td className="px-5 py-3.5 text-slate-400 max-w-[240px] truncate" title={lead.address}>
-                                  {lead.address || "—"}
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
+                      <textarea
+                        rows={5}
+                        value={bulkQueriesText}
+                        onChange={e => setBulkQueriesText(e.target.value)}
+                        placeholder={"dentists in dubai\ncoffee shops in abu dhabi\nreal estate in sharjah"}
+                        className={`w-full px-4 py-3 rounded-2xl text-xs outline-none transition-all duration-200 font-mono ${isDark ? "glass-input-dark text-white focus:border-green-500" : "glass-input-light text-black focus:border-black"}`}
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-semibold block mb-1.5">Leads per Query</label>
+                      <div className="flex gap-2">
+                        {[50, 100, 250, 500].map(amt => (
+                          <button
+                            key={amt}
+                            type="button"
+                            onClick={() => { setLeadCount(amt); setCustomLeadCount(""); }}
+                            className={`flex-1 py-2.5 rounded-xl text-xs font-bold btn-spring ${leadCount === amt && !customLeadCount ? (isDark ? "bg-green-600 text-white shadow-md shadow-green-600/30" : "bg-black text-white shadow-md shadow-black/15") : (isDark ? "glass-icon-dark text-zinc-400 hover:text-white" : "glass-icon-light text-zinc-600 hover:text-black")}`}
+                          >
+                            {amt}
+                          </button>
+                        ))}
+                        <button
+                          type="button"
+                          onClick={() => { setLeadCount(0); setCustomLeadCount(""); }}
+                          className={`flex-1 py-2.5 rounded-xl text-xs font-bold btn-spring ${leadCount === 0 && !customLeadCount ? (isDark ? "bg-green-600 text-white shadow-md shadow-green-600/30" : "bg-black text-white shadow-md shadow-black/15") : (isDark ? "glass-icon-dark text-zinc-400 hover:text-white" : "glass-icon-light text-zinc-600 hover:text-black")}`}
+                        >
+                          All
+                        </button>
+                      </div>
+                    </div>
+
+                    {bulkStatusMsg && (
+                      <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 text-xs font-semibold">
+                        {bulkStatusMsg}
                       </div>
                     )}
-                  </div>
+
+                    <div className="pt-2">
+                      <button
+                        type="submit"
+                        disabled={isBulkStarting || !bulkQueriesText.trim()}
+                        className={`w-full py-3.5 rounded-2xl text-xs font-bold text-white btn-spring ${isDark ? "bg-green-600 hover:bg-green-700 disabled:opacity-50 shadow-lg shadow-green-600/30" : "bg-black hover:bg-zinc-800 disabled:opacity-50 shadow-lg shadow-black/15"}`}
+                      >
+                        {isBulkStarting ? "Starting Searches..." : "Start Batch Searches"}
+                      </button>
+                    </div>
+                  </form>
                 )}
               </div>
-            </div>
-          </div>
-        )}
 
-        {viewMode === "admin" && (
-          <div className="max-w-5xl mx-auto space-y-6">
-            <div className="flex items-center justify-between">
+              {jobs.length > 0 && (
+                <div className={`rounded-3xl p-6 transition-all duration-300 ${isDark ? "glass-surface-dark" : "glass-surface-light shadow-sm"}`}>
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-500">Recent Searches</h3>
+                    <button onClick={() => setActiveTab("leads")} className="text-xs font-bold text-green-600 hover:underline">
+                      View All ({jobs.length})
+                    </button>
+                  </div>
+                  <div className="divide-y divide-zinc-500/10">
+                    {jobs.slice(0, 3).map(j => {
+                      const isRunning = j.status === "running" || j.status === "pending";
+                      return (
+                        <div key={j.id} className="py-3.5 flex items-center justify-between">
+                          <div>
+                            <div className="text-xs font-bold capitalize">{j.target}</div>
+                            <div className="text-[11px] text-zinc-500 mt-0.5">
+                              {j.total_saved || 0} leads saved {isRunning && "• Running..."}
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => {
+                              setSelectedJobId(j.id);
+                              fetchJobDetails(j.id, token, true);
+                              setActiveTab("leads");
+                            }}
+                            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold btn-spring ${isDark ? "glass-icon-dark text-white" : "glass-icon-light text-black"}`}
+                          >
+                            Open
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {viewMode === "app" && activeTab === "settings" && userCanProxy && (
+            <div className="max-w-xl mx-auto space-y-5">
               <div>
-                <h1 className="text-3xl font-extrabold tracking-tight">Admin Control Center</h1>
-                <p className="text-xs text-slate-400 mt-1 font-medium">Control accounts, database health, password resets, and platform configuration</p>
+                <h1 className="text-xl font-bold tracking-tight">Proxy Settings</h1>
+                <p className="text-xs text-zinc-500 mt-0.5">Configure your custom outbound proxy for searches.</p>
               </div>
-              <button
-                onClick={() => setViewMode("app")}
-                className={`px-4 py-2.5 rounded-2xl text-xs font-bold border transition ${isDark ? "bg-white/5 border-white/10 hover:bg-white/10 text-white" : "bg-black/[0.04] border-black/[0.06] hover:bg-black/[0.08] text-black"}`}
-              >
-                ← Back to Lead Finder
-              </button>
-            </div>
 
-            {adminTab === "overview" && (
-              <div className="space-y-6">
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                  <div className={`rounded-[28px] p-6 shadow-sm border ${isDark ? "bg-[#14161D] border-white/[0.08]" : "bg-white border-black/[0.06]"}`}>
-                    <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Users</div>
-                    <div className="text-3xl font-black mt-2">{adminStats?.totalUsers || adminUsers.length}</div>
-                    <div className="text-[11px] text-slate-400 mt-1">Platform members</div>
-                  </div>
-                  <div className={`rounded-[28px] p-6 shadow-sm border ${isDark ? "bg-[#14161D] border-white/[0.08]" : "bg-white border-black/[0.06]"}`}>
-                    <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Leads in DB</div>
-                    <div className="text-3xl font-black text-emerald-400 mt-2">{adminStats?.totalLeads || 0}</div>
-                    <div className="text-[11px] text-slate-400 mt-1">Extracted businesses</div>
-                  </div>
-                  <div className={`rounded-[28px] p-6 shadow-sm border ${isDark ? "bg-[#14161D] border-white/[0.08]" : "bg-white border-black/[0.06]"}`}>
-                    <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">Searches Executed</div>
-                    <div className="text-3xl font-black mt-2">{adminStats?.totalJobs || jobs.length}</div>
-                    <div className="text-[11px] text-slate-400 mt-1">Grid scan runs</div>
-                  </div>
-                  <div className={`rounded-[28px] p-6 shadow-sm border ${isDark ? "bg-[#14161D] border-white/[0.08]" : "bg-white border-black/[0.06]"}`}>
-                    <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">Server Health</div>
-                    <div className="text-xl font-bold text-emerald-400 mt-2 flex items-center gap-2">
-                      <svg className="w-4 h-4 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
-                      Operational
-                    </div>
-                    <div className="text-[11px] text-slate-400 mt-1">Port 4000 live</div>
-                  </div>
+              <div className={`rounded-3xl p-6 md:p-8 space-y-4 transition-all duration-300 ${isDark ? "glass-surface-dark" : "glass-surface-light shadow-sm"}`}>
+                <div>
+                  <label className="text-xs font-semibold block mb-1.5">Custom Outbound Proxy</label>
+                  <input
+                    type="text"
+                    placeholder="http://user:password@proxy.example.com:8080 or socks5://..."
+                    value={userProxy}
+                    onChange={e => setUserProxy(e.target.value)}
+                    className={`w-full px-4 py-2.5 rounded-xl text-xs outline-none transition-all duration-200 ${isDark ? "glass-input-dark text-white focus:border-green-500" : "glass-input-light text-black focus:border-black"}`}
+                  />
+                  <span className="text-[11px] text-zinc-500 mt-1 block">Leave empty to use system default proxy.</span>
                 </div>
 
-                <div className={`rounded-[28px] p-8 shadow-sm border space-y-4 ${isDark ? "bg-[#14161D] border-white/[0.08]" : "bg-white border-black/[0.06]"}`}>
-                  <h3 className="text-sm font-bold">Infrastructure & Storage Status</h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-                    <div className={`p-5 rounded-2xl border ${isDark ? "bg-white/[0.02] border-white/[0.06]" : "bg-black/[0.02] border-black/[0.05]"}`}>
-                      <div className="font-bold">Database Storage</div>
-                      <div className="text-slate-400 mt-1 font-mono text-[11px]">SQLite (Local Engine: dashmin.sqlite)</div>
-                      <div className="text-emerald-400 font-semibold mt-2">Zero setup needed. Postgres dual-adapter ready.</div>
-                    </div>
-                    <div className={`p-5 rounded-2xl border ${isDark ? "bg-white/[0.02] border-white/[0.06]" : "bg-black/[0.02] border-black/[0.05]"}`}>
-                      <div className="font-bold">Scraper Architecture</div>
-                      <div className="text-slate-400 mt-1 font-mono text-[11px]">Direct HTTP + Dynamic Geographic Grid</div>
-                      <div className="text-emerald-400 font-semibold mt-2">In-process queue active. Distributed Redis compatible.</div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {adminTab === "users" && (
-              <div className="space-y-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h2 className="text-lg font-extrabold">User Accounts</h2>
-                    <p className="text-xs text-slate-400">Manage member privileges, edit details, and execute password resets</p>
-                  </div>
+                <div className="pt-2">
                   <button
-                    onClick={() => setShowCreateUserModal(true)}
-                    className="px-4 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white rounded-2xl text-xs font-bold transition flex items-center gap-2 shadow-md shadow-emerald-500/20"
+                    onClick={handleSaveUserProxy}
+                    className="px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-green-600 hover:bg-green-700 btn-spring shadow-md shadow-green-600/25"
                   >
-                    + Create New User
+                    {proxySaveSuccess ? "Saved!" : "Save Proxy"}
                   </button>
                 </div>
+              </div>
+            </div>
+          )}
 
-                <div className={`rounded-[28px] shadow-sm border overflow-hidden ${isDark ? "bg-[#14161D] border-white/[0.08]" : "bg-white border-black/[0.06]"}`}>
-                  <table className="w-full text-left text-xs">
-                    <thead className={`text-[11px] font-bold uppercase tracking-wider border-b ${isDark ? "bg-white/[0.02] text-slate-400 border-white/[0.06]" : "bg-black/[0.02] text-slate-500 border-black/[0.05]"}`}>
-                      <tr>
-                        <th className="px-6 py-4">User</th>
-                        <th className="px-6 py-4">Role</th>
-                        <th className="px-6 py-4">Status</th>
-                        <th className="px-6 py-4 text-right">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-white/[0.04]">
-                      {adminUsers.map(u => (
-                        <tr key={u.id} className={`transition ${isDark ? "hover:bg-white/[0.02]" : "hover:bg-black/[0.02]"}`}>
-                          <td className="px-6 py-4">
-                            <div className="font-bold">{u.name || "Unnamed"}</div>
-                            <div className="text-[11px] text-slate-400">{u.email}</div>
-                          </td>
-                          <td className="px-6 py-4">
-                            <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase ${u.role === "admin" ? "bg-amber-500/20 text-amber-300" : (isDark ? "bg-white/10 text-slate-300" : "bg-black/5 text-slate-600")}`}>
-                              {u.role}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4">
-                            <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${u.status === "active" ? "bg-emerald-500/20 text-emerald-400" : (u.status === "pending" ? "bg-amber-500/20 text-amber-300" : "bg-rose-500/20 text-rose-400")}`}>
-                              {u.status}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 text-right space-x-2">
-                            <button
-                              onClick={() => {
-                                setEditingUser(u);
-                                setEditUserName(u.name || "");
-                                setEditUserEmail(u.email || "");
-                                setEditUserRole(u.role || "user");
-                                setEditUserStatus(u.status || "active");
-                                setEditUserPassword("");
-                              }}
-                              className={`px-3 py-1.5 rounded-xl font-bold text-xs border transition ${isDark ? "bg-white/5 border-white/10 hover:bg-white/10 text-white" : "bg-black/[0.03] border-black/10 hover:bg-black/[0.06] text-black"}`}
-                            >
-                              Edit
-                            </button>
-                            <button
-                              onClick={() => {
-                                setResetModalUser(u);
-                                setNewResetPassword("");
-                                setResetResultData(null);
-                              }}
-                              className="px-3 py-1.5 rounded-xl font-bold text-xs bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/20 transition"
-                            >
-                              Reset Password
-                            </button>
-                            {u.status !== "active" && (
-                              <button
-                                onClick={() => approveUser(u.id)}
-                                className="px-3 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs shadow-sm"
-                              >
-                                Activate
-                              </button>
+          {viewMode === "app" && activeTab === "leads" && (
+            <div className="space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <h1 className="text-xl font-bold tracking-tight">Saved Leads</h1>
+                  <p className="text-xs text-zinc-500 mt-0.5">Select a search to view contacts and export.</p>
+                </div>
+                <button
+                  onClick={() => { setActiveTab("search"); setSelectedJobId(null); }}
+                  className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-xs font-bold rounded-xl btn-spring shadow-md shadow-green-600/25 self-start"
+                >
+                  + New Search
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+                <div className="lg:col-span-1 space-y-2.5">
+                  {jobs.length === 0 ? (
+                    <div className={`p-6 rounded-2xl text-center text-xs text-zinc-500 ${isDark ? "glass-surface-dark" : "glass-surface-light"}`}>
+                      No searches run yet.
+                    </div>
+                  ) : (
+                    jobs.map(j => {
+                      const isSelected = j.id === selectedJobId;
+                      const isRunning = j.status === "running" || j.status === "pending";
+                      return (
+                        <div
+                          key={j.id}
+                          onClick={() => fetchJobDetails(j.id, token, true)}
+                          className={`p-4 rounded-2xl cursor-pointer transition-all duration-200 ${isSelected ? (isDark ? "glass-surface-dark border-green-500 shadow-md ring-1 ring-green-500/50" : "glass-surface-light border-black shadow-md ring-1 ring-black") : (isDark ? "glass-surface-dark hover:border-white/20" : "glass-surface-light hover:border-zinc-300")}`}
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="font-bold text-xs capitalize truncate">{j.target}</span>
+                            {isRunning ? (
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-green-500/20 text-green-500 shrink-0">
+                                Running
+                              </span>
+                            ) : (
+                              <span className="text-[10px] text-zinc-500 font-semibold shrink-0">
+                                Done
+                              </span>
                             )}
-                            {u.status === "active" && u.id !== user.id && (
+                          </div>
+
+                          {isRunning && (
+                            <div className="mt-2.5">
+                              <div className="w-full h-1.5 rounded-full overflow-hidden bg-black/10 dark:bg-white/10">
+                                <div className="h-full w-full bg-green-600 clean-progress-bar rounded-full"></div>
+                              </div>
+                            </div>
+                          )}
+
+                          <div className="flex items-center justify-between text-[11px] text-zinc-500 mt-2.5 pt-2 border-t border-zinc-500/15">
+                            <span>{j.total_saved || 0} leads</span>
+                            <div className="flex items-center gap-3">
+                              {isRunning && (
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); stopSearch(j.id); }}
+                                  className="text-zinc-500 hover:underline font-bold"
+                                >
+                                  Stop
+                                </button>
+                              )}
                               <button
-                                onClick={() => suspendUser(u.id)}
-                                className={`px-3 py-1.5 rounded-xl font-semibold text-xs border transition ${isDark ? "bg-white/5 border-white/10 text-slate-400 hover:text-white" : "bg-black/5 border-black/10 text-slate-600 hover:text-black"}`}
+                                onClick={(e) => { e.stopPropagation(); setExportJobId(j.id); }}
+                                className="text-green-600 hover:underline font-bold"
                               >
-                                Deactivate
+                                Export
                               </button>
-                            )}
-                            {u.id !== user.id && (
                               <button
-                                onClick={() => deleteUser(u.id)}
-                                className="px-3 py-1.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 font-bold text-xs border border-rose-500/20 transition"
+                                onClick={(e) => { e.stopPropagation(); deleteSearch(j.id); }}
+                                className="text-zinc-400 hover:text-red-500 font-semibold"
                               >
                                 Delete
                               </button>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+
+                <div className="lg:col-span-2">
+                  {!selectedJobId ? (
+                    <div className={`p-12 rounded-3xl text-center text-xs text-zinc-500 ${isDark ? "glass-surface-dark" : "glass-surface-light"}`}>
+                      Select a search on the left to inspect leads.
+                    </div>
+                  ) : (
+                    <div className={`rounded-3xl overflow-hidden transition-all duration-300 ${isDark ? "glass-surface-dark" : "glass-surface-light shadow-sm"}`}>
+                      <div className="p-4 md:p-5 border-b border-zinc-500/15 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div>
+                          <h3 className="text-sm font-bold capitalize">{selectedJob?.target}</h3>
+                          <span className="text-[11px] text-zinc-500">{jobResults.length} leads saved</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="text"
+                            placeholder="Filter..."
+                            value={searchFilter}
+                            onChange={e => setSearchFilter(e.target.value)}
+                            className={`px-3 py-1.5 rounded-xl text-xs outline-none transition ${isDark ? "glass-input-dark text-white" : "glass-input-light text-black"}`}
+                          />
+                          <button
+                            onClick={() => {
+                              setSidebarOpen(false);
+                              setIsTableZoomed(true);
+                            }}
+                            className={`p-2 rounded-xl text-xs font-bold btn-spring flex items-center gap-1.5 ${isDark ? "glass-icon-dark text-zinc-300 hover:text-white" : "glass-icon-light text-zinc-700 hover:text-black"}`}
+                            title="Zoom In (Fullscreen View)"
+                          >
+                            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="15 3 21 3 21 9"></polyline><polyline points="9 21 3 21 3 15"></polyline><line x1="21" y1="3" x2="14" y2="10"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg>
+                            <span>Zoom In</span>
+                          </button>
+                          <button
+                            onClick={() => setExportJobId(selectedJobId)}
+                            disabled={jobResults.length === 0}
+                            className="px-3.5 py-1.5 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white text-xs font-bold rounded-xl btn-spring shadow-sm shadow-green-600/25"
+                          >
+                            Export
+                          </button>
+                        </div>
+                      </div>
+
+                      {loadingResults ? (
+                        <div className="p-12 text-center text-xs text-zinc-500">Loading leads...</div>
+                      ) : filteredResults.length === 0 ? (
+                        <div className="p-12 text-center text-xs text-zinc-500">No records found.</div>
+                      ) : (
+                        <div className="overflow-x-auto max-h-[500px]">
+                          <table className="w-full text-left text-xs">
+                            <thead className={`text-[11px] font-bold uppercase tracking-wider border-b border-zinc-500/15 sticky top-0 backdrop-blur-md ${isDark ? "bg-black/60 text-zinc-400" : "bg-white/80 text-zinc-600"}`}>
+                              <tr>
+                                <th className="px-4 py-2.5">Business</th>
+                                <th className="px-4 py-2.5">Phone</th>
+                                <th className="px-4 py-2.5">Website</th>
+                                <th className="px-4 py-2.5">Category</th>
+                                <th className="px-4 py-2.5">Rating</th>
+                                <th className="px-4 py-2.5">Address</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-zinc-500/10">
+                              {filteredResults.map((r, i) => (
+                                <tr key={i} className={`transition ${isDark ? "hover:bg-white/[0.03]" : "hover:bg-black/[0.02]"}`}>
+                                  <td className="px-4 py-2.5 font-bold max-w-[180px] truncate">{r.title}</td>
+                                  <td className="px-4 py-2.5 font-mono text-[11px] whitespace-nowrap">{r.phone_1 || "—"}</td>
+                                  <td className="px-4 py-2.5 max-w-[140px] truncate">
+                                    {r.website ? (
+                                      <a href={r.website} target="_blank" rel="noreferrer" className="text-green-600 hover:underline">
+                                        {r.website.replace(/^https?:\/\//, '')}
+                                      </a>
+                                    ) : "—"}
+                                  </td>
+                                  <td className="px-4 py-2.5 text-zinc-500 max-w-[120px] truncate">{r.category || "—"}</td>
+                                  <td className="px-4 py-2.5 whitespace-nowrap font-semibold">
+                                    {r.rating ? `${r.rating} (${r.reviews || 0})` : "—"}
+                                  </td>
+                                  <td className="px-4 py-2.5 text-zinc-500 max-w-[180px] truncate">{r.address || "—"}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
-            )}
+            </div>
+          )}
 
-            {adminTab === "settings" && (
-              <div className={`rounded-[28px] p-8 shadow-sm border space-y-6 max-w-2xl ${isDark ? "bg-[#14161D] border-white/[0.08]" : "bg-white border-black/[0.06]"}`}>
-                <div>
-                  <h2 className="text-lg font-extrabold">Platform Settings</h2>
-                  <p className="text-xs text-slate-400 mt-1">Configure portal branding and registration controls</p>
+          {viewMode === "admin" && (
+            <div className="space-y-6 max-w-4xl mx-auto">
+              {adminTab === "overview" && (
+                <div className="space-y-5">
+                  <div>
+                    <h1 className="text-xl font-bold tracking-tight">System Overview</h1>
+                    <p className="text-xs text-zinc-500 mt-0.5">Server metrics and database details.</p>
+                  </div>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div className={`p-5 rounded-2xl ${isDark ? "glass-surface-dark" : "glass-surface-light shadow-sm"}`}>
+                      <span className="text-xs text-zinc-500 font-semibold">Users</span>
+                      <div className="text-2xl font-bold mt-1">{adminStats?.totalUsers || adminUsers.length}</div>
+                    </div>
+                    <div className={`p-5 rounded-2xl ${isDark ? "glass-surface-dark" : "glass-surface-light shadow-sm"}`}>
+                      <span className="text-xs text-zinc-500 font-semibold">Total Leads</span>
+                      <div className="text-2xl font-bold mt-1 text-green-600">{adminStats?.totalLeads || 0}</div>
+                    </div>
+                    <div className={`p-5 rounded-2xl ${isDark ? "glass-surface-dark" : "glass-surface-light shadow-sm"}`}>
+                      <span className="text-xs text-zinc-500 font-semibold">Total Jobs</span>
+                      <div className="text-2xl font-bold mt-1">{adminStats?.totalJobs || jobs.length}</div>
+                    </div>
+                    <div className={`p-5 rounded-2xl ${isDark ? "glass-surface-dark" : "glass-surface-light shadow-sm"}`}>
+                      <span className="text-xs text-zinc-500 font-semibold">Status</span>
+                      <div className="text-lg font-bold mt-1 text-green-600">Online</div>
+                    </div>
+                  </div>
                 </div>
+              )}
 
-                {settingsSuccess && (
-                  <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs rounded-2xl font-bold">
-                    Settings saved successfully!
-                  </div>
-                )}
-
+              {adminTab === "users" && (
                 <div className="space-y-4">
-                  <div>
-                    <label className="text-xs font-bold block mb-1 text-slate-400">Portal Branding Name</label>
-                    <input
-                      type="text"
-                      value={platformName}
-                      onChange={e => setPlatformName(e.target.value)}
-                      className={`w-full px-4 py-3 rounded-2xl text-xs font-bold outline-none border transition ${isDark ? "bg-white/5 border-white/10 text-white focus:border-emerald-500" : "bg-black/[0.03] border-black/10 text-black focus:border-emerald-600"}`}
-                    />
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h2 className="text-lg font-bold tracking-tight">User Accounts</h2>
+                      <p className="text-xs text-zinc-500 mt-0.5">Control proxy access, approve accounts, or reset passwords.</p>
+                    </div>
+                    <button
+                      onClick={() => setShowCreateUserModal(true)}
+                      className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-xs font-bold rounded-xl btn-spring shadow-md shadow-green-600/25"
+                    >
+                      + Add User
+                    </button>
                   </div>
 
+                  <div className={`rounded-3xl overflow-hidden ${isDark ? "glass-surface-dark" : "glass-surface-light shadow-sm"}`}>
+                    <table className="w-full text-left text-xs">
+                      <thead className={`text-[11px] font-bold uppercase tracking-wider border-b border-zinc-500/15 ${isDark ? "bg-black/40 text-zinc-400" : "bg-black/[0.02] text-zinc-600"}`}>
+                        <tr>
+                          <th className="px-5 py-3.5">User</th>
+                          <th className="px-5 py-3.5">Role</th>
+                          <th className="px-5 py-3.5">User Proxy Control</th>
+                          <th className="px-5 py-3.5">Status</th>
+                          <th className="px-5 py-3.5 text-right">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-zinc-500/10">
+                        {adminUsers.map(u => (
+                          <tr key={u.id} className={`transition ${isDark ? "hover:bg-white/[0.02]" : "hover:bg-black/[0.02]"}`}>
+                            <td className="px-5 py-3.5">
+                              <div className="font-bold">{u.name || "Unnamed"}</div>
+                              <div className="text-[11px] text-zinc-500">{u.email}</div>
+                            </td>
+                            <td className="px-5 py-3.5">
+                              <span className="font-semibold uppercase text-[10px]">{u.role}</span>
+                            </td>
+                            <td className="px-5 py-3.5">
+                              <div className="flex items-center gap-2">
+                                <button
+                                  onClick={() => handleToggleUserProxy(u.id)}
+                                  className={`w-9 h-5 flex items-center rounded-full p-0.5 cursor-pointer transition-colors ${u.can_use_proxy === 1 ? "bg-green-600 justify-end" : "bg-zinc-300 dark:bg-zinc-700 justify-start"}`}
+                                >
+                                  <span className="bg-white w-4 h-4 rounded-full shadow-sm"></span>
+                                </button>
+                                <span className={`text-[11px] font-semibold ${u.can_use_proxy === 1 ? "text-green-600" : "text-zinc-400"}`}>
+                                  {u.can_use_proxy === 1 ? "Allowed" : "Off"}
+                                </span>
+                              </div>
+                            </td>
+                            <td className="px-5 py-3.5">
+                              <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${u.status === "active" ? "bg-green-500/10 text-green-600" : "bg-zinc-500/10 text-zinc-500"}`}>
+                                {u.status}
+                              </span>
+                            </td>
+                            <td className="px-5 py-3.5 text-right space-x-2">
+                              <button
+                                onClick={() => {
+                                  setEditingUser(u);
+                                  setEditUserName(u.name || "");
+                                  setEditUserEmail(u.email || "");
+                                  setEditUserRole(u.role || "user");
+                                  setEditUserStatus(u.status || "active");
+                                  setEditUserCanProxy(u.can_use_proxy === 1);
+                                  setEditUserPassword("");
+                                }}
+                                className="font-semibold text-zinc-500 hover:text-black dark:hover:text-white btn-spring"
+                              >
+                                Edit
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setResetModalUser(u);
+                                  setNewResetPassword("");
+                                  setResetResultData(null);
+                                }}
+                                className="font-semibold text-zinc-500 hover:text-black dark:hover:text-white btn-spring"
+                              >
+                                Reset Pass
+                              </button>
+                              {u.status !== "active" && (
+                                <button onClick={() => approveUser(u.id)} className="font-semibold text-green-600 hover:underline btn-spring">
+                                  Approve
+                                </button>
+                              )}
+                              {u.status === "active" && u.id !== user.id && (
+                                <button onClick={() => suspendUser(u.id)} className="font-semibold text-zinc-400 hover:text-black dark:hover:text-white btn-spring">
+                                  Disable
+                                </button>
+                              )}
+                              {u.id !== user.id && (
+                                <button onClick={() => deleteUser(u.id)} className="font-semibold text-red-500 hover:underline btn-spring">
+                                  Delete
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {adminTab === "leads" && (
+                <div className="space-y-4">
+                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+                    <div>
+                      <h2 className="text-lg font-bold tracking-tight">All Users Leads Database</h2>
+                      <p className="text-xs text-zinc-500 mt-0.5">
+                        {adminGlobalTotal.toLocaleString()} leads collected across all user accounts
+                      </p>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2.5">
+                      <select
+                        value={adminLeadUserFilter}
+                        onChange={e => {
+                          setAdminLeadUserFilter(e.target.value);
+                          fetchAdminGlobalLeads(token, e.target.value, adminLeadSearch);
+                        }}
+                        className={`px-3 py-2 rounded-xl text-xs font-semibold outline-none transition ${isDark ? "glass-input-dark text-white" : "glass-input-light text-black"}`}
+                      >
+                        <option value="all">All Users (Global)</option>
+                        {adminUsers.map(u => (
+                          <option key={u.id} value={u.id}>
+                            {u.name || u.email} (@{u.username || u.email.split('@')[0]})
+                          </option>
+                        ))}
+                      </select>
+
+                      <div className="flex items-center gap-1.5">
+                        <input
+                          type="text"
+                          placeholder="Search any lead..."
+                          value={adminLeadSearch}
+                          onChange={e => setAdminLeadSearch(e.target.value)}
+                          onKeyDown={e => {
+                            if (e.key === "Enter") {
+                              fetchAdminGlobalLeads(token, adminLeadUserFilter, adminLeadSearch);
+                            }
+                          }}
+                          className={`w-44 sm:w-56 px-3.5 py-2 rounded-xl text-xs outline-none transition ${isDark ? "glass-input-dark text-white" : "glass-input-light text-black"}`}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => fetchAdminGlobalLeads(token, adminLeadUserFilter, adminLeadSearch)}
+                          className="px-3 py-2 bg-green-600 hover:bg-green-700 text-white text-xs font-bold rounded-xl btn-spring shadow-md shadow-green-600/25"
+                        >
+                          Filter
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className={`rounded-3xl overflow-hidden ${isDark ? "glass-surface-dark" : "glass-surface-light shadow-sm"}`}>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left text-xs">
+                        <thead className={`text-[11px] font-bold uppercase tracking-wider border-b border-zinc-500/15 ${isDark ? "bg-black/40 text-zinc-400" : "bg-black/[0.02] text-zinc-600"}`}>
+                          <tr>
+                            <th className="px-4 py-3">Owner</th>
+                            <th className="px-4 py-3">Business</th>
+                            <th className="px-3 py-3">Phone</th>
+                            <th className="px-3 py-3">Website</th>
+                            <th className="px-3 py-3">Category</th>
+                            <th className="px-3 py-3">Rating</th>
+                            <th className="px-3 py-3">City</th>
+                            <th className="px-4 py-3">Query</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-zinc-500/10">
+                          {loadingAdminLeads ? (
+                            <tr>
+                              <td colSpan={8} className="py-12 text-center text-xs text-zinc-500">
+                                Loading global database...
+                              </td>
+                            </tr>
+                          ) : adminGlobalLeads.length === 0 ? (
+                            <tr>
+                              <td colSpan={8} className="py-12 text-center text-xs text-zinc-500">
+                                No leads found in this view.
+                              </td>
+                            </tr>
+                          ) : (
+                            adminGlobalLeads.map((r, i) => (
+                              <tr key={r.id || i} className={`transition ${isDark ? "hover:bg-white/[0.04]" : "hover:bg-black/[0.03]"}`}>
+                                <td className="px-4 py-3 whitespace-nowrap">
+                                  <div className="flex items-center gap-2">
+                                    {r.user_avatar ? (
+                                      <img src={r.user_avatar} alt={r.user_name} className="w-5 h-5 rounded-full object-cover shrink-0" />
+                                    ) : (
+                                      <span className="w-5 h-5 rounded-full bg-zinc-700 text-white text-[9px] flex items-center justify-center font-bold shrink-0">
+                                        {(r.user_username || r.user_name || r.user_email || "U")[0].toUpperCase()}
+                                      </span>
+                                    )}
+                                    <div className="leading-tight">
+                                      <div className="font-semibold text-xs">{r.user_name || r.user_email}</div>
+                                      <div className="text-[10px] text-zinc-500">@{r.user_username || (r.user_email ? r.user_email.split('@')[0] : 'user')}</div>
+                                    </div>
+                                  </div>
+                                </td>
+                                <td className="px-4 py-3 font-bold break-words">{r.title}</td>
+                                <td className="px-3 py-3 font-mono text-[11px] whitespace-nowrap">{r.phone_1 || "—"}</td>
+                                <td className="px-3 py-3">
+                                  {r.website ? (
+                                    <a href={r.website} target="_blank" rel="noreferrer" className="text-green-600 hover:underline truncate block max-w-[140px] text-[11px]">
+                                      {r.website.replace(/^https?:\/\//, '')}
+                                    </a>
+                                  ) : "—"}
+                                </td>
+                                <td className="px-3 py-3 text-zinc-500 truncate max-w-[120px]">{r.category || "—"}</td>
+                                <td className="px-3 py-3 whitespace-nowrap font-semibold">
+                                  {r.rating ? `${r.rating} (${r.reviews || 0})` : "—"}
+                                </td>
+                                <td className="px-3 py-3 text-zinc-500 truncate max-w-[100px]">{r.city || "—"}</td>
+                                <td className="px-4 py-3 text-zinc-500 text-[11px] truncate max-w-[130px]">{r.job_target || r.query || "—"}</td>
+                              </tr>
+                            ))
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {adminTab === "settings" && (
+                <div className={`rounded-3xl p-6 md:p-8 space-y-5 max-w-xl transition-all duration-300 ${isDark ? "glass-surface-dark" : "glass-surface-light shadow-sm"}`}>
                   <div>
-                    <label className="text-xs font-bold block mb-1 text-slate-400">Public Self-Registration</label>
+                    <h2 className="text-base font-bold">System Settings</h2>
+                    <p className="text-xs text-zinc-500 mt-0.5">Control registration and global outbound proxies.</p>
+                  </div>
+
+                  {settingsSuccess && (
+                    <div className="p-3 rounded-xl border text-xs font-semibold bg-green-500/10 border-green-500/30 text-green-500">
+                      Settings saved!
+                    </div>
+                  )}
+
+                  <div className="space-y-4">
+                    <div>
+                      <label className="text-xs font-semibold block mb-1">Platform Name</label>
+                      <input
+                        type="text"
+                        value={platformName}
+                        onChange={e => setPlatformName(e.target.value)}
+                        className={`w-full px-4 py-2.5 rounded-xl text-xs outline-none transition ${isDark ? "glass-input-dark text-white" : "glass-input-light text-black"}`}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-semibold block mb-1">Public Registration</label>
+                      <button
+                        type="button"
+                        onClick={() => setPublicRegistration(!publicRegistration)}
+                        className={`px-4 py-2.5 rounded-xl text-xs font-bold transition btn-spring ${publicRegistration ? "bg-green-500/10 border border-green-500/30 text-green-500" : (isDark ? "glass-icon-dark text-zinc-400" : "glass-icon-light text-zinc-600")}`}
+                      >
+                        {publicRegistration ? "Enabled (Users can register)" : "Disabled (Admin creates users)"}
+                      </button>
+                    </div>
+
+                    <div className="pt-3 border-t border-zinc-500/15 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <label className="text-xs font-semibold block">Global Outbound Proxy</label>
+                          <span className="text-[11px] text-zinc-500">Route all scraping jobs through proxy</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setSystemProxyEnabled(!systemProxyEnabled)}
+                          className={`w-9 h-5 flex items-center rounded-full p-0.5 cursor-pointer transition-colors ${systemProxyEnabled ? "bg-green-600 justify-end" : "bg-zinc-300 dark:bg-zinc-700 justify-start"}`}
+                        >
+                          <span className="bg-white w-4 h-4 rounded-full shadow-sm"></span>
+                        </button>
+                      </div>
+
+                      <div>
+                        <label className="text-xs font-semibold block mb-1">Proxy URL</label>
+                        <input
+                          type="text"
+                          placeholder="http://user:password@server.com:8080 or socks5://..."
+                          value={systemProxyUrl}
+                          onChange={e => setSystemProxyUrl(e.target.value)}
+                          className={`w-full px-4 py-2.5 rounded-xl text-xs font-mono outline-none transition ${isDark ? "glass-input-dark text-white" : "glass-input-light text-black"}`}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="pt-3 border-t border-zinc-500/15 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <label className="text-xs font-semibold block">Parallel Area Workers</label>
+                          <span className="text-[11px] text-zinc-500">Multi-instance area scanning (2x - 12x)</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          {[2, 4, 6, 8, 12].map(num => (
+                            <button
+                              key={num}
+                              type="button"
+                              onClick={() => setParallelConcurrency(num)}
+                              className={`px-3 py-1.5 rounded-xl text-xs font-bold btn-spring ${parallelConcurrency === num ? "bg-green-600 text-white shadow-md shadow-green-600/30" : (isDark ? "glass-icon-dark text-zinc-400 hover:text-white" : "glass-icon-light text-zinc-600 hover:text-black")}`}
+                            >
+                              {num}x
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="pt-3 border-t border-zinc-500/15">
                     <button
-                      type="button"
-                      onClick={() => setPublicRegistration(!publicRegistration)}
-                      className={`px-4 py-2.5 rounded-2xl text-xs font-bold border transition ${publicRegistration ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400" : (isDark ? "bg-white/5 border-white/10 text-slate-400" : "bg-black/5 border-black/10 text-slate-600")}`}
+                      onClick={handleSaveSettings}
+                      className="px-5 py-2.5 bg-green-600 hover:bg-green-700 text-white font-bold text-xs rounded-xl btn-spring shadow-md shadow-green-600/25"
                     >
-                      {publicRegistration ? "✓ Enabled (New users can create accounts)" : "✕ Disabled (Admins create accounts only)"}
+                      Save Settings
                     </button>
                   </div>
                 </div>
-
-                <div className="pt-4 border-t border-white/[0.06]">
-                  <button
-                    onClick={() => {
-                      setSettingsSuccess(true);
-                      setTimeout(() => setSettingsSuccess(false), 2500);
-                    }}
-                    className="px-6 py-3 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-bold text-xs rounded-2xl transition shadow-md shadow-emerald-500/20"
-                  >
-                    Save Changes
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {showCreateUserModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xl p-4">
-            <div className={`rounded-[32px] p-8 max-w-md w-full shadow-2xl border space-y-6 ${isDark ? "bg-[#16181D] border-white/[0.1]" : "bg-white border-black/[0.08]"}`}>
-              <div className="flex items-center justify-between border-b border-white/[0.06] pb-4">
-                <h3 className="text-lg font-bold">Create New User</h3>
-                <button onClick={() => setShowCreateUserModal(false)} className="text-slate-400 hover:text-white text-sm font-bold">✕</button>
-              </div>
-
-              {createUserMsg && (
-                <div className="p-3 bg-red-500/10 text-red-400 text-xs rounded-xl font-bold">{createUserMsg}</div>
               )}
-
-              <form onSubmit={handleCreateUser} className="space-y-4">
-                <div>
-                  <label className="text-xs font-bold block mb-1 text-slate-400">Full Name</label>
-                  <input
-                    type="text"
-                    value={newUserName}
-                    onChange={e => setNewUserName(e.target.value)}
-                    placeholder="e.g. Sarah Miller"
-                    className={`w-full px-4 py-3 rounded-2xl text-xs outline-none border transition ${isDark ? "bg-white/5 border-white/10 text-white focus:border-emerald-500" : "bg-black/[0.03] border-black/10 text-black focus:border-emerald-600"}`}
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-bold block mb-1 text-slate-400">Email Address</label>
-                  <input
-                    type="email"
-                    value={newUserEmail}
-                    onChange={e => setNewUserEmail(e.target.value)}
-                    placeholder="e.g. sarah@company.com"
-                    className={`w-full px-4 py-3 rounded-2xl text-xs outline-none border transition ${isDark ? "bg-white/5 border-white/10 text-white focus:border-emerald-500" : "bg-black/[0.03] border-black/10 text-black focus:border-emerald-600"}`}
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-bold block mb-1 text-slate-400">Password</label>
-                  <input
-                    type="text"
-                    value={newUserPassword}
-                    onChange={e => setNewUserPassword(e.target.value)}
-                    placeholder="Initial password"
-                    className={`w-full px-4 py-3 rounded-2xl text-xs outline-none border transition ${isDark ? "bg-white/5 border-white/10 text-white focus:border-emerald-500" : "bg-black/[0.03] border-black/10 text-black focus:border-emerald-600"}`}
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-bold block mb-1 text-slate-400">Account Role</label>
-                  <select
-                    value={newUserRole}
-                    onChange={e => setNewUserRole(e.target.value)}
-                    className={`w-full px-4 py-3 rounded-2xl text-xs outline-none border transition ${isDark ? "bg-[#1E212A] border-white/10 text-white focus:border-emerald-500" : "bg-black/[0.03] border-black/10 text-black focus:border-emerald-600"}`}
-                  >
-                    <option value="user">Standard User</option>
-                    <option value="admin">Administrator</option>
-                  </select>
-                </div>
-
-                <div className="pt-2 flex justify-end gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setShowCreateUserModal(false)}
-                    className={`px-4 py-2.5 rounded-2xl text-xs font-bold border ${isDark ? "border-white/10 text-slate-400" : "border-black/10 text-slate-600"}`}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-5 py-2.5 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-xs font-bold shadow-md shadow-emerald-500/20"
-                  >
-                    Create Account
-                  </button>
-                </div>
-              </form>
             </div>
-          </div>
-        )}
+          )}
 
-        {editingUser && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xl p-4">
-            <div className={`rounded-[32px] p-8 max-w-md w-full shadow-2xl border space-y-6 ${isDark ? "bg-[#16181D] border-white/[0.1]" : "bg-white border-black/[0.08]"}`}>
-              <div className="flex items-center justify-between border-b border-white/[0.06] pb-4">
-                <h3 className="text-lg font-bold">Edit User Details</h3>
-                <button onClick={() => setEditingUser(null)} className="text-slate-400 hover:text-white text-sm font-bold">✕</button>
-              </div>
+          {showCreateUserModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xl p-4">
+              <div className={`rounded-3xl p-6 max-w-sm w-full space-y-4 ${isDark ? "glass-surface-dark text-white" : "glass-surface-light text-black shadow-2xl"}`}>
+                <div className="flex items-center justify-between border-b pb-3 border-zinc-500/15">
+                  <h3 className="text-sm font-bold">Add User</h3>
+                  <button onClick={() => setShowCreateUserModal(false)} className="text-xs text-zinc-500 btn-spring">✕</button>
+                </div>
 
-              <form onSubmit={handleUpdateUser} className="space-y-4">
-                <div>
-                  <label className="text-xs font-bold block mb-1 text-slate-400">Full Name</label>
-                  <input
-                    type="text"
-                    value={editUserName}
-                    onChange={e => setEditUserName(e.target.value)}
-                    className={`w-full px-4 py-3 rounded-2xl text-xs outline-none border transition ${isDark ? "bg-white/5 border-white/10 text-white focus:border-emerald-500" : "bg-black/[0.03] border-black/10 text-black focus:border-emerald-600"}`}
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-bold block mb-1 text-slate-400">Email Address</label>
-                  <input
-                    type="email"
-                    value={editUserEmail}
-                    onChange={e => setEditUserEmail(e.target.value)}
-                    className={`w-full px-4 py-3 rounded-2xl text-xs outline-none border transition ${isDark ? "bg-white/5 border-white/10 text-white focus:border-emerald-500" : "bg-black/[0.03] border-black/10 text-black focus:border-emerald-600"}`}
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-bold block mb-1 text-slate-400">New Password (leave empty to retain current)</label>
-                  <input
-                    type="text"
-                    placeholder="New password"
-                    value={editUserPassword}
-                    onChange={e => setEditUserPassword(e.target.value)}
-                    className={`w-full px-4 py-3 rounded-2xl text-xs outline-none border transition ${isDark ? "bg-white/5 border-white/10 text-white focus:border-emerald-500" : "bg-black/[0.03] border-black/10 text-black focus:border-emerald-600"}`}
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-3">
+                {createUserMsg && (
+                  <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-500 text-xs rounded-xl font-bold">{createUserMsg}</div>
+                )}
+
+                <form onSubmit={handleCreateUser} className="space-y-3">
                   <div>
-                    <label className="text-xs font-bold block mb-1 text-slate-400">Role</label>
+                    <label className="text-xs font-semibold block mb-1">Name</label>
+                    <input
+                      type="text"
+                      value={newUserName}
+                      onChange={e => setNewUserName(e.target.value)}
+                      className={`w-full px-3.5 py-2 rounded-xl text-xs outline-none transition ${isDark ? "glass-input-dark text-white" : "glass-input-light text-black"}`}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold block mb-1">Email</label>
+                    <input
+                      type="email"
+                      value={newUserEmail}
+                      onChange={e => setNewUserEmail(e.target.value)}
+                      className={`w-full px-3.5 py-2 rounded-xl text-xs outline-none transition ${isDark ? "glass-input-dark text-white" : "glass-input-light text-black"}`}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold block mb-1">Password</label>
+                    <input
+                      type="text"
+                      value={newUserPassword}
+                      onChange={e => setNewUserPassword(e.target.value)}
+                      className={`w-full px-3.5 py-2 rounded-xl text-xs outline-none transition ${isDark ? "glass-input-dark text-white" : "glass-input-light text-black"}`}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold block mb-1">Role</label>
                     <select
-                      value={editUserRole}
-                      onChange={e => setEditUserRole(e.target.value)}
-                      className={`w-full px-4 py-3 rounded-2xl text-xs outline-none border transition ${isDark ? "bg-[#1E212A] border-white/10 text-white focus:border-emerald-500" : "bg-black/[0.03] border-black/10 text-black focus:border-emerald-600"}`}
+                      value={newUserRole}
+                      onChange={e => setNewUserRole(e.target.value)}
+                      className={`w-full px-3.5 py-2 rounded-xl text-xs outline-none transition ${isDark ? "bg-[#18181B] text-white border border-white/10" : "bg-white text-black border border-zinc-200"}`}
                     >
                       <option value="user">User</option>
                       <option value="admin">Admin</option>
                     </select>
                   </div>
-                  <div>
-                    <label className="text-xs font-bold block mb-1 text-slate-400">Status</label>
-                    <select
-                      value={editUserStatus}
-                      onChange={e => setEditUserStatus(e.target.value)}
-                      className={`w-full px-4 py-3 rounded-2xl text-xs outline-none border transition ${isDark ? "bg-[#1E212A] border-white/10 text-white focus:border-emerald-500" : "bg-black/[0.03] border-black/10 text-black focus:border-emerald-600"}`}
-                    >
-                      <option value="active">Active</option>
-                      <option value="suspended">Suspended</option>
-                      <option value="pending">Pending</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="pt-2 flex justify-end gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setEditingUser(null)}
-                    className={`px-4 py-2.5 rounded-2xl text-xs font-bold border ${isDark ? "border-white/10 text-slate-400" : "border-black/10 text-slate-600"}`}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-5 py-2.5 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-xs font-bold"
-                  >
-                    Save Changes
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
-
-        {resetModalUser && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xl p-4">
-            <div className={`rounded-[32px] p-8 max-w-md w-full shadow-2xl border space-y-6 ${isDark ? "bg-[#16181D] border-white/[0.1]" : "bg-white border-black/[0.08]"}`}>
-              <div className="flex items-center justify-between border-b border-white/[0.06] pb-4">
-                <h3 className="text-lg font-bold">Password Reset</h3>
-                <button onClick={() => { setResetModalUser(null); setResetResultData(null); }} className="text-slate-400 hover:text-white text-sm font-bold">✕</button>
-              </div>
-
-              {!resetResultData ? (
-                <form onSubmit={handleResetPassword} className="space-y-4">
-                  <p className="text-xs text-slate-400">
-                    Target account: <span className="font-bold text-white">{resetModalUser.email}</span>
-                  </p>
-                  <div>
-                    <label className="text-xs font-bold block mb-1 text-slate-400">New Password (leave empty to generate)</label>
+                  <div className="flex items-center gap-2 pt-1">
                     <input
-                      type="text"
-                      placeholder="Optional manual password"
-                      value={newResetPassword}
-                      onChange={e => setNewResetPassword(e.target.value)}
-                      className={`w-full px-4 py-3 rounded-2xl text-xs outline-none border transition ${isDark ? "bg-white/5 border-white/10 text-white focus:border-emerald-500" : "bg-black/[0.03] border-black/10 text-black focus:border-emerald-600"}`}
+                      type="checkbox"
+                      id="newProxyCheck"
+                      checked={newUserCanProxy}
+                      onChange={e => setNewUserCanProxy(e.target.checked)}
+                      className="w-4 h-4 rounded text-green-600 focus:ring-green-500 cursor-pointer"
                     />
+                    <label htmlFor="newProxyCheck" className="text-xs font-medium cursor-pointer">
+                      Allow user proxy settings
+                    </label>
                   </div>
 
-                  <div className="pt-2 flex justify-end gap-3">
+                  <div className="pt-2 flex justify-end gap-2">
                     <button
                       type="button"
-                      onClick={() => setResetModalUser(null)}
-                      className={`px-4 py-2.5 rounded-2xl text-xs font-bold border ${isDark ? "border-white/10 text-slate-400" : "border-black/10 text-slate-600"}`}
+                      onClick={() => setShowCreateUserModal(false)}
+                      className="px-3.5 py-1.5 rounded-xl text-xs font-bold btn-spring border border-zinc-500/20"
                     >
                       Cancel
                     </button>
                     <button
                       type="submit"
-                      className="px-5 py-2.5 rounded-2xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs"
+                      className="px-4 py-1.5 rounded-xl text-white text-xs font-bold bg-green-600 hover:bg-green-700 btn-spring shadow-md shadow-green-600/25"
                     >
-                      Execute Reset
+                      Create
                     </button>
                   </div>
                 </form>
-              ) : (
-                <div className="space-y-4">
-                  <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl space-y-2 text-xs">
-                    <div className="font-bold text-emerald-400">Password Reset Completed</div>
-                    <div className="text-slate-300">
-                      Temporary Password: <code className="bg-white/10 px-2 py-1 rounded font-bold text-emerald-300 font-mono">{resetResultData.temporaryPassword}</code>
-                    </div>
-                  </div>
+              </div>
+            </div>
+          )}
+
+          {editingUser && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xl p-4">
+              <div className={`rounded-3xl p-6 max-w-sm w-full space-y-4 ${isDark ? "glass-surface-dark text-white" : "glass-surface-light text-black shadow-2xl"}`}>
+                <div className="flex items-center justify-between border-b pb-3 border-zinc-500/15">
+                  <h3 className="text-sm font-bold">Edit User</h3>
+                  <button onClick={() => setEditingUser(null)} className="text-xs text-zinc-500 btn-spring">✕</button>
+                </div>
+
+                <form onSubmit={handleUpdateUser} className="space-y-3">
                   <div>
-                    <label className="text-xs font-bold block mb-1 text-slate-400">Reset Link to Share with User</label>
+                    <label className="text-xs font-semibold block mb-1">Name</label>
                     <input
                       type="text"
-                      readOnly
-                      value={resetResultData.resetLink}
-                      className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-[11px] font-mono text-slate-400"
+                      value={editUserName}
+                      onChange={e => setEditUserName(e.target.value)}
+                      className={`w-full px-3.5 py-2 rounded-xl text-xs outline-none transition ${isDark ? "glass-input-dark text-white" : "glass-input-light text-black"}`}
+                      required
                     />
                   </div>
-                  <button
-                    onClick={() => { setResetModalUser(null); setResetResultData(null); }}
-                    className="w-full py-3 bg-white/10 hover:bg-white/15 text-white rounded-2xl text-xs font-bold"
-                  >
-                    Done
-                  </button>
-                </div>
-              )}
+                  <div>
+                    <label className="text-xs font-semibold block mb-1">Email</label>
+                    <input
+                      type="email"
+                      value={editUserEmail}
+                      onChange={e => setEditUserEmail(e.target.value)}
+                      className={`w-full px-3.5 py-2 rounded-xl text-xs outline-none transition ${isDark ? "glass-input-dark text-white" : "glass-input-light text-black"}`}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold block mb-1">New Password (optional)</label>
+                    <input
+                      type="text"
+                      placeholder="Leave blank to keep"
+                      value={editUserPassword}
+                      onChange={e => setEditUserPassword(e.target.value)}
+                      className={`w-full px-3.5 py-2 rounded-xl text-xs outline-none transition ${isDark ? "glass-input-dark text-white" : "glass-input-light text-black"}`}
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-xs font-semibold block mb-1">Role</label>
+                      <select
+                        value={editUserRole}
+                        onChange={e => setEditUserRole(e.target.value)}
+                        className={`w-full px-2.5 py-2 rounded-xl text-xs outline-none transition ${isDark ? "bg-[#18181B] text-white border border-white/10" : "bg-white text-black border border-zinc-200"}`}
+                      >
+                        <option value="user">User</option>
+                        <option value="admin">Admin</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold block mb-1">Status</label>
+                      <select
+                        value={editUserStatus}
+                        onChange={e => setEditUserStatus(e.target.value)}
+                        className={`w-full px-2.5 py-2 rounded-xl text-xs outline-none transition ${isDark ? "bg-[#18181B] text-white border border-white/10" : "bg-white text-black border border-zinc-200"}`}
+                      >
+                        <option value="active">Active</option>
+                        <option value="suspended">Suspended</option>
+                        <option value="pending">Pending</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 pt-1">
+                    <input
+                      type="checkbox"
+                      id="editProxyCheck"
+                      checked={editUserCanProxy}
+                      onChange={e => setEditUserCanProxy(e.target.checked)}
+                      className="w-4 h-4 rounded text-green-600 focus:ring-green-500 cursor-pointer"
+                    />
+                    <label htmlFor="editProxyCheck" className="text-xs font-medium cursor-pointer">
+                      Allow user proxy settings
+                    </label>
+                  </div>
+
+                  <div className="pt-2 flex justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setEditingUser(null)}
+                      className="px-3.5 py-1.5 rounded-xl text-xs font-bold btn-spring border border-zinc-500/20"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      className="px-4 py-1.5 rounded-xl text-white text-xs font-bold bg-green-600 hover:bg-green-700 btn-spring shadow-md shadow-green-600/25"
+                    >
+                      Save
+                    </button>
+                  </div>
+                </form>
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {exportJobId && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xl p-4">
-            <div className={`rounded-[32px] p-8 max-w-lg w-full shadow-2xl border space-y-6 ${isDark ? "bg-[#16181D] border-white/[0.1]" : "bg-white border-black/[0.08]"}`}>
-              <div className="flex items-center justify-between border-b border-white/[0.06] pb-4">
+          {resetModalUser && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xl p-4">
+              <div className={`rounded-3xl p-6 max-w-sm w-full space-y-4 ${isDark ? "glass-surface-dark text-white" : "glass-surface-light text-black shadow-2xl"}`}>
+                <div className="flex items-center justify-between border-b pb-3 border-zinc-500/15">
+                  <h3 className="text-sm font-bold">Reset Password</h3>
+                  <button onClick={() => { setResetModalUser(null); setResetResultData(null); }} className="text-xs text-zinc-500 btn-spring">✕</button>
+                </div>
+
+                {!resetResultData ? (
+                  <form onSubmit={handleResetPassword} className="space-y-3">
+                    <p className="text-xs text-zinc-500">
+                      Target: <span className="font-bold text-black dark:text-white">{resetModalUser.email}</span>
+                    </p>
+                    <div>
+                      <label className="text-xs font-semibold block mb-1">New Password (optional)</label>
+                      <input
+                        type="text"
+                        placeholder="Leave empty to auto-generate"
+                        value={newResetPassword}
+                        onChange={e => setNewResetPassword(e.target.value)}
+                        className={`w-full px-3.5 py-2 rounded-xl text-xs outline-none transition ${isDark ? "glass-input-dark text-white" : "glass-input-light text-black"}`}
+                      />
+                    </div>
+
+                    <div className="pt-2 flex justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setResetModalUser(null)}
+                        className="px-3.5 py-1.5 rounded-xl text-xs font-bold btn-spring border border-zinc-500/20"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        className="px-4 py-1.5 rounded-xl text-white text-xs font-bold bg-green-600 hover:bg-green-700 btn-spring shadow-md shadow-green-600/25"
+                      >
+                        Reset
+                      </button>
+                    </div>
+                  </form>
+                ) : (
+                  <div className="space-y-3">
+                    <div className="p-3.5 rounded-xl text-xs space-y-1 border border-green-500/30 bg-green-500/10 text-green-500">
+                      <div className="font-bold">Password Reset Done:</div>
+                      <code className="font-mono font-bold text-xs bg-black/20 px-2 py-0.5 rounded">{resetResultData.temporaryPassword}</code>
+                    </div>
+                    <button
+                      onClick={() => { setResetModalUser(null); setResetResultData(null); }}
+                      className="w-full py-2.5 rounded-xl font-bold text-xs text-white bg-green-600 hover:bg-green-700 btn-spring shadow-md shadow-green-600/25"
+                    >
+                      Done
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {exportJobId && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xl p-4">
+              <div className={`rounded-3xl p-6 max-w-sm w-full space-y-4 ${isDark ? "glass-surface-dark text-white" : "glass-surface-light text-black shadow-2xl"}`}>
+                <div className="flex items-center justify-between border-b pb-3 border-zinc-500/15">
+                  <h3 className="text-sm font-bold">Export Leads</h3>
+                  <button onClick={() => setExportJobId(null)} className="text-xs text-zinc-500 btn-spring">✕</button>
+                </div>
+
                 <div>
-                  <h3 className="text-lg font-bold">Download Lead Export</h3>
-                  <p className="text-xs text-slate-400 mt-0.5">Select format and columns to include</p>
-                </div>
-                <button onClick={() => setExportJobId(null)} className="text-slate-400 hover:text-white text-sm font-bold">✕</button>
-              </div>
-
-              <div>
-                <label className="text-xs font-bold block mb-2 text-slate-400">Export Format</label>
-                <div className="grid grid-cols-4 gap-2">
-                  {[
-                    { id: "xlsx", label: "Excel (.xlsx)" },
-                    { id: "csv", label: "CSV" },
-                    { id: "json", label: "JSON" },
-                    { id: "html", label: "HTML" }
-                  ].map(f => (
-                    <button
-                      key={f.id}
-                      type="button"
-                      onClick={() => setExportFormat(f.id as any)}
-                      className={`py-2.5 rounded-xl text-xs font-bold border transition ${exportFormat === f.id ? "border-emerald-500 bg-emerald-500/10 text-emerald-400" : (isDark ? "border-white/[0.08] bg-white/[0.02] text-slate-400" : "border-black/[0.06] bg-black/[0.02] text-slate-600")}`}
-                    >
-                      {f.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <label className="text-xs font-bold text-slate-400">Included Columns</label>
-                  <div className="space-x-2 text-[11px]">
-                    <button
-                      type="button"
-                      onClick={() => setSelectedCols(EXPORT_COLUMNS.map(c => c.key))}
-                      className="text-emerald-400 hover:underline font-bold"
-                    >
-                      Select All
-                    </button>
-                    <span className="text-slate-600">|</span>
-                    <button
-                      type="button"
-                      onClick={() => setSelectedCols(["title", "phone_1"])}
-                      className="text-slate-400 hover:underline"
-                    >
-                      Phone Only
-                    </button>
+                  <label className="text-xs font-semibold block mb-1.5">Format</label>
+                  <div className="grid grid-cols-4 gap-1.5">
+                    {(["xlsx", "csv", "json", "html"] as const).map(fmt => (
+                      <button
+                        key={fmt}
+                        type="button"
+                        onClick={() => setExportFormat(fmt)}
+                        className={`py-2 text-xs font-bold uppercase rounded-xl border transition btn-spring ${exportFormat === fmt ? (isDark ? "bg-green-600 border-green-600 text-white shadow-md shadow-green-600/25" : "bg-black border-black text-white shadow-md shadow-black/15") : (isDark ? "glass-icon-dark text-zinc-400" : "glass-icon-light text-zinc-600")}`}
+                      >
+                        {fmt}
+                      </button>
+                    ))}
                   </div>
                 </div>
 
-                <div className={`grid grid-cols-2 gap-2 max-h-48 overflow-y-auto p-2 rounded-2xl border ${isDark ? "bg-white/[0.02] border-white/[0.06]" : "bg-black/[0.02] border-black/[0.05]"}`}>
-                  {EXPORT_COLUMNS.map(col => {
-                    const isChecked = selectedCols.includes(col.key);
-                    return (
-                      <label key={col.key} className={`flex items-center gap-2.5 p-2 rounded-xl text-xs cursor-pointer select-none transition ${isDark ? "hover:bg-white/[0.04]" : "hover:bg-black/[0.04]"}`}>
-                        <input
-                          type="checkbox"
-                          checked={isChecked}
-                          onChange={() => {
-                            if (isChecked) {
-                              if (selectedCols.length > 1) {
-                                setSelectedCols(selectedCols.filter(k => k !== col.key));
+                <div>
+                  <label className="text-xs font-semibold block mb-1.5">Columns</label>
+                  <div className="grid grid-cols-2 gap-1.5 max-h-40 overflow-y-auto pr-1">
+                    {EXPORT_COLUMNS.map(col => {
+                      const isChecked = selectedCols.includes(col.key);
+                      return (
+                        <label key={col.key} className={`flex items-center gap-1.5 p-2 rounded-xl text-xs cursor-pointer btn-spring ${isChecked ? (isDark ? "bg-green-600/15 border border-green-500/40 text-white" : "bg-black/[0.04] border border-black/20 text-black font-semibold") : (isDark ? "glass-icon-dark text-zinc-400" : "glass-icon-light text-zinc-500")}`}>
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={() => {
+                              if (isChecked) {
+                                if (selectedCols.length > 1) {
+                                  setSelectedCols(selectedCols.filter(k => k !== col.key));
+                                }
+                              } else {
+                                setSelectedCols([...selectedCols, col.key]);
                               }
-                            } else {
-                              setSelectedCols([...selectedCols, col.key]);
-                            }
-                          }}
-                          className="rounded text-emerald-500 focus:ring-emerald-400 w-4 h-4"
-                        />
-                        <span className="truncate">{col.label}</span>
-                      </label>
-                    );
-                  })}
+                            }}
+                            className="w-3.5 h-3.5 rounded text-green-600 focus:ring-green-500 cursor-pointer"
+                          />
+                          <span className="truncate">{col.label}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="pt-2 flex justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setExportJobId(null)}
+                    className="px-3.5 py-1.5 rounded-xl text-xs font-bold btn-spring border border-zinc-500/20"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={downloadFile}
+                    className="px-4 py-1.5 rounded-xl text-white text-xs font-bold bg-green-600 hover:bg-green-700 btn-spring shadow-md shadow-green-600/25"
+                  >
+                    Download
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {isTableZoomed && (
+            <div className={`fixed inset-0 z-50 flex flex-col p-4 md:p-6 backdrop-blur-3xl animate-in fade-in duration-200 ${isDark ? "bg-black/90 text-white" : "bg-white/95 text-black"}`}>
+              <div className="flex items-center justify-between pb-4 border-b border-zinc-500/20 shrink-0">
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => setIsTableZoomed(false)}
+                    className={`p-2.5 rounded-xl text-xs font-bold btn-spring flex items-center gap-2 ${isDark ? "glass-icon-dark text-white hover:border-white/30" : "glass-icon-light text-black hover:border-black/30"}`}
+                    title="Zoom Out (Exit Fullscreen)"
+                  >
+                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="4 14 10 14 10 20"></polyline><polyline points="20 10 14 10 14 4"></polyline><line x1="14" y1="10" x2="21" y2="3"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg>
+                    <span>Zoom Out</span>
+                  </button>
+                  <div>
+                    <h2 className="text-base font-bold capitalize">{selectedJob?.target}</h2>
+                    <span className="text-[11px] text-zinc-500">{filteredResults.length} leads displayed (Press Esc to zoom out)</span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <input
+                    type="text"
+                    placeholder="Search in table..."
+                    value={searchFilter}
+                    onChange={e => setSearchFilter(e.target.value)}
+                    className={`px-4 py-2 rounded-xl text-xs outline-none transition ${isDark ? "glass-input-dark text-white focus:border-green-500" : "glass-input-light text-black focus:border-black"}`}
+                  />
+                  <button
+                    onClick={() => setExportJobId(selectedJobId)}
+                    disabled={jobResults.length === 0}
+                    className="px-4 py-2 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white text-xs font-bold rounded-xl btn-spring shadow-md shadow-green-600/25 flex items-center gap-1.5"
+                  >
+                    <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                    Export
+                  </button>
                 </div>
               </div>
 
-              <div className="pt-2 flex items-center justify-end gap-3">
-                <button
-                  type="button"
-                  onClick={() => setExportJobId(null)}
-                  className={`px-5 py-2.5 rounded-2xl border text-xs font-bold ${isDark ? "border-white/10 text-slate-400" : "border-black/10 text-slate-600"}`}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={downloadFile}
-                  className="px-6 py-2.5 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white text-xs font-bold transition shadow-md shadow-emerald-500/20"
-                >
-                  Download File
-                </button>
+              <div className="flex-1 overflow-y-auto overflow-x-hidden mt-4 rounded-2xl border border-zinc-500/20">
+                <table className="w-full table-fixed text-left text-xs">
+                  <thead className={`text-[11px] font-bold uppercase tracking-wider border-b border-zinc-500/20 sticky top-0 z-10 backdrop-blur-2xl ${isDark ? "bg-[#121216]/95 text-zinc-400" : "bg-white/95 text-zinc-600"}`}>
+                    <tr>
+                      <th className="w-[22%] px-4 py-3">Business</th>
+                      <th className="w-[14%] px-3 py-3">Phone</th>
+                      <th className="w-[15%] px-3 py-3">Website</th>
+                      <th className="w-[13%] px-3 py-3">Category</th>
+                      <th className="w-[10%] px-3 py-3">Rating</th>
+                      <th className="w-[10%] px-3 py-3">City</th>
+                      <th className="w-[16%] px-4 py-3">Address</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-zinc-500/10">
+                    {filteredResults.map((r, i) => (
+                      <tr key={i} className={`transition ${isDark ? "hover:bg-white/[0.04]" : "hover:bg-black/[0.03]"}`}>
+                        <td className="px-4 py-3 font-bold break-words leading-snug">{r.title}</td>
+                        <td className="px-3 py-3 font-mono text-[11px] whitespace-nowrap">{r.phone_1 || "—"}</td>
+                        <td className="px-3 py-3">
+                          {r.website ? (
+                            <a href={r.website} target="_blank" rel="noreferrer" className="text-green-600 hover:underline truncate block text-[11px]" title={r.website}>
+                              {r.website.replace(/^https?:\/\//, '')}
+                            </a>
+                          ) : "—"}
+                        </td>
+                        <td className="px-3 py-3 text-zinc-500 truncate" title={r.category || ""}>{r.category || "—"}</td>
+                        <td className="px-3 py-3 whitespace-nowrap font-semibold">
+                          {r.rating ? `${r.rating} (${r.reviews || 0})` : "—"}
+                        </td>
+                        <td className="px-3 py-3 text-zinc-500 truncate" title={r.city || ""}>{r.city || "—"}</td>
+                        <td className="px-4 py-3 text-zinc-500 break-words leading-snug text-[11px]">{r.address || "—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </div>
-          </div>
-        )}
+          )}
+
+          {showProfileModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xl p-4">
+              <div className={`rounded-3xl p-6 max-w-md w-full space-y-4 max-h-[90vh] overflow-y-auto ${isDark ? "glass-surface-dark text-white" : "glass-surface-light text-black shadow-2xl"}`}>
+                <div className="flex items-center justify-between border-b pb-3 border-zinc-500/15">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-full overflow-hidden border border-zinc-500/20 bg-zinc-800 text-white flex items-center justify-center font-bold text-xs shrink-0">
+                      {profileAvatar ? (
+                        <img src={profileAvatar} alt="Profile" className="w-full h-full object-cover" />
+                      ) : (
+                        <span>{(profileUsername || profileName || user?.email || "U")[0].toUpperCase()}</span>
+                      )}
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-bold">My Profile & Security</h3>
+                      <p className="text-[11px] text-zinc-500">{user?.email}</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setShowProfileModal(false);
+                      setProfileMsg(null);
+                    }}
+                    className="text-xs text-zinc-500 hover:text-black dark:hover:text-white btn-spring"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                {profileMsg && (
+                  <div className={`p-3 rounded-xl border text-xs font-semibold ${profileMsg.type === "success" ? "bg-green-500/10 border-green-500/30 text-green-500" : "bg-red-500/10 border-red-500/30 text-red-500"}`}>
+                    {profileMsg.text}
+                  </div>
+                )}
+
+                <form onSubmit={handleUpdateProfile} className="space-y-3.5">
+                  <div>
+                    <label className="text-xs font-semibold block mb-1">Display Name</label>
+                    <input
+                      type="text"
+                      placeholder="Your Full Name"
+                      value={profileName}
+                      onChange={e => setProfileName(e.target.value)}
+                      className={`w-full px-3.5 py-2 rounded-xl text-xs outline-none transition ${isDark ? "glass-input-dark text-white" : "glass-input-light text-black"}`}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-semibold block mb-1">Username</label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-2 text-xs text-zinc-500">@</span>
+                      <input
+                        type="text"
+                        placeholder="username"
+                        value={profileUsername}
+                        onChange={e => setProfileUsername(e.target.value)}
+                        className={`w-full pl-7 pr-3.5 py-2 rounded-xl text-xs outline-none transition ${isDark ? "glass-input-dark text-white" : "glass-input-light text-black"}`}
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-semibold block mb-1">Avatar Image URL</label>
+                    <input
+                      type="url"
+                      placeholder="https://example.com/avatar.jpg"
+                      value={profileAvatar}
+                      onChange={e => setProfileAvatar(e.target.value)}
+                      className={`w-full px-3.5 py-2 rounded-xl text-xs outline-none transition ${isDark ? "glass-input-dark text-white" : "glass-input-light text-black"}`}
+                    />
+                    <div className="flex items-center gap-2 mt-2">
+                      <span className="text-[11px] text-zinc-500">Presets:</span>
+                      {[
+                        "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=60",
+                        "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&auto=format&fit=crop&q=60",
+                        "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&auto=format&fit=crop&q=60"
+                      ].map((presetUrl, idx) => (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={() => setProfileAvatar(presetUrl)}
+                          className="w-6 h-6 rounded-full overflow-hidden border border-zinc-500/20 hover:scale-110 transition shrink-0"
+                        >
+                          <img src={presetUrl} alt="preset" className="w-full h-full object-cover" />
+                        </button>
+                      ))}
+                      {profileAvatar && (
+                        <button
+                          type="button"
+                          onClick={() => setProfileAvatar("")}
+                          className="text-[10px] text-zinc-400 hover:text-red-500 ml-1"
+                        >
+                          Clear
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="pt-2 border-t border-zinc-500/15 space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-bold block">Change Password</label>
+                      <button
+                        type="button"
+                        onClick={handleProfileForgotPassword}
+                        className="text-[11px] text-green-600 hover:underline font-semibold"
+                      >
+                        Forgot password? Reset via mail
+                      </button>
+                    </div>
+
+                    <div>
+                      <label className="text-[11px] text-zinc-500 block mb-1">Current Password (required to change)</label>
+                      <input
+                        type="password"
+                        placeholder="Current Password"
+                        value={profileCurrentPassword}
+                        onChange={e => setProfileCurrentPassword(e.target.value)}
+                        className={`w-full px-3.5 py-2 rounded-xl text-xs outline-none transition ${isDark ? "glass-input-dark text-white" : "glass-input-light text-black"}`}
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="text-[11px] text-zinc-500 block mb-1">New Password</label>
+                        <input
+                          type="password"
+                          placeholder="New Password"
+                          value={profileNewPassword}
+                          onChange={e => setProfileNewPassword(e.target.value)}
+                          className={`w-full px-3.5 py-2 rounded-xl text-xs outline-none transition ${isDark ? "glass-input-dark text-white" : "glass-input-light text-black"}`}
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[11px] text-zinc-500 block mb-1">Confirm New Password</label>
+                        <input
+                          type="password"
+                          placeholder="Repeat New Password"
+                          value={profileConfirmPassword}
+                          onChange={e => setProfileConfirmPassword(e.target.value)}
+                          className={`w-full px-3.5 py-2 rounded-xl text-xs outline-none transition ${isDark ? "glass-input-dark text-white" : "glass-input-light text-black"}`}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="pt-3 flex items-center justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowProfileModal(false);
+                        setProfileMsg(null);
+                      }}
+                      className="px-3.5 py-1.5 rounded-xl text-xs font-bold btn-spring border border-zinc-500/20"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={profileLoading}
+                      className="px-4 py-1.5 rounded-xl text-white text-xs font-bold bg-green-600 hover:bg-green-700 btn-spring shadow-md shadow-green-600/25 disabled:opacity-50"
+                    >
+                      {profileLoading ? "Saving..." : "Save Changes"}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+        </div>
       </main>
     </div>
   );

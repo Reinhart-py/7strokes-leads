@@ -68,18 +68,88 @@ function getFilteredRows(rawRows: any[], requestedColumns?: string): { headers: 
 
 router.post('/', async (req: AuthRequest, res) => {
   try {
-    const { engine, target, cap } = req.body;
+    const { engine, target, cap, proxy } = req.body;
     const userId = req.user?.id;
 
+    let effectiveProxy = '';
+    const userRes = await query('SELECT role, can_use_proxy, custom_proxy FROM users WHERE id = $1', [userId]);
+    const userObj = userRes.rows[0];
+
+    if (userObj?.role === 'admin' || userObj?.can_use_proxy === 1) {
+      if (proxy && typeof proxy === 'string' && proxy.trim().length > 0) {
+        effectiveProxy = proxy.trim();
+      } else if (userObj?.custom_proxy) {
+        effectiveProxy = userObj.custom_proxy;
+      }
+    }
+
+    if (!effectiveProxy) {
+      const sysProxyRes = await query("SELECT value FROM settings WHERE key = 'system_proxy_url'");
+      const sysEnabledRes = await query("SELECT value FROM settings WHERE key = 'system_proxy_enabled'");
+      if (sysEnabledRes.rows[0]?.value === 'true' && sysProxyRes.rows[0]?.value) {
+        effectiveProxy = sysProxyRes.rows[0].value;
+      }
+    }
+
     const result = await query(
-      'INSERT INTO jobs (user_id, engine, target, cap) VALUES ($1, $2, $3, $4) RETURNING *',
-      [userId, engine, target, cap || 0]
+      'INSERT INTO jobs (user_id, engine, target, cap, proxy_url) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+      [userId, engine, target, cap || 0, effectiveProxy || null]
     );
     const job = result.rows[0];
 
-    await addScraperJob(job.id, engine, target, cap, userId as string);
+    await addScraperJob(job.id, engine, target, cap, userId as string, effectiveProxy || undefined);
 
     res.json(job);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal error' });
+  }
+});
+
+router.post('/batch', async (req: AuthRequest, res) => {
+  try {
+    const { engine = 'gmaps', queries, cap, proxy } = req.body;
+    const userId = req.user?.id;
+
+    if (!Array.isArray(queries) || queries.length === 0) {
+      return res.status(400).json({ error: 'Queries list must be a non-empty array' });
+    }
+
+    let effectiveProxy = '';
+    const userRes = await query('SELECT role, can_use_proxy, custom_proxy FROM users WHERE id = $1', [userId]);
+    const userObj = userRes.rows[0];
+
+    if (userObj?.role === 'admin' || userObj?.can_use_proxy === 1) {
+      if (proxy && typeof proxy === 'string' && proxy.trim().length > 0) {
+        effectiveProxy = proxy.trim();
+      } else if (userObj?.custom_proxy) {
+        effectiveProxy = userObj.custom_proxy;
+      }
+    }
+
+    if (!effectiveProxy) {
+      const sysProxyRes = await query("SELECT value FROM settings WHERE key = 'system_proxy_url'");
+      const sysEnabledRes = await query("SELECT value FROM settings WHERE key = 'system_proxy_enabled'");
+      if (sysEnabledRes.rows[0]?.value === 'true' && sysProxyRes.rows[0]?.value) {
+        effectiveProxy = sysProxyRes.rows[0].value;
+      }
+    }
+
+    const createdJobs = [];
+    for (const targetQuery of queries) {
+      const trimmed = typeof targetQuery === 'string' ? targetQuery.trim() : '';
+      if (!trimmed) continue;
+
+      const result = await query(
+        'INSERT INTO jobs (user_id, engine, target, cap, proxy_url) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+        [userId, engine, trimmed, cap || 0, effectiveProxy || null]
+      );
+      const job = result.rows[0];
+      await addScraperJob(job.id, engine, trimmed, cap, userId as string, effectiveProxy || undefined);
+      createdJobs.push(job);
+    }
+
+    res.json({ success: true, count: createdJobs.length, jobs: createdJobs });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Internal error' });

@@ -18,17 +18,17 @@ function getQueue(): Queue | null {
   return scraperQueue;
 }
 
-export async function addScraperJob(jobId: string, engine: string, target: string, cap: number, userId: string) {
+export async function addScraperJob(jobId: string, engine: string, target: string, cap: number, userId: string, proxy?: string) {
   const queue = getQueue();
   if (queue) {
     try {
-      await queue.add('scrape', { jobId, engine, target, cap, userId }, { jobId });
+      await queue.add('scrape', { jobId, engine, target, cap, userId, proxy }, { jobId });
       return;
     } catch {}
   }
 
   setImmediate(() => {
-    executeJob({ jobId, engine, target, cap }).catch((err) => {
+    executeJob({ jobId, engine, target, cap, proxy }).catch((err) => {
       console.error(`Local execution failed for job ${jobId}:`, err);
     });
   });

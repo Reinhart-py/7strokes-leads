@@ -53,6 +53,9 @@ export interface ScraperOptions {
   jobId?: string;
   startIdx?: number;
   initialSaved?: number;
+  proxy?: string;
+  seenKeys?: Set<string>;
+  concurrency?: number;
 }
 
 export interface ScraperControl {

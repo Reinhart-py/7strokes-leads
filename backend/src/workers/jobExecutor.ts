@@ -4,8 +4,8 @@ import { ScrapedLead } from '../scrapers/types';
 
 const scraperManager = new ScraperManager();
 
-export async function executeJob(data: { jobId: string; engine: string; target: string; cap: number }, onProgress?: (saved: number) => Promise<void>) {
-  const { jobId, engine, target, cap } = data;
+export async function executeJob(data: { jobId: string; engine: string; target: string; cap: number; proxy?: string }, onProgress?: (saved: number) => Promise<void>) {
+  const { jobId, engine, target, cap, proxy } = data;
 
   try {
     await query('UPDATE jobs SET status = $1 WHERE id = $2', ['running', jobId]);
@@ -83,6 +83,9 @@ export async function executeJob(data: { jobId: string; engine: string; target: 
           ]
         );
       } else {
+        const existCheck = await query('SELECT id FROM results WHERE job_id = $1 AND title = $2 LIMIT 1', [jobId, lead.title]);
+        if (existCheck.rows.length > 0) return;
+
         await query(
           `INSERT INTO results (
             job_id, query, place_id, title, category, categories,
@@ -131,9 +134,12 @@ export async function executeJob(data: { jobId: string; engine: string; target: 
       }
     };
 
+    const concurrencyRes = await query("SELECT value FROM settings WHERE key = 'parallel_concurrency'");
+    const concurrency = parseInt(concurrencyRes.rows[0]?.value || '6') || 6;
+
     await scraperManager.run(
       engine as 'gmaps' | '2gis',
-      { query: target, cap, jobId },
+      { query: target, cap, jobId, proxy, concurrency },
       { checkCancelled, log, updateProgress, saveLead }
     );
 

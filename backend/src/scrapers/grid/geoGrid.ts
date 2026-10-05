@@ -61,6 +61,14 @@ export class GeoGrid {
       }
     }
 
-    return cells.length > 0 ? cells : [{ lat: midLat, lon: (bbox.minLon + bbox.maxLon) / 2 }];
+    const midLon = (bbox.minLon + bbox.maxLon) / 2;
+
+    cells.sort((a, b) => {
+      const distA = Math.hypot(a.lat - midLat, (a.lon - midLon) * safeCos);
+      const distB = Math.hypot(b.lat - midLat, (b.lon - midLon) * safeCos);
+      return distA - distB;
+    });
+
+    return cells.length > 0 ? cells : [{ lat: midLat, lon: midLon }];
   }
 }
