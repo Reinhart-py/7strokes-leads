@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 
@@ -172,6 +173,8 @@ export default function Home() {
     role: string;
     can_use_proxy?: number;
     custom_proxy?: string;
+    company?: string;
+    manager_id?: string;
   } | null>(null);
 
   const [authMode, setAuthMode] = useState<"login" | "register" | "forgot">("login");
@@ -224,6 +227,9 @@ export default function Home() {
   const [selectedCols, setSelectedCols] = useState<string[]>(EXPORT_COLUMNS.map(c => c.key));
   const [exportFormat, setExportFormat] = useState<"csv" | "xlsx" | "json" | "html">("xlsx");
 
+  const [adminCompanyFilter, setAdminCompanyFilter] = useState<string>("all");
+  const [adminManagerFilter, setAdminManagerFilter] = useState<string>("all");
+
   const [showCreateUserModal, setShowCreateUserModal] = useState(false);
   const [newUserName, setNewUserName] = useState("");
   const [newUserUsername, setNewUserUsername] = useState("");
@@ -231,18 +237,19 @@ export default function Home() {
   const [newUserEmail, setNewUserEmail] = useState("");
   const [newUserPassword, setNewUserPassword] = useState("");
   const [newUserRole, setNewUserRole] = useState("user");
+  const [newUserCompany, setNewUserCompany] = useState("");
+  const [newUserManagerId, setNewUserManagerId] = useState("");
   const [newUserCanProxy, setNewUserCanProxy] = useState(false);
   const [createUserMsg, setCreateUserMsg] = useState("");
 
   const [regUsernameStatus, setRegUsernameStatus] = useState<{ checked: boolean; valid: boolean; message?: string }>({ checked: false, valid: true });
-  const [showContactModal, setShowContactModal] = useState(false);
-  const [contactTopic, setContactTopic] = useState("reset_password");
-  const [contactCustomMsg, setContactCustomMsg] = useState("");
 
   const [editingUser, setEditingUser] = useState<any | null>(null);
   const [editUserName, setEditUserName] = useState("");
   const [editUserEmail, setEditUserEmail] = useState("");
   const [editUserRole, setEditUserRole] = useState("user");
+  const [editUserCompany, setEditUserCompany] = useState("");
+  const [editUserManagerId, setEditUserManagerId] = useState("");
   const [editUserStatus, setEditUserStatus] = useState("active");
   const [editUserPassword, setEditUserPassword] = useState("");
   const [editUserCanProxy, setEditUserCanProxy] = useState(false);
@@ -350,10 +357,13 @@ export default function Home() {
           setUserProxy(data.custom_proxy);
         }
         fetchJobsList(t);
-        if (data.role === "admin") {
+        if (data.role === "admin" || data.role === "manager") {
           fetchAdminStats(t);
           fetchTeamList(t);
-          fetchSettings(t);
+          if (data.role === "admin") {
+            fetchSettings(t);
+          }
+          fetchAdminGlobalLeads(t);
         }
       } else if (res.status === 401 || res.status === 403) {
         logout();
@@ -387,9 +397,14 @@ export default function Home() {
     } catch {}
   };
 
-  const fetchTeamList = async (t = token) => {
+  const fetchTeamList = async (t = token, comp = adminCompanyFilter, mgrId = adminManagerFilter) => {
     try {
-      const res = await apiFetch("/api/admin/users", {
+      let url = "/api/admin/users";
+      const params = new URLSearchParams();
+      if (comp && comp !== "all") params.append("company", comp);
+      if (mgrId && mgrId !== "all") params.append("managerId", mgrId);
+      if (params.toString()) url += `?${params.toString()}`;
+      const res = await apiFetch(url, {
         headers: { Authorization: `Bearer ${t}` }
       });
       if (res.ok) {
@@ -462,35 +477,13 @@ export default function Home() {
     }
   };
 
-  const getContactLinks = () => {
-    const topicLabels: Record<string, string> = {
-      reset_password: "Account Recovery / Password Reset",
-      change_email: "Account Email Update",
-      scraper_help: "Scraper Assistance & Lead Extraction",
-      custom_proxy: "Custom Proxies & VPS Hosting",
-      other: "General Inquiry"
-    };
-
-    const topicText = topicLabels[contactTopic] || "Assistance";
-    const extra = contactCustomMsg.trim() ? ` Notes: ${contactCustomMsg.trim()}` : "";
-    const rawText = `Hello Reinhart, I am contacting you from the 7strokes lead finder tool regarding: ${topicText}.${extra}`;
-    const encodedText = encodeURIComponent(rawText);
-
-    return {
-      whatsapp: `https://wa.me/13153701897?text=${encodedText}`,
-      telegramReinhart: `https://t.me/reinhart96x?text=${encodedText}`,
-      telegramKiri: `https://t.me/kiri0507?text=${encodedText}`,
-      email: `mailto:reinhart96x@gmail.com?subject=${encodeURIComponent(`7strokes Support: ${topicText}`)}&body=${encodedText}`
-    };
-  };
-
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setAuthError("");
     setAuthSuccess("");
 
     if (authMode === "forgot") {
-      setShowContactModal(true);
+      window.location.href = "/contact";
       return;
     }
 
@@ -530,10 +523,12 @@ export default function Home() {
             setUserProxy(data.user.custom_proxy);
           }
           fetchJobsList(data.token);
-          if (data.user.role === "admin") {
+          if (data.user.role === "admin" || data.user.role === "manager") {
             fetchAdminStats(data.token);
             fetchTeamList(data.token);
-            fetchSettings(data.token);
+            if (data.user.role === "admin") {
+              fetchSettings(data.token);
+            }
             fetchAdminGlobalLeads(data.token);
           }
         }
@@ -695,11 +690,20 @@ export default function Home() {
     } catch {}
   };
 
-  const fetchAdminGlobalLeads = async (t = token, uFilter = adminLeadUserFilter, q = adminLeadSearch) => {
+  const fetchAdminGlobalLeads = async (
+    t = token,
+    uFilter = adminLeadUserFilter,
+    q = adminLeadSearch,
+    comp = adminCompanyFilter,
+    mgrId = adminManagerFilter
+  ) => {
     setLoadingAdminLeads(true);
     try {
-      let url = `/api/admin/leads?limit=500&userId=${encodeURIComponent(uFilter)}`;
+      let url = `/api/admin/leads?limit=500`;
+      if (uFilter && uFilter !== "all") url += `&userId=${encodeURIComponent(uFilter)}`;
       if (q.trim()) url += `&search=${encodeURIComponent(q.trim())}`;
+      if (comp && comp !== "all") url += `&company=${encodeURIComponent(comp)}`;
+      if (mgrId && mgrId !== "all") url += `&managerId=${encodeURIComponent(mgrId)}`;
       const res = await apiFetch(url, {
         headers: { Authorization: `Bearer ${t}` }
       });
@@ -814,21 +818,30 @@ export default function Home() {
       return;
     }
     try {
+      const payload: any = {
+        name: newUserName || cleanUsername,
+        username: cleanUsername,
+        email: newUserEmail,
+        password: newUserPassword,
+        role: user?.role === "manager" ? "user" : newUserRole,
+        status: "active",
+        can_use_proxy: newUserCanProxy ? 1 : 0
+      };
+      if (user?.role === "manager") {
+        payload.company = user?.company;
+        payload.manager_id = user?.id;
+      } else {
+        if (newUserCompany.trim()) payload.company = newUserCompany.trim();
+        if (newUserManagerId && newUserManagerId !== "none") payload.manager_id = newUserManagerId;
+      }
+
       const res = await apiFetch("/api/admin/users", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`
         },
-        body: JSON.stringify({
-          name: newUserName || cleanUsername,
-          username: cleanUsername,
-          email: newUserEmail,
-          password: newUserPassword,
-          role: newUserRole,
-          status: "active",
-          can_use_proxy: newUserCanProxy ? 1 : 0
-        })
+        body: JSON.stringify(payload)
       });
       const data = await res.json();
       if (res.ok) {
@@ -837,6 +850,8 @@ export default function Home() {
         setNewUserUsername("");
         setNewUserEmail("");
         setNewUserPassword("");
+        setNewUserCompany("");
+        setNewUserManagerId("");
         setNewUserCanProxy(false);
         fetchTeamList(token);
         fetchAdminStats(token);
@@ -855,10 +870,14 @@ export default function Home() {
       const payload: any = {
         name: editUserName,
         email: editUserEmail,
-        role: editUserRole,
+        role: user?.role === "manager" ? editingUser.role : editUserRole,
         status: editUserStatus,
         can_use_proxy: editUserCanProxy ? 1 : 0
       };
+      if (user?.role === "admin") {
+        payload.company = editUserCompany.trim();
+        payload.manager_id = editUserManagerId && editUserManagerId !== "none" ? editUserManagerId : null;
+      }
       if (editUserPassword.trim().length > 0) {
         payload.password = editUserPassword.trim();
       }
@@ -874,6 +893,7 @@ export default function Home() {
       if (res.ok) {
         setEditingUser(null);
         fetchTeamList(token);
+        fetchAdminStats(token);
       }
     } catch {}
   };
@@ -1062,17 +1082,13 @@ export default function Home() {
               </div>
 
               <div className="pt-2 space-y-2.5">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setContactTopic("reset_password");
-                    setShowContactModal(true);
-                  }}
+                <Link
+                  href="/contact"
                   className="w-full py-2.5 rounded-xl text-xs font-bold text-white bg-green-600 hover:bg-green-700 btn-spring shadow-lg shadow-green-600/25 flex items-center justify-center gap-2"
                 >
                   <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
                   <span>Contact Admin / Support</span>
-                </button>
+                </Link>
 
                 <button
                   type="button"
@@ -1179,17 +1195,13 @@ export default function Home() {
           )}
 
           <div className="mt-5 pt-4 border-t border-zinc-500/15 text-center">
-            <button
-              type="button"
-              onClick={() => {
-                setContactTopic("other");
-                setShowContactModal(true);
-              }}
+            <Link
+              href="/contact"
               className="text-xs font-medium text-zinc-500 hover:text-green-500 transition-colors inline-flex items-center gap-1.5"
             >
               <svg className="w-3.5 h-3.5 text-green-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
               <span>Need Help? Contact Admin & Support</span>
-            </button>
+            </Link>
           </div>
         </div>
       </div>
@@ -1231,19 +1243,26 @@ export default function Home() {
             </button>
           </div>
 
-          {user.role === "admin" && (
+          {(user.role === "admin" || user.role === "manager") && (
             <div className={`flex rounded-xl p-1 mb-5 text-xs font-semibold ${isDark ? "bg-black/40 border border-white/5" : "bg-black/[0.04] border border-black/5"}`}>
               <button
                 onClick={() => { setViewMode("app"); setSidebarOpen(false); }}
                 className={`flex-1 py-1.5 rounded-lg transition-all duration-200 ${viewMode === "app" ? (isDark ? "bg-white/10 text-white font-bold shadow-sm" : "bg-white text-black font-bold shadow-sm") : "text-zinc-500"}`}
               >
-                App
+                Lead App
               </button>
               <button
-                onClick={() => { setViewMode("admin"); fetchAdminStats(); fetchTeamList(); fetchSettings(); setSidebarOpen(false); }}
+                onClick={() => {
+                  setViewMode("admin");
+                  fetchAdminStats();
+                  fetchTeamList();
+                  if (user.role === "admin") fetchSettings();
+                  fetchAdminGlobalLeads();
+                  setSidebarOpen(false);
+                }}
                 className={`flex-1 py-1.5 rounded-lg transition-all duration-200 ${viewMode === "admin" ? "bg-green-600 text-white font-bold shadow-sm" : "text-zinc-500"}`}
               >
-                Admin
+                {user.role === "admin" ? "Admin" : "Company"}
               </button>
             </div>
           )}
@@ -1291,18 +1310,20 @@ export default function Home() {
             </nav>
           ) : (
             <nav className="space-y-1">
-              <div className="text-[10px] font-bold uppercase tracking-wider text-zinc-500 px-3.5 mb-2">Admin Tools</div>
+              <div className="text-[10px] font-bold uppercase tracking-wider text-zinc-500 px-3.5 mb-2">
+                {user.role === "admin" ? "Admin Console" : `${user.company || "Company"} Portal`}
+              </div>
               <button
                 onClick={() => { setAdminTab("overview"); setSidebarOpen(false); }}
                 className={`w-full flex items-center gap-2.5 px-3.5 py-2 rounded-xl text-xs font-semibold text-left transition-all duration-200 ${adminTab === "overview" ? (isDark ? "bg-white/10 text-white font-bold shadow-sm" : "bg-black/[0.06] text-black font-bold shadow-sm") : "text-zinc-500 hover:text-black dark:hover:text-white"}`}
               >
-                System & Stats
+                {user.role === "admin" ? "System & Stats" : "Team Overview"}
               </button>
               <button
                 onClick={() => { setAdminTab("users"); setSidebarOpen(false); }}
                 className={`w-full flex items-center justify-between px-3.5 py-2 rounded-xl text-xs font-semibold text-left transition-all duration-200 ${adminTab === "users" ? (isDark ? "bg-white/10 text-white font-bold shadow-sm" : "bg-black/[0.06] text-black font-bold shadow-sm") : "text-zinc-500 hover:text-black dark:hover:text-white"}`}
               >
-                <span>Users & Proxies</span>
+                <span>{user.role === "admin" ? "Users & Managers" : "Team Members"}</span>
                 {adminUsers.length > 0 && (
                   <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-green-600 text-white shadow-sm">
                     {adminUsers.length}
@@ -1313,30 +1334,33 @@ export default function Home() {
                 onClick={() => { setAdminTab("leads"); fetchAdminGlobalLeads(); setSidebarOpen(false); }}
                 className={`w-full flex items-center justify-between px-3.5 py-2 rounded-xl text-xs font-semibold text-left transition-all duration-200 ${adminTab === "leads" ? (isDark ? "bg-white/10 text-white font-bold shadow-sm" : "bg-black/[0.06] text-black font-bold shadow-sm") : "text-zinc-500 hover:text-black dark:hover:text-white"}`}
               >
-                <span>All Users Leads</span>
+                <span>{user.role === "admin" ? "All Users Leads" : "Team Leads"}</span>
                 {adminGlobalTotal > 0 && (
                   <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-green-600 text-white shadow-sm">
                     {adminGlobalTotal}
                   </span>
                 )}
               </button>
-              <button
-                onClick={() => { setAdminTab("settings"); setSidebarOpen(false); }}
-                className={`w-full flex items-center gap-2.5 px-3.5 py-2 rounded-xl text-xs font-semibold text-left transition-all duration-200 ${adminTab === "settings" ? (isDark ? "bg-white/10 text-white font-bold shadow-sm" : "bg-black/[0.06] text-black font-bold shadow-sm") : "text-zinc-500 hover:text-black dark:hover:text-white"}`}
-              >
-                System Settings
-              </button>
+              {user.role === "admin" && (
+                <button
+                  onClick={() => { setAdminTab("settings"); setSidebarOpen(false); }}
+                  className={`w-full flex items-center gap-2.5 px-3.5 py-2 rounded-xl text-xs font-semibold text-left transition-all duration-200 ${adminTab === "settings" ? (isDark ? "bg-white/10 text-white font-bold shadow-sm" : "bg-black/[0.06] text-black font-bold shadow-sm") : "text-zinc-500 hover:text-black dark:hover:text-white"}`}
+                >
+                  System Settings
+                </button>
+              )}
             </nav>
           )}
 
           <div className="pt-3 mt-2 border-t border-zinc-500/15">
-            <button
-              onClick={() => { setSidebarOpen(false); setShowContactModal(true); }}
+            <Link
+              href="/contact"
+              onClick={() => setSidebarOpen(false)}
               className="w-full flex items-center gap-2.5 px-3.5 py-2 rounded-xl text-xs font-semibold text-left transition-all duration-200 text-green-600 dark:text-green-400 hover:bg-green-500/10 btn-spring"
             >
               <svg className="w-4 h-4 text-green-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
-              <span>Help & Support</span>
-            </button>
+              <span>Help &amp; Support</span>
+            </Link>
           </div>
         </div>
 
@@ -1415,20 +1439,26 @@ export default function Home() {
             <img src={currentLogo} alt="7strokes" className="h-8 sm:h-9 w-auto object-contain shrink-0" />
             <h2 className="text-sm font-bold tracking-tight truncate">
               {viewMode === "admin"
-                ? (adminTab === "overview" ? "System & Stats" : (adminTab === "users" ? "User Management" : (adminTab === "leads" ? "All Users Leads (Global Database)" : "System Settings")))
+                ? (adminTab === "overview"
+                    ? (user.role === "admin" ? "System & Stats" : `${user.company || "Company"} Team Stats`)
+                    : (adminTab === "users"
+                        ? (user.role === "admin" ? "User Management" : "Team Accounts")
+                        : (adminTab === "leads"
+                            ? (user.role === "admin" ? "All Users Leads (Global Database)" : "Team Leads Database")
+                            : "System Settings")))
                 : (activeTab === "search" ? "Find Leads" : (activeTab === "leads" ? "Saved Leads" : "Proxy Settings"))}
             </h2>
           </div>
 
           <div className="flex items-center gap-2 sm:gap-2.5">
-            <button
-              onClick={() => setShowContactModal(true)}
+            <Link
+              href="/contact"
               className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-semibold btn-spring ${isDark ? "glass-icon-dark text-white hover:border-white/30" : "glass-icon-light text-black hover:border-black/30"}`}
-              title="Help & Support (WhatsApp, Telegram, Email)"
+              title="Help & Support"
             >
               <svg className="w-3.5 h-3.5 text-green-500 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
               <span className="hidden sm:inline">Support</span>
-            </button>
+            </Link>
             <button
               onClick={() => {
                 setProfileName(user?.name || "");
@@ -2022,47 +2052,240 @@ export default function Home() {
           {viewMode === "admin" && (
             <div className="space-y-6 max-w-4xl mx-auto">
               {adminTab === "overview" && (
-                <div className="space-y-5">
+                <div className="space-y-6">
                   <div>
-                    <h1 className="text-xl font-bold tracking-tight">System Overview</h1>
-                    <p className="text-xs text-zinc-500 mt-0.5">Server metrics and database details.</p>
+                    <h1 className="text-xl font-bold tracking-tight">
+                      {user.role === "admin" ? "System & Multi-Tenant Overview" : `${user.company || "Company"} Team Overview`}
+                    </h1>
+                    <p className="text-xs text-zinc-500 mt-0.5">
+                      {user.role === "admin"
+                        ? "Hierarchical company separation, manager supervision, and global metrics."
+                        : `Performance overview for team members under your supervision at ${user.company || "your organization"}.`}
+                    </p>
                   </div>
 
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                    <div className={`p-5 rounded-2xl ${isDark ? "glass-surface-dark" : "glass-surface-light shadow-sm"}`}>
-                      <span className="text-xs text-zinc-500 font-semibold">Users</span>
-                      <div className="text-2xl font-bold mt-1">{adminStats?.totalUsers || adminUsers.length}</div>
-                    </div>
-                    <div className={`p-5 rounded-2xl ${isDark ? "glass-surface-dark" : "glass-surface-light shadow-sm"}`}>
-                      <span className="text-xs text-zinc-500 font-semibold">Total Leads</span>
-                      <div className="text-2xl font-bold mt-1 text-green-600">{adminStats?.totalLeads || 0}</div>
-                    </div>
-                    <div className={`p-5 rounded-2xl ${isDark ? "glass-surface-dark" : "glass-surface-light shadow-sm"}`}>
-                      <span className="text-xs text-zinc-500 font-semibold">Total Jobs</span>
-                      <div className="text-2xl font-bold mt-1">{adminStats?.totalJobs || jobs.length}</div>
-                    </div>
-                    <div className={`p-5 rounded-2xl ${isDark ? "glass-surface-dark" : "glass-surface-light shadow-sm"}`}>
-                      <span className="text-xs text-zinc-500 font-semibold">Status</span>
-                      <div className="text-lg font-bold mt-1 text-green-600">Online</div>
-                    </div>
-                  </div>
+                  {user.role === "admin" ? (
+                    <>
+                      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+                        <div className={`p-4 rounded-2xl ${isDark ? "glass-surface-dark" : "glass-surface-light shadow-sm"}`}>
+                          <span className="text-[11px] text-zinc-500 font-semibold uppercase tracking-wider block">Companies</span>
+                          <div className="text-2xl font-bold mt-1 text-blue-500">{adminStats?.totalCompanies || 0}</div>
+                        </div>
+                        <div className={`p-4 rounded-2xl ${isDark ? "glass-surface-dark" : "glass-surface-light shadow-sm"}`}>
+                          <span className="text-[11px] text-zinc-500 font-semibold uppercase tracking-wider block">Managers</span>
+                          <div className="text-2xl font-bold mt-1 text-purple-500">{adminStats?.totalManagers || 0}</div>
+                        </div>
+                        <div className={`p-4 rounded-2xl ${isDark ? "glass-surface-dark" : "glass-surface-light shadow-sm"}`}>
+                          <span className="text-[11px] text-zinc-500 font-semibold uppercase tracking-wider block">Total Users</span>
+                          <div className="text-2xl font-bold mt-1">{adminStats?.totalUsers || adminUsers.length}</div>
+                        </div>
+                        <div className={`p-4 rounded-2xl ${isDark ? "glass-surface-dark" : "glass-surface-light shadow-sm"}`}>
+                          <span className="text-[11px] text-zinc-500 font-semibold uppercase tracking-wider block">Total Leads</span>
+                          <div className="text-2xl font-bold mt-1 text-green-600">{adminStats?.totalLeads || 0}</div>
+                        </div>
+                        <div className={`p-4 rounded-2xl ${isDark ? "glass-surface-dark" : "glass-surface-light shadow-sm"}`}>
+                          <span className="text-[11px] text-zinc-500 font-semibold uppercase tracking-wider block">Total Jobs</span>
+                          <div className="text-2xl font-bold mt-1">{adminStats?.totalJobs || jobs.length}</div>
+                        </div>
+                      </div>
+
+                      {/* Companies Breakdown */}
+                      {adminStats?.companyBreakdown && adminStats.companyBreakdown.length > 0 && (
+                        <div className={`rounded-3xl p-5 md:p-6 space-y-3.5 ${isDark ? "glass-surface-dark" : "glass-surface-light shadow-sm"}`}>
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <h3 className="text-sm font-bold tracking-tight">Companies Breakdown</h3>
+                              <p className="text-xs text-zinc-500">Separation of managers and users by company organization.</p>
+                            </div>
+                          </div>
+                          <div className="overflow-x-auto">
+                            <table className="w-full text-left text-xs">
+                              <thead className={`text-[11px] font-bold uppercase tracking-wider border-b border-zinc-500/15 ${isDark ? "text-zinc-400" : "text-zinc-600"}`}>
+                                <tr>
+                                  <th className="py-2.5 px-3">Company</th>
+                                  <th className="py-2.5 px-3">Managers</th>
+                                  <th className="py-2.5 px-3">Users</th>
+                                  <th className="py-2.5 px-3">Total Members</th>
+                                  <th className="py-2.5 px-3 text-right">Action</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-zinc-500/10">
+                                {adminStats.companyBreakdown.map((c: any, idx: number) => (
+                                  <tr key={idx} className="hover:bg-white/[0.02]">
+                                    <td className="py-2.5 px-3 font-bold">{c.company_name}</td>
+                                    <td className="py-2.5 px-3 font-semibold text-purple-400">{c.manager_count}</td>
+                                    <td className="py-2.5 px-3 font-semibold">{c.user_count}</td>
+                                    <td className="py-2.5 px-3 text-zinc-400">{c.total_members}</td>
+                                    <td className="py-2.5 px-3 text-right">
+                                      <button
+                                        onClick={() => {
+                                          const val = c.company_name === "Unassigned" ? "" : c.company_name;
+                                          setAdminCompanyFilter(val || "all");
+                                          setAdminTab("users");
+                                          fetchTeamList(token, val, "all");
+                                        }}
+                                        className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-green-500/10 text-green-500 hover:bg-green-500/20 transition"
+                                      >
+                                        Filter Company &rarr;
+                                      </button>
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Managers Breakdown */}
+                      {adminStats?.managersBreakdown && adminStats.managersBreakdown.length > 0 && (
+                        <div className={`rounded-3xl p-5 md:p-6 space-y-3.5 ${isDark ? "glass-surface-dark" : "glass-surface-light shadow-sm"}`}>
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <h3 className="text-sm font-bold tracking-tight">Company Managers & Subordinates</h3>
+                              <p className="text-xs text-zinc-500">Each manager and team member count registered under them.</p>
+                            </div>
+                          </div>
+                          <div className="overflow-x-auto">
+                            <table className="w-full text-left text-xs">
+                              <thead className={`text-[11px] font-bold uppercase tracking-wider border-b border-zinc-500/15 ${isDark ? "text-zinc-400" : "text-zinc-600"}`}>
+                                <tr>
+                                  <th className="py-2.5 px-3">Manager</th>
+                                  <th className="py-2.5 px-3">Company</th>
+                                  <th className="py-2.5 px-3">Users Under Manager</th>
+                                  <th className="py-2.5 px-3 text-right">Action</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-zinc-500/10">
+                                {adminStats.managersBreakdown.map((m: any, idx: number) => (
+                                  <tr key={idx} className="hover:bg-white/[0.02]">
+                                    <td className="py-2.5 px-3">
+                                      <div className="font-bold">{m.name}</div>
+                                      <div className="text-[11px] text-zinc-500 font-mono">@{m.username}</div>
+                                    </td>
+                                    <td className="py-2.5 px-3 font-semibold">{m.company || "Unassigned"}</td>
+                                    <td className="py-2.5 px-3 font-bold text-green-500">{m.users_under_count} users</td>
+                                    <td className="py-2.5 px-3 text-right">
+                                      <button
+                                        onClick={() => {
+                                          setAdminManagerFilter(m.id);
+                                          setAdminTab("users");
+                                          fetchTeamList(token, "all", m.id);
+                                        }}
+                                        className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-green-500/10 text-green-500 hover:bg-green-500/20 transition"
+                                      >
+                                        Filter Team &rarr;
+                                      </button>
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                        <div className={`p-4 rounded-2xl ${isDark ? "glass-surface-dark" : "glass-surface-light shadow-sm"}`}>
+                          <span className="text-[11px] text-zinc-500 font-semibold uppercase tracking-wider block">Company</span>
+                          <div className="text-xl font-bold mt-1 text-purple-400 truncate">{user.company || "Unassigned"}</div>
+                        </div>
+                        <div className={`p-4 rounded-2xl ${isDark ? "glass-surface-dark" : "glass-surface-light shadow-sm"}`}>
+                          <span className="text-[11px] text-zinc-500 font-semibold uppercase tracking-wider block">Team Members</span>
+                          <div className="text-2xl font-bold mt-1">{adminStats?.teamUsers || adminUsers.length}</div>
+                        </div>
+                        <div className={`p-4 rounded-2xl ${isDark ? "glass-surface-dark" : "glass-surface-light shadow-sm"}`}>
+                          <span className="text-[11px] text-zinc-500 font-semibold uppercase tracking-wider block">Team Leads</span>
+                          <div className="text-2xl font-bold mt-1 text-green-600">{adminStats?.teamLeads || 0}</div>
+                        </div>
+                        <div className={`p-4 rounded-2xl ${isDark ? "glass-surface-dark" : "glass-surface-light shadow-sm"}`}>
+                          <span className="text-[11px] text-zinc-500 font-semibold uppercase tracking-wider block">Search Jobs</span>
+                          <div className="text-2xl font-bold mt-1">{adminStats?.teamJobs || jobs.length}</div>
+                        </div>
+                      </div>
+
+                      <div className={`p-4 rounded-2xl border text-xs leading-relaxed ${isDark ? "bg-white/[0.02] border-white/10 text-zinc-300" : "bg-black/[0.02] border-black/10 text-zinc-700"}`}>
+                        <div className="font-bold text-sm text-white mb-1">Manager Control Permissions</div>
+                        As a company manager, your scope is isolated strictly to <strong>{user.company || "your organization"}</strong>. You have permissions to create user accounts under your team, manage their proxy allowances, reset their passwords, and view leads collected by your team members.
+                      </div>
+                    </>
+                  )}
                 </div>
               )}
 
               {adminTab === "users" && (
                 <div className="space-y-4">
-                  <div className="flex items-center justify-between">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div>
-                      <h2 className="text-lg font-bold tracking-tight">User Accounts</h2>
-                      <p className="text-xs text-zinc-500 mt-0.5">Control proxy access, approve accounts, or reset passwords.</p>
+                      <h2 className="text-lg font-bold tracking-tight">
+                        {user.role === "admin" ? "All Users & Company Managers" : `Team Members (${user.company || "Company"})`}
+                      </h2>
+                      <p className="text-xs text-zinc-500 mt-0.5">
+                        {user.role === "admin"
+                          ? "Hierarchical management by company and manager. Filter, approve, edit, or reset accounts."
+                          : "Control accounts and passwords for users registered under your management."}
+                      </p>
                     </div>
                     <button
-                      onClick={() => setShowCreateUserModal(true)}
-                      className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-xs font-bold rounded-xl btn-spring shadow-md shadow-green-600/25"
+                      onClick={() => {
+                        setShowCreateUserModal(true);
+                        setNewUserRole("user");
+                        setNewUserCompany(user.role === "manager" ? (user.company || "") : "");
+                        setNewUserManagerId(user.role === "manager" ? user.id : "");
+                      }}
+                      className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-xs font-bold rounded-xl btn-spring shadow-md shadow-green-600/25 self-start sm:self-auto"
                     >
-                      + Add User
+                      + Add {user.role === "manager" ? "Team User" : "Account"}
                     </button>
                   </div>
+
+                  {user.role === "admin" && (
+                    <div className="flex flex-wrap items-center gap-2.5 pt-1">
+                      <select
+                        value={adminCompanyFilter}
+                        onChange={e => {
+                          setAdminCompanyFilter(e.target.value);
+                          fetchTeamList(token, e.target.value, adminManagerFilter);
+                        }}
+                        className={`px-3 py-2 rounded-xl text-xs font-semibold outline-none transition ${isDark ? "glass-input-dark text-white" : "glass-input-light text-black"}`}
+                      >
+                        <option value="all">All Companies</option>
+                        {Array.from(new Set(adminUsers.map(u => u.company).filter(Boolean))).map((comp: any) => (
+                          <option key={comp} value={comp}>{comp}</option>
+                        ))}
+                      </select>
+
+                      <select
+                        value={adminManagerFilter}
+                        onChange={e => {
+                          setAdminManagerFilter(e.target.value);
+                          fetchTeamList(token, adminCompanyFilter, e.target.value);
+                        }}
+                        className={`px-3 py-2 rounded-xl text-xs font-semibold outline-none transition ${isDark ? "glass-input-dark text-white" : "glass-input-light text-black"}`}
+                      >
+                        <option value="all">All Managers</option>
+                        {adminUsers.filter(u => u.role === "manager").map(m => (
+                          <option key={m.id} value={m.id}>{m.name || m.username} ({m.company || "No Company"})</option>
+                        ))}
+                      </select>
+
+                      {(adminCompanyFilter !== "all" || adminManagerFilter !== "all") && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setAdminCompanyFilter("all");
+                            setAdminManagerFilter("all");
+                            fetchTeamList(token, "all", "all");
+                          }}
+                          className="px-3 py-2 text-xs font-semibold text-zinc-400 hover:text-white transition"
+                        >
+                          Clear Filters
+                        </button>
+                      )}
+                    </div>
+                  )}
 
                   <div className={`rounded-3xl overflow-hidden ${isDark ? "glass-surface-dark" : "glass-surface-light shadow-sm"}`}>
                     <table className="w-full text-left text-xs">
@@ -2070,82 +2293,109 @@ export default function Home() {
                         <tr>
                           <th className="px-5 py-3.5">User</th>
                           <th className="px-5 py-3.5">Role</th>
-                          <th className="px-5 py-3.5">User Proxy Control</th>
+                          <th className="px-5 py-3.5">Company &amp; Manager</th>
+                          <th className="px-5 py-3.5">Proxy Access</th>
                           <th className="px-5 py-3.5">Status</th>
                           <th className="px-5 py-3.5 text-right">Actions</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-zinc-500/10">
-                        {adminUsers.map(u => (
-                          <tr key={u.id} className={`transition ${isDark ? "hover:bg-white/[0.02]" : "hover:bg-black/[0.02]"}`}>
-                            <td className="px-5 py-3.5">
-                              <div className="font-bold">{u.name || "Unnamed"}</div>
-                              <div className="text-[11px] text-zinc-500">{u.email}</div>
-                            </td>
-                            <td className="px-5 py-3.5">
-                              <span className="font-semibold uppercase text-[10px]">{u.role}</span>
-                            </td>
-                            <td className="px-5 py-3.5">
-                              <div className="flex items-center gap-2">
-                                <button
-                                  onClick={() => handleToggleUserProxy(u.id)}
-                                  className={`w-9 h-5 flex items-center rounded-full p-0.5 cursor-pointer transition-colors ${u.can_use_proxy === 1 ? "bg-green-600 justify-end" : "bg-zinc-300 dark:bg-zinc-700 justify-start"}`}
-                                >
-                                  <span className="bg-white w-4 h-4 rounded-full shadow-sm"></span>
-                                </button>
-                                <span className={`text-[11px] font-semibold ${u.can_use_proxy === 1 ? "text-green-600" : "text-zinc-400"}`}>
-                                  {u.can_use_proxy === 1 ? "Allowed" : "Off"}
-                                </span>
-                              </div>
-                            </td>
-                            <td className="px-5 py-3.5">
-                              <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${u.status === "active" ? "bg-green-500/10 text-green-600" : "bg-zinc-500/10 text-zinc-500"}`}>
-                                {u.status}
-                              </span>
-                            </td>
-                            <td className="px-5 py-3.5 text-right space-x-2">
-                              <button
-                                onClick={() => {
-                                  setEditingUser(u);
-                                  setEditUserName(u.name || "");
-                                  setEditUserEmail(u.email || "");
-                                  setEditUserRole(u.role || "user");
-                                  setEditUserStatus(u.status || "active");
-                                  setEditUserCanProxy(u.can_use_proxy === 1);
-                                  setEditUserPassword("");
-                                }}
-                                className="font-semibold text-zinc-500 hover:text-black dark:hover:text-white btn-spring"
-                              >
-                                Edit
-                              </button>
-                              <button
-                                onClick={() => {
-                                  setResetModalUser(u);
-                                  setNewResetPassword("");
-                                  setResetResultData(null);
-                                }}
-                                className="font-semibold text-zinc-500 hover:text-black dark:hover:text-white btn-spring"
-                              >
-                                Reset Pass
-                              </button>
-                              {u.status !== "active" && (
-                                <button onClick={() => approveUser(u.id)} className="font-semibold text-green-600 hover:underline btn-spring">
-                                  Approve
-                                </button>
-                              )}
-                              {u.status === "active" && u.id !== user.id && (
-                                <button onClick={() => suspendUser(u.id)} className="font-semibold text-zinc-400 hover:text-black dark:hover:text-white btn-spring">
-                                  Disable
-                                </button>
-                              )}
-                              {u.id !== user.id && (
-                                <button onClick={() => deleteUser(u.id)} className="font-semibold text-red-500 hover:underline btn-spring">
-                                  Delete
-                                </button>
-                              )}
+                        {adminUsers.length === 0 ? (
+                          <tr>
+                            <td colSpan={6} className="py-12 text-center text-xs text-zinc-500">
+                              No accounts match this filter.
                             </td>
                           </tr>
-                        ))}
+                        ) : (
+                          adminUsers.map(u => (
+                            <tr key={u.id} className={`transition ${isDark ? "hover:bg-white/[0.02]" : "hover:bg-black/[0.02]"}`}>
+                              <td className="px-5 py-3.5">
+                                <div className="font-bold">{u.name || "Unnamed"}</div>
+                                <div className="text-[11px] text-zinc-500">@{u.username || u.email.split('@')[0]} &bull; {u.email}</div>
+                              </td>
+                              <td className="px-5 py-3.5">
+                                <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
+                                  u.role === "admin"
+                                    ? "bg-red-500/10 text-red-400 border border-red-500/20"
+                                    : u.role === "manager"
+                                    ? "bg-purple-500/10 text-purple-400 border border-purple-500/20"
+                                    : "bg-blue-500/10 text-blue-400 border border-blue-500/20"
+                                }`}>
+                                  {u.role}
+                                </span>
+                              </td>
+                              <td className="px-5 py-3.5">
+                                <div className="font-semibold">{u.company || <span className="text-zinc-500 italic">None</span>}</div>
+                                {u.manager_id && (
+                                  <div className="text-[10px] text-zinc-500 font-mono">
+                                    Manager: @{u.manager_username || u.manager_id.slice(0, 8)}
+                                  </div>
+                                )}
+                              </td>
+                              <td className="px-5 py-3.5">
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    onClick={() => handleToggleUserProxy(u.id)}
+                                    className={`w-9 h-5 flex items-center rounded-full p-0.5 cursor-pointer transition-colors ${u.can_use_proxy === 1 ? "bg-green-600 justify-end" : "bg-zinc-300 dark:bg-zinc-700 justify-start"}`}
+                                  >
+                                    <span className="bg-white w-4 h-4 rounded-full shadow-sm"></span>
+                                  </button>
+                                  <span className={`text-[11px] font-semibold ${u.can_use_proxy === 1 ? "text-green-600" : "text-zinc-400"}`}>
+                                    {u.can_use_proxy === 1 ? "Allowed" : "Off"}
+                                  </span>
+                                </div>
+                              </td>
+                              <td className="px-5 py-3.5">
+                                <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${u.status === "active" ? "bg-green-500/10 text-green-600" : "bg-zinc-500/10 text-zinc-500"}`}>
+                                  {u.status}
+                                </span>
+                              </td>
+                              <td className="px-5 py-3.5 text-right space-x-2">
+                                <button
+                                  onClick={() => {
+                                    setEditingUser(u);
+                                    setEditUserName(u.name || "");
+                                    setEditUserEmail(u.email || "");
+                                    setEditUserRole(u.role || "user");
+                                    setEditUserCompany(u.company || "");
+                                    setEditUserManagerId(u.manager_id || "");
+                                    setEditUserStatus(u.status || "active");
+                                    setEditUserCanProxy(u.can_use_proxy === 1);
+                                    setEditUserPassword("");
+                                  }}
+                                  className="font-semibold text-zinc-500 hover:text-black dark:hover:text-white btn-spring"
+                                >
+                                  Edit
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setResetModalUser(u);
+                                    setNewResetPassword("");
+                                    setResetResultData(null);
+                                  }}
+                                  className="font-semibold text-zinc-500 hover:text-black dark:hover:text-white btn-spring"
+                                >
+                                  Reset Pass
+                                </button>
+                                {u.status !== "active" && (
+                                  <button onClick={() => approveUser(u.id)} className="font-semibold text-green-600 hover:underline btn-spring">
+                                    Approve
+                                  </button>
+                                )}
+                                {u.status === "active" && u.id !== user.id && (
+                                  <button onClick={() => suspendUser(u.id)} className="font-semibold text-zinc-400 hover:text-black dark:hover:text-white btn-spring">
+                                    Disable
+                                  </button>
+                                )}
+                                {u.id !== user.id && (
+                                  <button onClick={() => deleteUser(u.id)} className="font-semibold text-red-500 hover:underline btn-spring">
+                                    Delete
+                                  </button>
+                                )}
+                              </td>
+                            </tr>
+                          ))
+                        )}
                       </tbody>
                     </table>
                   </div>
@@ -2156,13 +2406,48 @@ export default function Home() {
                 <div className="space-y-4">
                   <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
                     <div>
-                      <h2 className="text-lg font-bold tracking-tight">All Users Leads Database</h2>
+                      <h2 className="text-lg font-bold tracking-tight">
+                        {user.role === "admin" ? "All Users Leads Database" : "Team Leads Database"}
+                      </h2>
                       <p className="text-xs text-zinc-500 mt-0.5">
-                        {adminGlobalTotal.toLocaleString()} leads collected across all user accounts
+                        {adminGlobalTotal.toLocaleString()} leads collected across{" "}
+                        {user.role === "admin" ? "all registered user accounts" : "your team accounts"}
                       </p>
                     </div>
 
                     <div className="flex flex-wrap items-center gap-2.5">
+                      {user.role === "admin" && (
+                        <>
+                          <select
+                            value={adminCompanyFilter}
+                            onChange={e => {
+                              setAdminCompanyFilter(e.target.value);
+                              fetchAdminGlobalLeads(token, adminLeadUserFilter, adminLeadSearch, e.target.value, adminManagerFilter);
+                            }}
+                            className={`px-3 py-2 rounded-xl text-xs font-semibold outline-none transition ${isDark ? "glass-input-dark text-white" : "glass-input-light text-black"}`}
+                          >
+                            <option value="all">All Companies</option>
+                            {Array.from(new Set(adminUsers.map(u => u.company).filter(Boolean))).map((comp: any) => (
+                              <option key={comp} value={comp}>{comp}</option>
+                            ))}
+                          </select>
+
+                          <select
+                            value={adminManagerFilter}
+                            onChange={e => {
+                              setAdminManagerFilter(e.target.value);
+                              fetchAdminGlobalLeads(token, adminLeadUserFilter, adminLeadSearch, adminCompanyFilter, e.target.value);
+                            }}
+                            className={`px-3 py-2 rounded-xl text-xs font-semibold outline-none transition ${isDark ? "glass-input-dark text-white" : "glass-input-light text-black"}`}
+                          >
+                            <option value="all">All Managers</option>
+                            {adminUsers.filter(u => u.role === "manager").map(m => (
+                              <option key={m.id} value={m.id}>{m.name || m.username}</option>
+                            ))}
+                          </select>
+                        </>
+                      )}
+
                       <select
                         value={adminLeadUserFilter}
                         onChange={e => {
@@ -2171,7 +2456,7 @@ export default function Home() {
                         }}
                         className={`px-3 py-2 rounded-xl text-xs font-semibold outline-none transition ${isDark ? "glass-input-dark text-white" : "glass-input-light text-black"}`}
                       >
-                        <option value="all">All Users (Global)</option>
+                        <option value="all">{user.role === "admin" ? "All Users" : "All Team Users"}</option>
                         {adminUsers.map(u => (
                           <option key={u.id} value={u.id}>
                             {u.name || u.email} (@{u.username || u.email.split('@')[0]})
@@ -2190,7 +2475,7 @@ export default function Home() {
                               fetchAdminGlobalLeads(token, adminLeadUserFilter, adminLeadSearch);
                             }
                           }}
-                          className={`w-44 sm:w-56 px-3.5 py-2 rounded-xl text-xs outline-none transition ${isDark ? "glass-input-dark text-white" : "glass-input-light text-black"}`}
+                          className={`w-40 sm:w-48 px-3.5 py-2 rounded-xl text-xs outline-none transition ${isDark ? "glass-input-dark text-white" : "glass-input-light text-black"}`}
                         />
                         <button
                           type="button"
@@ -2222,7 +2507,7 @@ export default function Home() {
                           {loadingAdminLeads ? (
                             <tr>
                               <td colSpan={8} className="py-12 text-center text-xs text-zinc-500">
-                                Loading global database...
+                                Loading leads database...
                               </td>
                             </tr>
                           ) : adminGlobalLeads.length === 0 ? (
@@ -2447,17 +2732,58 @@ export default function Home() {
                       required
                     />
                   </div>
-                  <div>
-                    <label className="text-xs font-semibold block mb-1">Role</label>
-                    <select
-                      value={newUserRole}
-                      onChange={e => setNewUserRole(e.target.value)}
-                      className={`w-full px-3.5 py-2 rounded-xl text-xs outline-none transition ${isDark ? "bg-[#18181B] text-white border border-white/10" : "bg-white text-black border border-zinc-200"}`}
-                    >
-                      <option value="user">User</option>
-                      <option value="admin">Admin</option>
-                    </select>
-                  </div>
+                  {user.role === "admin" ? (
+                    <>
+                      <div>
+                        <label className="text-xs font-semibold block mb-1">Role</label>
+                        <select
+                          value={newUserRole}
+                          onChange={e => setNewUserRole(e.target.value)}
+                          className={`w-full px-3.5 py-2 rounded-xl text-xs outline-none transition ${isDark ? "bg-[#18181B] text-white border border-white/10" : "bg-white text-black border border-zinc-200"}`}
+                        >
+                          <option value="user">User (Standard)</option>
+                          <option value="manager">Manager (Company Manager)</option>
+                          <option value="admin">Admin (Super Administrator)</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="text-xs font-semibold block mb-1">Company</label>
+                        <input
+                          type="text"
+                          placeholder="e.g. Acme Corp"
+                          value={newUserCompany}
+                          onChange={e => setNewUserCompany(e.target.value)}
+                          className={`w-full px-3.5 py-2 rounded-xl text-xs outline-none transition ${isDark ? "glass-input-dark text-white" : "glass-input-light text-black"}`}
+                        />
+                      </div>
+
+                      {newUserRole === "user" && (
+                        <div>
+                          <label className="text-xs font-semibold block mb-1">Assigned Manager (optional)</label>
+                          <select
+                            value={newUserManagerId}
+                            onChange={e => setNewUserManagerId(e.target.value)}
+                            className={`w-full px-3.5 py-2 rounded-xl text-xs outline-none transition ${isDark ? "bg-[#18181B] text-white border border-white/10" : "bg-white text-black border border-zinc-200"}`}
+                          >
+                            <option value="">None (Independent User)</option>
+                            {adminUsers.filter(u => u.role === "manager").map(m => (
+                              <option key={m.id} value={m.id}>
+                                {m.name || m.username} ({m.company || "No Company"})
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <div className={`p-3 rounded-xl border text-xs ${isDark ? "bg-white/[0.03] border-white/10" : "bg-black/[0.02] border-black/10"}`}>
+                      <div className="font-bold text-green-500">Creating Team Member</div>
+                      <div className="text-[11px] text-zinc-400 mt-0.5">
+                        Role: <strong>User</strong> &bull; Company: <strong>{user.company || "Your Company"}</strong> &bull; Manager: <strong>@{user.username}</strong>
+                      </div>
+                    </div>
+                  )}
                   <div className="flex items-center gap-2 pt-1">
                     <input
                       type="checkbox"
@@ -2530,18 +2856,63 @@ export default function Home() {
                       className={`w-full px-3.5 py-2 rounded-xl text-xs outline-none transition ${isDark ? "glass-input-dark text-white" : "glass-input-light text-black"}`}
                     />
                   </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <label className="text-xs font-semibold block mb-1">Role</label>
-                      <select
-                        value={editUserRole}
-                        onChange={e => setEditUserRole(e.target.value)}
-                        className={`w-full px-2.5 py-2 rounded-xl text-xs outline-none transition ${isDark ? "bg-[#18181B] text-white border border-white/10" : "bg-white text-black border border-zinc-200"}`}
-                      >
-                        <option value="user">User</option>
-                        <option value="admin">Admin</option>
-                      </select>
-                    </div>
+                  {user.role === "admin" ? (
+                    <>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-xs font-semibold block mb-1">Role</label>
+                          <select
+                            value={editUserRole}
+                            onChange={e => setEditUserRole(e.target.value)}
+                            className={`w-full px-2.5 py-2 rounded-xl text-xs outline-none transition ${isDark ? "bg-[#18181B] text-white border border-white/10" : "bg-white text-black border border-zinc-200"}`}
+                          >
+                            <option value="user">User</option>
+                            <option value="manager">Manager</option>
+                            <option value="admin">Admin</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="text-xs font-semibold block mb-1">Status</label>
+                          <select
+                            value={editUserStatus}
+                            onChange={e => setEditUserStatus(e.target.value)}
+                            className={`w-full px-2.5 py-2 rounded-xl text-xs outline-none transition ${isDark ? "bg-[#18181B] text-white border border-white/10" : "bg-white text-black border border-zinc-200"}`}
+                          >
+                            <option value="active">Active</option>
+                            <option value="suspended">Suspended</option>
+                            <option value="pending">Pending</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="text-xs font-semibold block mb-1">Company</label>
+                        <input
+                          type="text"
+                          placeholder="Company name"
+                          value={editUserCompany}
+                          onChange={e => setEditUserCompany(e.target.value)}
+                          className={`w-full px-3.5 py-2 rounded-xl text-xs outline-none transition ${isDark ? "glass-input-dark text-white" : "glass-input-light text-black"}`}
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-xs font-semibold block mb-1">Assigned Manager</label>
+                        <select
+                          value={editUserManagerId}
+                          onChange={e => setEditUserManagerId(e.target.value)}
+                          className={`w-full px-3.5 py-2 rounded-xl text-xs outline-none transition ${isDark ? "bg-[#18181B] text-white border border-white/10" : "bg-white text-black border border-zinc-200"}`}
+                        >
+                          <option value="">None</option>
+                          {adminUsers.filter(u => u.role === "manager" && u.id !== editingUser.id).map(m => (
+                            <option key={m.id} value={m.id}>
+                              {m.name || m.username} ({m.company || "No Company"})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </>
+                  ) : (
                     <div>
                       <label className="text-xs font-semibold block mb-1">Status</label>
                       <select
@@ -2551,10 +2922,9 @@ export default function Home() {
                       >
                         <option value="active">Active</option>
                         <option value="suspended">Suspended</option>
-                        <option value="pending">Pending</option>
                       </select>
                     </div>
-                  </div>
+                  )}
                   <div className="flex items-center gap-2 pt-1">
                     <input
                       type="checkbox"
@@ -2959,124 +3329,6 @@ export default function Home() {
                     </button>
                   </div>
                 </form>
-              </div>
-            </div>
-          )}
-
-          {showContactModal && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xl p-4 animate-in fade-in duration-200">
-              <div className={`rounded-3xl p-6 max-w-md w-full space-y-4 max-h-[92vh] overflow-y-auto ${isDark ? "glass-surface-dark text-white" : "glass-surface-light text-black shadow-2xl"}`}>
-                <div className="flex items-center justify-between border-b pb-3 border-zinc-500/15">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-9 h-9 rounded-2xl bg-green-500/10 border border-green-500/20 flex items-center justify-center text-green-500">
-                      <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
-                    </div>
-                    <div>
-                      <h3 className="text-sm font-bold">Contact Admin & Support</h3>
-                      <p className="text-[11px] text-zinc-500">7strokes Lead Generation Platform</p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => setShowContactModal(false)}
-                    className="text-xs text-zinc-500 hover:text-black dark:hover:text-white btn-spring p-1 rounded-lg"
-                  >
-                    ✕
-                  </button>
-                </div>
-
-                {/* Admin / Dev Card */}
-                <div className={`p-3.5 rounded-2xl border flex items-center gap-3 ${isDark ? "bg-white/[0.03] border-white/10" : "bg-black/[0.02] border-black/10"}`}>
-                  <img
-                    src={LOGO_LIGHT}
-                    alt="Reinhart"
-                    className="w-12 h-12 rounded-xl object-contain bg-black/20 p-1 border border-zinc-500/20 shrink-0"
-                  />
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-1.5">
-                      <h4 className="text-xs font-bold truncate">Reinhart</h4>
-                      <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-green-500/20 text-green-500 border border-green-500/30">Dev & Admin</span>
-                    </div>
-                    <p className="text-[11px] text-zinc-500 truncate mt-0.5 font-mono">reinhart96x@gmail.com</p>
-                    <p className="text-[11px] text-green-500 font-mono font-semibold">+1 (315) 370-1897</p>
-                  </div>
-                </div>
-
-                {/* Query Topic selector */}
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold block">Select inquiry type:</label>
-                  <div className="grid grid-cols-1 gap-1.5">
-                    {[
-                      { id: "reset_password", label: "🔑 Password Reset / Account Recovery" },
-                      { id: "change_email", label: "📧 Change Account Email" },
-                      { id: "scraper_help", label: "⚡ Scraper Assistance / Lead Help" },
-                      { id: "custom_proxy", label: "🌐 Custom Proxies & VPS Hosting" },
-                      { id: "other", label: "💬 General Support / Questions" }
-                    ].map(opt => (
-                      <button
-                        key={opt.id}
-                        type="button"
-                        onClick={() => setContactTopic(opt.id)}
-                        className={`text-left px-3 py-2 rounded-xl text-xs font-medium transition-all ${contactTopic === opt.id ? "bg-green-600 text-white font-bold shadow-md shadow-green-600/25" : (isDark ? "bg-white/5 text-zinc-300 hover:bg-white/10" : "bg-black/[0.04] text-zinc-700 hover:bg-black/[0.08]")}`}
-                      >
-                        {opt.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <label className="text-xs font-semibold block mb-1">Additional details (optional)</label>
-                  <input
-                    type="text"
-                    placeholder="e.g. My username is alex or inquiry detail..."
-                    value={contactCustomMsg}
-                    onChange={e => setContactCustomMsg(e.target.value)}
-                    className={`w-full px-3.5 py-2 rounded-xl text-xs outline-none transition ${isDark ? "glass-input-dark text-white" : "glass-input-light text-black"}`}
-                  />
-                </div>
-
-                {/* Direct Contact Buttons */}
-                <div className="space-y-2 pt-2 border-t border-zinc-500/15">
-                  <a
-                    href={getContactLinks().whatsapp}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="w-full py-2.5 px-4 rounded-xl text-xs font-bold text-white bg-[#25D366] hover:bg-[#20ba59] btn-spring shadow-md shadow-[#25D366]/25 flex items-center justify-center gap-2"
-                  >
-                    <svg className="w-4 h-4 fill-current shrink-0" viewBox="0 0 24 24"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/></svg>
-                    <span>Chat on WhatsApp (+1 315-370-1897)</span>
-                  </a>
-
-                  <div className="grid grid-cols-2 gap-2">
-                    <a
-                      href={getContactLinks().telegramReinhart}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="py-2.5 px-3 rounded-xl text-xs font-bold text-white bg-[#229ED9] hover:bg-[#1e8cc0] btn-spring shadow-md shadow-[#229ED9]/25 flex items-center justify-center gap-1.5"
-                    >
-                      <svg className="w-4 h-4 fill-current shrink-0" viewBox="0 0 24 24"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>
-                      <span className="truncate">@reinhart96x</span>
-                    </a>
-
-                    <a
-                      href={getContactLinks().telegramKiri}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="py-2.5 px-3 rounded-xl text-xs font-bold text-white bg-[#229ED9] hover:bg-[#1e8cc0] btn-spring shadow-md shadow-[#229ED9]/25 flex items-center justify-center gap-1.5"
-                    >
-                      <svg className="w-4 h-4 fill-current shrink-0" viewBox="0 0 24 24"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>
-                      <span className="truncate">@kiri0507</span>
-                    </a>
-                  </div>
-
-                  <a
-                    href={getContactLinks().email}
-                    className={`w-full py-2.5 px-4 rounded-xl text-xs font-bold border btn-spring flex items-center justify-center gap-2 ${isDark ? "bg-white/5 border-white/10 hover:bg-white/10 text-white" : "bg-black/5 border-black/10 hover:bg-black/10 text-black"}`}
-                  >
-                    <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
-                    <span>Email: reinhart96x@gmail.com</span>
-                  </a>
-                </div>
               </div>
             </div>
           )}

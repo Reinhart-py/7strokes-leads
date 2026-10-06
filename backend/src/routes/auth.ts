@@ -158,7 +158,7 @@ router.post('/login', async (req, res) => {
       return res.status(403).json({ error: 'Your account has been deactivated' });
     }
 
-    const token = jwt.sign({ id: user.id, role: user.role }, JWT_SECRET, { expiresIn: '7d' });
+    const token = jwt.sign({ id: user.id, role: user.role, company: user.company, manager_id: user.manager_id }, JWT_SECRET, { expiresIn: '7d' });
     res.json({
       token,
       user: {
@@ -167,6 +167,8 @@ router.post('/login', async (req, res) => {
         username: user.username || user.email.split('@')[0],
         name: user.name,
         role: user.role,
+        company: user.company || null,
+        manager_id: user.manager_id || null,
         status: user.status,
         avatar: user.avatar || null,
         can_use_proxy: user.can_use_proxy,
@@ -186,7 +188,7 @@ router.post('/forgot-password', async (_req, res) => {
 
 router.get('/me', authMiddleware, async (req: AuthRequest, res) => {
   try {
-    const result = await query('SELECT id, email, username, name, avatar, role, status, expires_at, can_use_proxy, custom_proxy FROM users WHERE id = $1', [req.user?.id]);
+    const result = await query('SELECT id, email, username, name, avatar, role, company, manager_id, status, expires_at, can_use_proxy, custom_proxy FROM users WHERE id = $1', [req.user?.id]);
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'User not found' });
     }

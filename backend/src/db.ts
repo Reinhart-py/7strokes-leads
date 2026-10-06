@@ -97,6 +97,8 @@ function initSqlite() {
     sqliteDb?.run('ALTER TABLE users ADD COLUMN custom_proxy TEXT', () => {});
     sqliteDb?.run('ALTER TABLE users ADD COLUMN username TEXT', () => {});
     sqliteDb?.run('ALTER TABLE users ADD COLUMN avatar TEXT', () => {});
+    sqliteDb?.run('ALTER TABLE users ADD COLUMN company TEXT', () => {});
+    sqliteDb?.run('ALTER TABLE users ADD COLUMN manager_id TEXT', () => {});
     sqliteDb?.run("UPDATE users SET username = 'admin' WHERE id = 'admin-001' AND (username IS NULL OR username = '')", () => {});
     sqliteDb?.run('ALTER TABLE jobs ADD COLUMN proxy_url TEXT', () => {});
     sqliteDb?.run(`
