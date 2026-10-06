@@ -4,6 +4,19 @@ import { useState, useEffect } from "react";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 
+const LOGO_LIGHT = "https://ik.imagekit.io/Reinhart/nox/7strokeslogo.png";
+const LOGO_DARK = "https://ik.imagekit.io/Reinhart/nox/logo7strokes-dark.png";
+
+const apiFetch = (url: string, options: RequestInit = {}) => {
+  const headers = new Headers(options.headers || {});
+  headers.set("ngrok-skip-browser-warning", "true");
+  const fullUrl = url.startsWith("http") ? url : `${API_BASE}${url.startsWith("/") ? url : `/${url}`}`;
+  return fetch(fullUrl, {
+    ...options,
+    headers
+  });
+};
+
 const EXPORT_COLUMNS = [
   { key: "title", label: "Business Name" },
   { key: "phone_1", label: "Phone Number" },
@@ -236,9 +249,7 @@ export default function Home() {
   const [settingsSuccess, setSettingsSuccess] = useState(false);
 
   useEffect(() => {
-    fetch(`${API_BASE}/api/auth/registration-status`, {
-      headers: { "ngrok-skip-browser-warning": "true" }
-    })
+    apiFetch("/api/auth/registration-status")
       .then(r => r.json())
       .then(d => {
         if (d && typeof d.allowRegistration === "boolean") {
@@ -293,7 +304,7 @@ export default function Home() {
 
   const fetchUserProfile = async (t: string) => {
     try {
-      const res = await fetch(`${API_BASE}/api/auth/me`, {
+      const res = await apiFetch("/api/auth/me", {
         headers: { Authorization: `Bearer ${t}` }
       });
       if (res.ok) {
@@ -318,7 +329,7 @@ export default function Home() {
 
   const fetchJobsList = async (t = token) => {
     try {
-      const res = await fetch(`${API_BASE}/api/jobs`, {
+      const res = await apiFetch("/api/jobs", {
         headers: { Authorization: `Bearer ${t}` }
       });
       if (res.ok) {
@@ -329,7 +340,7 @@ export default function Home() {
 
   const fetchAdminStats = async (t = token) => {
     try {
-      const res = await fetch(`${API_BASE}/api/admin/stats`, {
+      const res = await apiFetch("/api/admin/stats", {
         headers: { Authorization: `Bearer ${t}` }
       });
       if (res.ok) {
@@ -340,7 +351,7 @@ export default function Home() {
 
   const fetchTeamList = async (t = token) => {
     try {
-      const res = await fetch(`${API_BASE}/api/admin/users`, {
+      const res = await apiFetch("/api/admin/users", {
         headers: { Authorization: `Bearer ${t}` }
       });
       if (res.ok) {
@@ -351,7 +362,7 @@ export default function Home() {
 
   const fetchSettings = async (t = token) => {
     try {
-      const res = await fetch(`${API_BASE}/api/admin/settings`, {
+      const res = await apiFetch("/api/admin/settings", {
         headers: { Authorization: `Bearer ${t}` }
       });
       if (res.ok) {
@@ -369,7 +380,7 @@ export default function Home() {
     setSelectedJobId(jobId);
     if (showLoading) setLoadingResults(true);
     try {
-      const res = await fetch(`${API_BASE}/api/jobs/${jobId}/results?limit=1000`, {
+      const res = await apiFetch(`/api/jobs/${jobId}/results?limit=1000`, {
         headers: { Authorization: `Bearer ${t}` }
       });
       if (res.ok) {
@@ -387,7 +398,7 @@ export default function Home() {
 
     if (authMode === "forgot") {
       try {
-        const res = await fetch(`${API_BASE}/api/auth/forgot-password`, {
+        const res = await apiFetch("/api/auth/forgot-password", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ email })
@@ -410,7 +421,7 @@ export default function Home() {
       : { email, password, name, username: regUsername };
 
     try {
-      const res = await fetch(`${API_BASE}${endpoint}`, {
+      const res = await apiFetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)
@@ -458,7 +469,7 @@ export default function Home() {
 
   const handleSaveUserProxy = async () => {
     try {
-      const res = await fetch(`${API_BASE}/api/auth/proxy`, {
+      const res = await apiFetch("/api/auth/proxy", {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -483,7 +494,7 @@ export default function Home() {
     const finalCap = customLeadCount ? (parseInt(customLeadCount) || 0) : leadCount;
 
     try {
-      const res = await fetch(`${API_BASE}/api/jobs`, {
+      const res = await apiFetch("/api/jobs", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -542,7 +553,7 @@ export default function Home() {
     const finalCap = customLeadCount ? (parseInt(customLeadCount) || 0) : leadCount;
 
     try {
-      const res = await fetch(`${API_BASE}/api/jobs/batch`, {
+      const res = await apiFetch("/api/jobs/batch", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -574,7 +585,7 @@ export default function Home() {
 
   const stopSearch = async (jobId: string) => {
     try {
-      await fetch(`${API_BASE}/api/jobs/${jobId}/stop`, {
+      await apiFetch(`/api/jobs/${jobId}/stop`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -584,7 +595,7 @@ export default function Home() {
 
   const deleteSearch = async (jobId: string) => {
     try {
-      await fetch(`${API_BASE}/api/jobs/${jobId}`, {
+      await apiFetch(`/api/jobs/${jobId}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -599,9 +610,9 @@ export default function Home() {
   const fetchAdminGlobalLeads = async (t = token, uFilter = adminLeadUserFilter, q = adminLeadSearch) => {
     setLoadingAdminLeads(true);
     try {
-      let url = `${API_BASE}/api/admin/leads?limit=500&userId=${encodeURIComponent(uFilter)}`;
+      let url = `/api/admin/leads?limit=500&userId=${encodeURIComponent(uFilter)}`;
       if (q.trim()) url += `&search=${encodeURIComponent(q.trim())}`;
-      const res = await fetch(url, {
+      const res = await apiFetch(url, {
         headers: { Authorization: `Bearer ${t}` }
       });
       if (res.ok) {
@@ -628,7 +639,7 @@ export default function Home() {
 
     setProfileLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/api/auth/profile`, {
+      const res = await apiFetch("/api/auth/profile", {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -663,7 +674,7 @@ export default function Home() {
     if (!user?.email) return;
     setProfileMsg(null);
     try {
-      const res = await fetch(`${API_BASE}/api/auth/forgot-password`, {
+      const res = await apiFetch("/api/auth/forgot-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: user.email })
@@ -685,10 +696,10 @@ export default function Home() {
   const downloadFile = async () => {
     if (!exportJobId) return;
     const cols = selectedCols.join(",");
-    const url = `${API_BASE}/api/jobs/${exportJobId}/export/${exportFormat}?columns=${encodeURIComponent(cols)}`;
+    const url = `/api/jobs/${exportJobId}/export/${exportFormat}?columns=${encodeURIComponent(cols)}`;
 
     try {
-      const res = await fetch(url, {
+      const res = await apiFetch(url, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (!res.ok) return;
@@ -710,7 +721,7 @@ export default function Home() {
     e.preventDefault();
     setCreateUserMsg("");
     try {
-      const res = await fetch(`${API_BASE}/api/admin/users`, {
+      const res = await apiFetch("/api/admin/users", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -757,7 +768,7 @@ export default function Home() {
         payload.password = editUserPassword.trim();
       }
 
-      const res = await fetch(`${API_BASE}/api/admin/users/${editingUser.id}`, {
+      const res = await apiFetch(`/api/admin/users/${editingUser.id}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -774,7 +785,7 @@ export default function Home() {
 
   const handleToggleUserProxy = async (userId: string) => {
     try {
-      const res = await fetch(`${API_BASE}/api/admin/users/${userId}/toggle-proxy`, {
+      const res = await apiFetch(`/api/admin/users/${userId}/toggle-proxy`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -792,7 +803,7 @@ export default function Home() {
     e.preventDefault();
     if (!resetModalUser) return;
     try {
-      const res = await fetch(`${API_BASE}/api/admin/users/${resetModalUser.id}/reset-password`, {
+      const res = await apiFetch(`/api/admin/users/${resetModalUser.id}/reset-password`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -809,7 +820,7 @@ export default function Home() {
 
   const handleSaveSettings = async () => {
     try {
-      const res = await fetch(`${API_BASE}/api/admin/settings`, {
+      const res = await apiFetch("/api/admin/settings", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -832,7 +843,7 @@ export default function Home() {
 
   const approveUser = async (userId: string) => {
     try {
-      await fetch(`${API_BASE}/api/admin/users/${userId}/approve`, {
+      await apiFetch(`/api/admin/users/${userId}/approve`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -843,7 +854,7 @@ export default function Home() {
 
   const suspendUser = async (userId: string) => {
     try {
-      await fetch(`${API_BASE}/api/admin/users/${userId}/suspend`, {
+      await apiFetch(`/api/admin/users/${userId}/suspend`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -854,7 +865,7 @@ export default function Home() {
   const deleteUser = async (userId: string) => {
     if (!confirm("Are you sure you want to delete this user?")) return;
     try {
-      await fetch(`${API_BASE}/api/admin/users/${userId}`, {
+      await apiFetch(`/api/admin/users/${userId}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -877,6 +888,7 @@ export default function Home() {
 
   const selectedJob = jobs.find(j => j.id === selectedJobId);
   const isDark = theme === "dark";
+  const currentLogo = isDark ? LOGO_DARK : LOGO_LIGHT;
   const userCanProxy = user?.role === "admin" || user?.can_use_proxy === 1;
 
   if (!token || !user) {
@@ -888,7 +900,7 @@ export default function Home() {
         <div className={`w-full max-w-[400px] rounded-3xl p-8 transition-all duration-300 ${isDark ? "glass-surface-dark text-white" : "glass-surface-light text-black shadow-lg"}`}>
           <div className="flex justify-between items-center mb-6">
             <div className="flex items-center gap-2.5">
-              <img src="https://ik.imagekit.io/Reinhart/nox/7strokeslogo.png" alt="7strokes" className="h-8 w-auto object-contain" />
+              <img src={currentLogo} alt="7strokes" className="h-16 w-auto object-contain" />
             </div>
             <button
               onClick={toggleTheme}
@@ -1059,10 +1071,6 @@ export default function Home() {
               </div>
             </form>
           )}
-
-          <div className="mt-6 pt-4 border-t border-zinc-500/20 text-[11px] text-zinc-500 text-center">
-            Admin: <span className="font-semibold text-zinc-700 dark:text-zinc-300">admin@dashmin.local</span> / <span className="font-semibold text-zinc-700 dark:text-zinc-300">admin123</span>
-          </div>
         </div>
       </div>
     );
@@ -1092,7 +1100,7 @@ export default function Home() {
         <div>
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-2.5">
-              <img src="https://ik.imagekit.io/Reinhart/nox/7strokeslogo.png" alt="7strokes" className="h-7 w-auto object-contain" />
+              <img src={currentLogo} alt="7strokes" className="h-14 sm:h-16 w-auto object-contain" />
             </div>
             <button
               onClick={() => setSidebarOpen(false)}
@@ -1256,7 +1264,7 @@ export default function Home() {
               <span>☰</span>
               <span className="hidden sm:inline">Menu</span>
             </button>
-            <img src="https://ik.imagekit.io/Reinhart/nox/7strokeslogo.png" alt="7strokes" className="h-6 w-auto object-contain shrink-0" />
+            <img src={currentLogo} alt="7strokes" className="h-8 sm:h-9 w-auto object-contain shrink-0" />
             <h2 className="text-sm font-bold tracking-tight truncate">
               {viewMode === "admin"
                 ? (adminTab === "overview" ? "System & Stats" : (adminTab === "users" ? "User Management" : (adminTab === "leads" ? "All Users Leads (Global Database)" : "System Settings")))
