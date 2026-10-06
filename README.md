@@ -1,4 +1,4 @@
-# 7strokes — Fast B2B Lead Generation Tool
+# 7strokes - B2B Lead Generation Tool
 
 <p align="center">
   <img src="https://ik.imagekit.io/Reinhart/nox/7strokeslogo.png" alt="7strokes Logo" width="220" />
