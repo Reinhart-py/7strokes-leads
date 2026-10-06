@@ -7,7 +7,7 @@
 [![Redis](https://img.shields.io/badge/Redis-BullMQ-DC382D.svg)](https://redis.io/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-Strict-3178C6.svg)](https://www.typescriptlang.org/)
 
-`DashMin` lets you easily extract high-volume B2B leads from Google Maps and 2GIS at high speed using direct HTTP requests, smart geographic grid partitioning, full-detail data extraction, customizable column filtering, and multi-format exports.
+`DashMin` lets you easily extract high-volume B2B leads from Google Maps and 2GIS at high speed using direct concurrent HTTP requests, smart geographic grid partitioning, full-detail data extraction, customizable column filtering, mobile-responsive glassy interface, and multi-format exports.
 
 ---
 
@@ -23,8 +23,9 @@
 - [Usage](#usage)
   - [User Registration & Admin Approval](#user-registration--admin-approval)
   - [Starting a Google Maps Job](#starting-a-google-maps-job)
-  - [Starting a 2GIS Job](#starting-a-2gis-job)
+  - [Starting a 2GIS Fast HTTP Job](#starting-a-2gis-fast-http-job)
   - [Viewing Leads & Live Search](#viewing-leads--live-search)
+  - [Mobile & Responsive Drawer Experience](#mobile--responsive-drawer-experience)
   - [Exporting with Column Filters (CSV, XLSX, JSON, HTML)](#exporting-with-column-filters-csv-xlsx-json-html)
 - [What can I extract?](#what-can-i-extract)
 - [Configuration & Proxy Setup](#configuration--proxy-setup)
@@ -203,25 +204,36 @@ Visit `http://localhost:3000`.
    - Paginates up to 120 leads per cell without launching Chromium.
    - Deduplicates leads using `(job_id, place_id)` unique indexing and saves records to PostgreSQL in real-time.
 
-#### Starting a 2GIS Job
-1. Select the **2GIS Catalog** tab.
-2. Specify the city (e.g., `Dubai`) and search query (e.g., `Restaurants`).
-3. The worker queries the 2GIS Catalog API 3.0, retrieving full contact groups and ratings.
+#### Starting a 2GIS Fast HTTP Job
+1. Select the **2GIS Directory** engine on the Find Leads tab.
+2. Select an official coverage Country and City (with 7 Emirates quick-pick pills for the UAE: Abu Dhabi, Dubai, Sharjah, Ajman, Ras Al Khaimah, Fujairah, Umm Al Quwain, and international GCC regions).
+3. Type or select a Category from the searchable category dropdown.
+4. The backend initiates a direct HTTP worker pipeline:
+   - Performs a session handshake once to retrieve operational cookies.
+   - Dispatches parallel HTTP catalog requests across multiple pages (`/dubai/search/<query>/page/<n>`).
+   - Concurrently fetches full firm detail pages (`/dubai/firm/<id>`) using a parallel worker pool (up to 6 workers).
+   - Extracts verified unmasked phone numbers (`tel:`), primary business names, categories, ratings, review counts, addresses, and websites at high speed without launching heavy browser instances.
 
 #### Viewing Leads & Live Search
-- Go to the **Job History** tab.
-- Click **View Leads** to open the real-time leads viewer directly inside your browser.
-- Use the built-in search bar to filter loaded leads instantly by name, phone, email, category, or address.
+- Go to the **Saved Leads** tab.
+- Click any search to inspect collected leads.
+- Use the quick filter bar to filter loaded leads in real-time by business name, phone, email, category, or address.
+- Click **Zoom In** to expand into fullscreen inspection view with sticky headers, horizontal scrolling, and full column visibility on both desktop and mobile devices.
+
+#### Mobile & Responsive Drawer Experience
+- **Overlapping Glassy Navigation**: Clicking the Menu button opens a semi-transparent, backdrop-blurred drawer that smoothly slides over the active viewport without pushing or distorting the content behind it.
+- **Auto-Close On Selection**: Tapping any navigation link, tab, admin tool, or theme automatically closes the drawer.
+- **Cross-Device Responsive Design**: Fully optimized for Android phones, tablets, and desktop displays. Column min-widths, flexible overflow handling, and smart layout stacking guarantee that no lead data, buttons, or controls ever clip outside the screen frame.
 
 #### Exporting with Column Filters (CSV, XLSX, JSON, HTML)
-- Click **Export & Filter** on any completed or running job.
+- Click **Export** on any completed or running job.
 - Select your preferred file format:
   - **CSV**: RFC-compliant comma-separated values.
   - **Excel (XLSX)**: Formatted Microsoft Excel workbook.
   - **JSON**: Formatted JSON array.
   - **HTML**: Standalone sanitized dark-mode HTML table report with clickable links and summary stats.
-- Check or uncheck individual columns (or click "Select All" / "Reset") to customize exactly which fields appear in your export file.
-- Click **Download** to save your customized dataset.
+- Check or uncheck individual columns to customize exactly which fields appear in your export file.
+- Click **Download** to save your dataset.
 
 ---
 

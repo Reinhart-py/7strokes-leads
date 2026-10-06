@@ -3,25 +3,90 @@ import { ScrapedLead } from './types';
 export class GeographicPartitioner {
   private static readonly PRESET_PARTITIONS: Record<string, string[]> = {
     dubai: [
-      'Downtown Dubai',
       'Business Bay',
+      'Downtown Dubai',
       'Dubai Marina',
+      'Jumeirah Lakes Towers JLT',
+      'DIFC',
       'Deira',
       'Bur Dubai',
-      'Jumeirah',
       'Al Barsha',
-      'JLT Jumeirah Lake Towers',
+      'Jumeirah',
+      'Palm Jumeirah',
+      'Al Quoz',
+      'Al Karama',
       'Dubai Silicon Oasis',
-      'Al Quoz'
+      'JVC Jumeirah Village Circle',
+      'JVT Jumeirah Village Triangle',
+      'Dubai Hills Estate',
+      'Motor City',
+      'Dubai Sports City',
+      'Al Nahda',
+      'Al Qusais',
+      'Garhoud',
+      'Mirdif',
+      'International City',
+      'Sheikh Zayed Road',
+      'Al Wasl',
+      'Al Safa',
+      'Umm Suqeim',
+      'Dubai South',
+      'Al Jaddaf',
+      'Dubai Creek Harbour',
+      'Festival City',
+      'Al Mankhool',
+      'Al Rigga',
+      'Al Muraqqabat',
+      'Port Saeed',
+      'Trade Centre',
+      'Barsha Heights Tecom',
+      'Dubai Internet City',
+      'Dubai Media City',
+      'Discovery Gardens',
+      'City Walk',
+      'Bluewaters Island',
+      'Al Satwa',
+      'Ras Al Khor'
     ],
     abu_dhabi: [
+      'Al Reem Island',
+      'Yas Island',
+      'Saadiyat Island',
+      'Al Maryah Island',
       'Al Danah',
       'Al Zahiyah',
       'Al Khalidiya',
-      'Al Reem Island',
-      'Yas Island',
       'Musaffah',
-      'Al Bateen'
+      'Musaffah Industrial',
+      'Al Bateen',
+      'Al Karamah',
+      'Al Mushrif',
+      'Khalifa City',
+      'Mohammed Bin Zayed City',
+      'Al Raha Beach',
+      'Al Reef',
+      'Shakhbout City',
+      'Al Shamkha',
+      'Masdar City',
+      'Corniche',
+      'Al Markaziyah',
+      'Al Nahyan',
+      'Al Muroor',
+      'Airport Road',
+      'Hamdan Street',
+      'Electra Street',
+      'Zayed City'
+    ],
+    sharjah: [
+      'Al Majaz',
+      'Al Nahda',
+      'Al Qasimia',
+      'Al Taawun',
+      'Al Khan',
+      'Muwailih',
+      'Industrial Area',
+      'Al Yarmook',
+      'Al Rolla'
     ],
     riyadh: [
       'Al Olaya',
@@ -29,53 +94,132 @@ export class GeographicPartitioner {
       'Al Nakheel',
       'Al Sulaimaniyah',
       'King Fahd District',
-      'Al Murabba'
+      'Al Murabba',
+      'Al Yasmin',
+      'Al Narjis',
+      'Al Sahafah',
+      'Al Aqiq'
     ],
     jeddah: [
       'Al Balad',
       'Al Hamra',
       'Al Rawdah',
       'Al Salamah',
-      'Al Zahra'
+      'Al Zahra',
+      'Al Andalus',
+      'Al Mohammadiyyah',
+      'Al Naeem'
     ],
     doha: [
       'West Bay',
       'The Pearl',
       'Al Sadd',
       'Lusail',
-      'Old Airport'
+      'Old Airport',
+      'Msheireb Downtown',
+      'Al Dafna',
+      'Al Mansoura'
+    ],
+    kuwait: [
+      'Sharq',
+      'Salmiya',
+      'Hawally',
+      'Al Shuwaikh',
+      'Al Qibla',
+      'Al Mirqab'
     ],
     london: [
-      'Westminster',
-      'Camden',
       'City of London',
-      'Kensington',
+      'Westminster',
       'Canary Wharf',
+      'Camden',
+      'Kensington',
       'Islington',
       'Chelsea',
-      'Soho'
+      'Soho',
+      'Shoreditch',
+      'Mayfair',
+      'Greenwich',
+      'Stratford'
     ],
     new_york: [
       'Midtown Manhattan',
+      'Financial District',
       'Downtown Manhattan',
       'Brooklyn',
       'Queens',
       'Williamsburg',
-      'Financial District'
-    ],
-    toronto: [
-      'Downtown Toronto',
-      'North York',
-      'Scarborough',
-      'Etobicoke',
-      'Yorkville'
+      'SoHo',
+      'Chelsea',
+      'Upper East Side',
+      'Upper West Side'
     ],
     los_angeles: [
       'Downtown Los Angeles',
       'Beverly Hills',
       'Santa Monica',
       'Hollywood',
-      'Pasadena'
+      'Pasadena',
+      'Century City',
+      'Culver City'
+    ],
+    chicago: [
+      'The Loop',
+      'River North',
+      'West Loop',
+      'Lincoln Park',
+      'Streeterville',
+      'Fulton Market'
+    ],
+    toronto: [
+      'Downtown Toronto',
+      'North York',
+      'Scarborough',
+      'Etobicoke',
+      'Yorkville',
+      'Financial District'
+    ],
+    paris: [
+      '1st Arrondissement Louvre',
+      '8th Arrondissement Champs-Elysees',
+      '9th Arrondissement Opera',
+      'La Defense',
+      'Le Marais',
+      'Montmartre',
+      'Saint-Germain-des-Pres'
+    ],
+    berlin: [
+      'Mitte',
+      'Charlottenburg',
+      'Kreuzberg',
+      'Prenzlauer Berg',
+      'Friedrichshain',
+      'Schoneberg'
+    ],
+    sydney: [
+      'Sydney CBD',
+      'Surry Hills',
+      'North Sydney',
+      'Parramatta',
+      'Bondi',
+      'Chatswood'
+    ],
+    singapore: [
+      'Downtown Core',
+      'Marina Bay',
+      'Orchard',
+      'Tanjong Pagar',
+      'Raffles Place',
+      'Jurong East'
+    ],
+    mumbai: [
+      'Bandra West',
+      'Andheri West',
+      'Nariman Point',
+      'Lower Parel',
+      'BKC Bandra Kurla Complex',
+      'Juhu',
+      'Powai'
     ]
   };
 
@@ -85,21 +229,25 @@ export class GeographicPartitioner {
       const cityName = cityKey.replace('_', ' ');
       if (lower.includes(cityName)) {
         const baseQuery = targetQuery.replace(new RegExp(cityName, 'gi'), '').replace(/\bin\b/gi, '').trim();
-        return subAreas.map(area => `${baseQuery} in ${area}, ${cityName}`.trim());
+        return [targetQuery, ...subAreas.map(area => `${baseQuery} in ${area}, ${cityName}`.trim())];
       }
     }
 
-    const inMatch = targetQuery.match(/\bin\s+([a-zA-Z\s]+)$/i);
+    const inMatch = targetQuery.match(/\bin\s+([a-zA-Z\s,]+)$/i);
     if (inMatch && inMatch[1]) {
       const city = inMatch[1].trim();
-      const base = targetQuery.replace(/\bin\s+([a-zA-Z\s]+)$/i, '').trim();
+      const base = targetQuery.replace(/\bin\s+([a-zA-Z\s,]+)$/i, '').trim();
       return [
         `${base} in Downtown ${city}`,
+        `${base} in Business District ${city}`,
+        `${base} in Financial District ${city}`,
+        `${base} in Central ${city}`,
         `${base} in North ${city}`,
         `${base} in South ${city}`,
         `${base} in East ${city}`,
         `${base} in West ${city}`,
-        `${base} in Central ${city}`,
+        `${base} in Industrial Area ${city}`,
+        `${base} in Commercial Center ${city}`,
         targetQuery
       ];
     }

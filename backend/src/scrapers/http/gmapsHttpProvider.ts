@@ -1,6 +1,7 @@
 import { ProxyAgent } from 'undici';
 import { IScraperProvider, ScrapedLead, ScraperOptions, ScraperControl } from '../types';
 import { GmapsParser } from './gmapsParser';
+import { GeoGrid } from '../grid/geoGrid';
 
 export class GmapsHttpProvider implements IScraperProvider {
   public readonly name = 'GoogleMaps-DirectHTTP';
@@ -77,13 +78,31 @@ export class GmapsHttpProvider implements IScraperProvider {
     const {
       query,
       cap = 0,
-      lat = 25.2048,
-      lon = 55.2708,
-      zoom = 14,
-      maxPagesPerCell = 4,
+      maxPagesPerCell = 5,
       seenKeys
     } = options;
     const { checkCancelled, log, updateProgress, saveLead } = control;
+
+    let targetLat = options.lat;
+    let targetLon = options.lon;
+    let targetZoom = options.zoom || 14;
+
+    if (targetLat === undefined || targetLon === undefined) {
+      const cityCandidate = options.city || (query.match(/\bin\s+([a-zA-Z\s,]+)$/i)?.[1] ?? '');
+      if (cityCandidate) {
+        const box = await GeoGrid.resolveCityBoundingBox(cityCandidate.trim());
+        if (box) {
+          targetLat = (box.minLat + box.maxLat) / 2;
+          targetLon = (box.minLon + box.maxLon) / 2;
+          targetZoom = 12;
+        }
+      }
+    }
+
+    if (targetLat === undefined || targetLon === undefined) {
+      targetLat = 25.2048;
+      targetLon = 55.2708;
+    }
 
     const dispatcher = this.getDispatcher(options.proxy);
     const results: ScrapedLead[] = [];
@@ -95,7 +114,7 @@ export class GmapsHttpProvider implements IScraperProvider {
       if (cap > 0 && results.length >= cap) break;
 
       const start = page * pageSize;
-      const pb = this.buildProtobufParam(lat, lon, zoom, pageSize, start);
+      const pb = this.buildProtobufParam(targetLat, targetLon, targetZoom, pageSize, start);
       const psi = Math.random().toString(36).substring(2, 9) + `.${Date.now()}.1`;
       const url = `https://www.google.com/search?tbm=map&authuser=0&hl=en&gl=us&pb=${pb}&q=${encodeURIComponent(query)}&tch=1&ech=1&psi=${psi}`;
 
@@ -103,7 +122,7 @@ export class GmapsHttpProvider implements IScraperProvider {
       try {
         rawText = await this.fetchEndpoint(url, dispatcher);
       } catch (err: any) {
-        if (page === 0) {
+        if (page === 0 && !options.lat) {
           const fallbackUrl = `https://www.google.com/maps/search/${encodeURIComponent(query)}?hl=en`;
           rawText = await this.fetchEndpoint(fallbackUrl, dispatcher).catch(() => '');
         } else {
@@ -113,7 +132,7 @@ export class GmapsHttpProvider implements IScraperProvider {
 
       const batch = GmapsParser.parseSearchResponse(rawText, query);
       if (batch.length === 0) {
-        if (page === 0) {
+        if (page === 0 && !options.lat) {
           const fallbackUrl = `https://www.google.com/maps/search/${encodeURIComponent(query)}?hl=en`;
           try {
             rawText = await this.fetchEndpoint(fallbackUrl, dispatcher);
@@ -124,8 +143,8 @@ export class GmapsHttpProvider implements IScraperProvider {
               const leadKey = (lead.phone_1 || lead.title).toLowerCase().trim();
               if (!localSeen.has(leadKey) && (!seenKeys || !seenKeys.has(leadKey))) {
                 localSeen.add(leadKey);
-                if (seenKeys) seenKeys.add(leadKey);
                 await saveLead(lead);
+                if (seenKeys) seenKeys.add(leadKey);
                 results.push(lead);
                 await updateProgress(1, results.length);
               }
@@ -143,8 +162,8 @@ export class GmapsHttpProvider implements IScraperProvider {
         const leadKey = (lead.phone_1 || lead.title).toLowerCase().trim();
         if (!localSeen.has(leadKey) && (!seenKeys || !seenKeys.has(leadKey))) {
           localSeen.add(leadKey);
-          if (seenKeys) seenKeys.add(leadKey);
           await saveLead(lead);
+          if (seenKeys) seenKeys.add(leadKey);
           results.push(lead);
           newCount++;
           await updateProgress(page + 1, results.length);

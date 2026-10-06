@@ -17,10 +17,128 @@ const EXPORT_COLUMNS = [
   { key: "place_id", label: "Place ID" }
 ];
 
+const POPULAR_CATEGORIES = [
+  "Real Estate & Property",
+  "Restaurants & Cafes",
+  "Dental Clinics",
+  "Hotels & Resorts",
+  "Fitness Centers & Gyms",
+  "Beauty Salons & Spas",
+  "Medical Clinics & Doctors",
+  "Law Firms & Legal Services",
+  "Accounting & Audit Firms",
+  "Car Rental & Leasing",
+  "Marketing & Digital Agencies",
+  "IT & Software Companies",
+  "Construction & Contracting",
+  "Interior Design & Fit-Out",
+  "Logistics & Cargo Forwarding",
+  "Cleaning & Facility Services",
+  "Event Management",
+  "Travel & Tourism Agencies",
+  "Nurseries & Daycares",
+  "Supermarkets & Grocery",
+  "Auto Repair & Garages",
+  "Pharmacies & Healthcare",
+  "Photography & Studios",
+  "Veterinary & Pet Care",
+  "Security Services",
+  "Financial Advisors",
+  "Coworking & Business Centers",
+  "Printing & Signage",
+  "Solar & MEP Contracting",
+  "Recruitment & HR Agencies"
+];
+
+const TWOGIS_SUPPORTED_REGIONS = [
+  {
+    country: "United Arab Emirates",
+    cities: [
+      { name: "Abu Dhabi", label: "Abu Dhabi (Capital)" },
+      { name: "Dubai", label: "Dubai" },
+      { name: "Sharjah", label: "Sharjah" },
+      { name: "Ajman", label: "Ajman" },
+      { name: "Ras Al Khaimah", label: "Ras Al Khaimah" },
+      { name: "Fujairah", label: "Fujairah" },
+      { name: "Umm Al Quwain", label: "Umm Al Quwain" }
+    ]
+  },
+  {
+    country: "Saudi Arabia",
+    cities: [
+      { name: "Riyadh", label: "Riyadh" },
+      { name: "Jeddah", label: "Jeddah" }
+    ]
+  },
+  {
+    country: "Qatar",
+    cities: [
+      { name: "Doha", label: "Doha" }
+    ]
+  },
+  {
+    country: "Kuwait",
+    cities: [
+      { name: "Kuwait City", label: "Kuwait City" }
+    ]
+  },
+  {
+    country: "Bahrain",
+    cities: [
+      { name: "Manama", label: "Manama" }
+    ]
+  },
+  {
+    country: "Oman",
+    cities: [
+      { name: "Muscat", label: "Muscat" }
+    ]
+  },
+  {
+    country: "Kazakhstan",
+    cities: [
+      { name: "Almaty", label: "Almaty" },
+      { name: "Astana", label: "Astana" },
+      { name: "Shymkent", label: "Shymkent" }
+    ]
+  },
+  {
+    country: "Uzbekistan",
+    cities: [
+      { name: "Tashkent", label: "Tashkent" },
+      { name: "Samarkand", label: "Samarkand" }
+    ]
+  },
+  {
+    country: "Kyrgyzstan",
+    cities: [
+      { name: "Bishkek", label: "Bishkek" },
+      { name: "Osh", label: "Osh" }
+    ]
+  },
+  {
+    country: "Azerbaijan",
+    cities: [
+      { name: "Baku", label: "Baku" }
+    ]
+  },
+  {
+    country: "Cyprus",
+    cities: [
+      { name: "Limassol", label: "Limassol" },
+      { name: "Nicosia", label: "Nicosia" }
+    ]
+  }
+];
+
 export default function Home() {
   const [theme, setTheme] = useState<"light" | "dark">("light");
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isTableZoomed, setIsTableZoomed] = useState(false);
+  const [searchEngine, setSearchEngine] = useState<"gmaps" | "2gis">("gmaps");
+  const [twoGisCountry, setTwoGisCountry] = useState<string>("United Arab Emirates");
+  const [twoGisCity, setTwoGisCity] = useState<string>("Abu Dhabi");
+  const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
 
   const [token, setToken] = useState("");
   const [user, setUser] = useState<{
@@ -349,7 +467,8 @@ export default function Home() {
     if (!keyword.trim()) return;
 
     setIsStarting(true);
-    const targetQuery = location.trim() ? `${keyword.trim()} in ${location.trim()}` : keyword.trim();
+    const chosenLocation = searchEngine === "2gis" ? twoGisCity : location;
+    const targetQuery = chosenLocation.trim() ? `${keyword.trim()} in ${chosenLocation.trim()}` : keyword.trim();
     const finalCap = customLeadCount ? (parseInt(customLeadCount) || 0) : leadCount;
 
     try {
@@ -360,7 +479,7 @@ export default function Home() {
           Authorization: `Bearer ${token}`
         },
         body: JSON.stringify({
-          engine: "gmaps",
+          engine: searchEngine,
           target: targetQuery,
           cap: finalCap,
           proxy: userProxy.trim()
@@ -419,7 +538,7 @@ export default function Home() {
           Authorization: `Bearer ${token}`
         },
         body: JSON.stringify({
-          engine: "gmaps",
+          engine: searchEngine,
           queries,
           cap: finalCap,
           proxy: userProxy.trim() || undefined
@@ -935,181 +1054,196 @@ export default function Home() {
   }
 
   return (
-    <div className={`relative flex h-screen w-screen overflow-hidden transition-colors duration-300 ${isDark ? "bg-[#09090C] text-white" : "bg-[#F9FAFB] text-black"}`}>
+    <div className={`relative flex h-[100dvh] w-screen max-w-full overflow-hidden transition-colors duration-300 ${isDark ? "bg-[#09090C] text-white" : "bg-[#F9FAFB] text-black"}`}>
       <div className="absolute top-10 -left-20 w-96 h-96 rounded-full bg-green-500/5 blur-[120px] pointer-events-none"></div>
       <div className="absolute bottom-10 -right-20 w-96 h-96 rounded-full bg-green-500/5 blur-[120px] pointer-events-none"></div>
 
       {sidebarOpen && (
-        <aside className={`w-64 flex flex-col justify-between p-5 shrink-0 z-20 transition-all duration-300 ${isDark ? "glass-surface-dark border-r border-white/5" : "glass-surface-light border-r border-zinc-200"}`}>
-          <div>
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-xl bg-green-600 flex items-center justify-center text-white font-bold text-xs shadow-md shadow-green-600/25">
-                  D
-                </div>
-                <span className="text-base font-bold tracking-tight">{platformName}</span>
-              </div>
-              <button
-                onClick={() => setSidebarOpen(false)}
-                className={`p-1.5 rounded-lg text-xs btn-spring ${isDark ? "glass-icon-dark text-zinc-400 hover:text-white" : "glass-icon-light text-zinc-600 hover:text-black"}`}
-                title="Hide sidebar"
-              >
-                ✕
-              </button>
-            </div>
-
-            {user.role === "admin" && (
-              <div className={`flex rounded-xl p-1 mb-5 text-xs font-semibold ${isDark ? "bg-black/40 border border-white/5" : "bg-black/[0.04] border border-black/5"}`}>
-                <button
-                  onClick={() => setViewMode("app")}
-                  className={`flex-1 py-1.5 rounded-lg transition-all duration-200 ${viewMode === "app" ? (isDark ? "bg-white/10 text-white font-bold shadow-sm" : "bg-white text-black font-bold shadow-sm") : "text-zinc-500"}`}
-                >
-                  App
-                </button>
-                <button
-                  onClick={() => { setViewMode("admin"); fetchAdminStats(); fetchTeamList(); fetchSettings(); }}
-                  className={`flex-1 py-1.5 rounded-lg transition-all duration-200 ${viewMode === "admin" ? "bg-green-600 text-white font-bold shadow-sm" : "text-zinc-500"}`}
-                >
-                  Admin
-                </button>
-              </div>
-            )}
-
-            {viewMode === "app" ? (
-              <nav className="space-y-1">
-                <button
-                  onClick={() => { setActiveTab("search"); setSelectedJobId(null); }}
-                  className={`w-full flex items-center gap-2.5 px-3.5 py-2 rounded-xl text-xs font-semibold text-left transition-all duration-200 ${activeTab === "search" ? (isDark ? "bg-white/10 text-white font-bold shadow-sm" : "bg-black/[0.06] text-black font-bold shadow-sm") : "text-zinc-500 hover:text-black dark:hover:text-white"}`}
-                >
-                  Find Leads
-                </button>
-                <button
-                  onClick={() => setActiveTab("leads")}
-                  className={`w-full flex items-center justify-between px-3.5 py-2 rounded-xl text-xs font-semibold text-left transition-all duration-200 ${activeTab === "leads" ? (isDark ? "bg-white/10 text-white font-bold shadow-sm" : "bg-black/[0.06] text-black font-bold shadow-sm") : "text-zinc-500 hover:text-black dark:hover:text-white"}`}
-                >
-                  <span>Saved Leads</span>
-                  {jobs.length > 0 && (
-                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${isDark ? "bg-white/10 text-zinc-300" : "bg-black/5 text-zinc-700"}`}>
-                      {jobs.length}
-                    </span>
-                  )}
-                </button>
-                {userCanProxy && (
-                  <button
-                    onClick={() => setActiveTab("settings")}
-                    className={`w-full flex items-center gap-2.5 px-3.5 py-2 rounded-xl text-xs font-semibold text-left transition-all duration-200 ${activeTab === "settings" ? (isDark ? "bg-white/10 text-white font-bold shadow-sm" : "bg-black/[0.06] text-black font-bold shadow-sm") : "text-zinc-500 hover:text-black dark:hover:text-white"}`}
-                  >
-                    Proxy Settings
-                  </button>
-                )}
-                <button
-                  onClick={() => {
-                    setProfileName(user?.name || "");
-                    setProfileUsername(user?.username || "");
-                    setProfileAvatar(user?.avatar || "");
-                    setProfileMsg(null);
-                    setShowProfileModal(true);
-                  }}
-                  className="w-full flex items-center gap-2.5 px-3.5 py-2 rounded-xl text-xs font-semibold text-left transition-all duration-200 text-zinc-500 hover:text-black dark:hover:text-white"
-                >
-                  My Profile
-                </button>
-              </nav>
-            ) : (
-              <nav className="space-y-1">
-                <div className="text-[10px] font-bold uppercase tracking-wider text-zinc-500 px-3.5 mb-2">Admin Tools</div>
-                <button
-                  onClick={() => setAdminTab("overview")}
-                  className={`w-full flex items-center gap-2.5 px-3.5 py-2 rounded-xl text-xs font-semibold text-left transition-all duration-200 ${adminTab === "overview" ? (isDark ? "bg-white/10 text-white font-bold shadow-sm" : "bg-black/[0.06] text-black font-bold shadow-sm") : "text-zinc-500 hover:text-black dark:hover:text-white"}`}
-                >
-                  System & Stats
-                </button>
-                <button
-                  onClick={() => setAdminTab("users")}
-                  className={`w-full flex items-center justify-between px-3.5 py-2 rounded-xl text-xs font-semibold text-left transition-all duration-200 ${adminTab === "users" ? (isDark ? "bg-white/10 text-white font-bold shadow-sm" : "bg-black/[0.06] text-black font-bold shadow-sm") : "text-zinc-500 hover:text-black dark:hover:text-white"}`}
-                >
-                  <span>Users & Proxies</span>
-                  {adminUsers.length > 0 && (
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-green-600 text-white shadow-sm">
-                      {adminUsers.length}
-                    </span>
-                  )}
-                </button>
-                <button
-                  onClick={() => { setAdminTab("leads"); fetchAdminGlobalLeads(); }}
-                  className={`w-full flex items-center justify-between px-3.5 py-2 rounded-xl text-xs font-semibold text-left transition-all duration-200 ${adminTab === "leads" ? (isDark ? "bg-white/10 text-white font-bold shadow-sm" : "bg-black/[0.06] text-black font-bold shadow-sm") : "text-zinc-500 hover:text-black dark:hover:text-white"}`}
-                >
-                  <span>All Users Leads</span>
-                  {adminGlobalTotal > 0 && (
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-green-600 text-white shadow-sm">
-                      {adminGlobalTotal}
-                    </span>
-                  )}
-                </button>
-                <button
-                  onClick={() => setAdminTab("settings")}
-                  className={`w-full flex items-center gap-2.5 px-3.5 py-2 rounded-xl text-xs font-semibold text-left transition-all duration-200 ${adminTab === "settings" ? (isDark ? "bg-white/10 text-white font-bold shadow-sm" : "bg-black/[0.06] text-black font-bold shadow-sm") : "text-zinc-500 hover:text-black dark:hover:text-white"}`}
-                >
-                  System Settings
-                </button>
-              </nav>
-            )}
-          </div>
-
-          <div className="space-y-3">
-            <div className="flex items-center justify-between pt-3 border-t border-zinc-500/20 text-xs">
-              <span className="text-zinc-500">Theme</span>
-              <button
-                onClick={toggleTheme}
-                className={`px-3 py-1 rounded-xl text-xs font-semibold btn-spring ${isDark ? "glass-icon-dark text-zinc-300" : "glass-icon-light text-zinc-700"}`}
-              >
-                {isDark ? "Light" : "Dark"}
-              </button>
-            </div>
-
-            <div
-              onClick={() => {
-                setProfileName(user?.name || "");
-                setProfileUsername(user?.username || "");
-                setProfileAvatar(user?.avatar || "");
-                setProfileMsg(null);
-                setShowProfileModal(true);
-              }}
-              className={`p-3 rounded-2xl border flex items-center justify-between text-xs cursor-pointer btn-spring ${isDark ? "glass-surface-dark border-white/5 hover:border-white/20" : "glass-surface-light border-zinc-200 hover:border-zinc-300"}`}
-            >
-              <div className="flex items-center gap-2.5 truncate">
-                {user.avatar ? (
-                  <img src={user.avatar} alt={user.name} className="w-8 h-8 rounded-full object-cover shrink-0 border border-zinc-500/20" />
-                ) : (
-                  <div className="w-8 h-8 rounded-xl bg-zinc-800 text-white flex items-center justify-center font-bold text-xs shrink-0">
-                    {(user.username || user.name || user.email)[0].toUpperCase()}
-                  </div>
-                )}
-                <div className="truncate">
-                  <div className="font-bold truncate">{user.name || user.username || user.email}</div>
-                  <div className="text-[10px] text-zinc-500 truncate">@{user.username || user.email.split('@')[0]}</div>
-                </div>
-              </div>
-              <button onClick={(e) => { e.stopPropagation(); logout(); }} className="text-zinc-500 hover:text-red-500 font-semibold ml-2 btn-spring">
-                Exit
-              </button>
-            </div>
-          </div>
-        </aside>
+        <div
+          onClick={() => setSidebarOpen(false)}
+          className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm transition-opacity duration-300"
+        />
       )}
 
-      <main className="flex-1 flex flex-col h-full overflow-hidden z-10">
-        <header className={`h-14 border-b px-5 flex items-center justify-between shrink-0 transition-colors ${isDark ? "glass-surface-dark border-white/5" : "glass-surface-light border-zinc-200"}`}>
-          <div className="flex items-center gap-3">
-            {!sidebarOpen && (
+      <aside
+        className={`fixed inset-y-0 left-0 z-50 w-72 max-w-[85vw] flex flex-col justify-between p-5 shadow-2xl transition-transform duration-300 ease-in-out ${
+          sidebarOpen ? "translate-x-0" : "-translate-x-full pointer-events-none"
+        } ${
+          isDark
+            ? "bg-[#09090C]/80 border-r border-white/10 text-white backdrop-blur-2xl"
+            : "bg-white/80 border-r border-zinc-200 text-black backdrop-blur-2xl"
+        }`}
+      >
+        <div>
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-green-600 flex items-center justify-center text-white font-bold text-xs shadow-md shadow-green-600/25">
+                D
+              </div>
+              <span className="text-base font-bold tracking-tight">{platformName}</span>
+            </div>
+            <button
+              onClick={() => setSidebarOpen(false)}
+              className={`p-1.5 rounded-lg text-xs btn-spring ${isDark ? "glass-icon-dark text-zinc-400 hover:text-white" : "glass-icon-light text-zinc-600 hover:text-black"}`}
+              title="Close menu"
+            >
+              ✕
+            </button>
+          </div>
+
+          {user.role === "admin" && (
+            <div className={`flex rounded-xl p-1 mb-5 text-xs font-semibold ${isDark ? "bg-black/40 border border-white/5" : "bg-black/[0.04] border border-black/5"}`}>
               <button
-                onClick={() => setSidebarOpen(true)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold btn-spring ${isDark ? "glass-icon-dark text-white" : "glass-icon-light text-black"}`}
+                onClick={() => { setViewMode("app"); setSidebarOpen(false); }}
+                className={`flex-1 py-1.5 rounded-lg transition-all duration-200 ${viewMode === "app" ? (isDark ? "bg-white/10 text-white font-bold shadow-sm" : "bg-white text-black font-bold shadow-sm") : "text-zinc-500"}`}
               >
-                ☰ Menu
+                App
               </button>
-            )}
-            <h2 className="text-sm font-bold tracking-tight">
+              <button
+                onClick={() => { setViewMode("admin"); fetchAdminStats(); fetchTeamList(); fetchSettings(); setSidebarOpen(false); }}
+                className={`flex-1 py-1.5 rounded-lg transition-all duration-200 ${viewMode === "admin" ? "bg-green-600 text-white font-bold shadow-sm" : "text-zinc-500"}`}
+              >
+                Admin
+              </button>
+            </div>
+          )}
+
+          {viewMode === "app" ? (
+            <nav className="space-y-1">
+              <button
+                onClick={() => { setActiveTab("search"); setSelectedJobId(null); setSidebarOpen(false); }}
+                className={`w-full flex items-center gap-2.5 px-3.5 py-2 rounded-xl text-xs font-semibold text-left transition-all duration-200 ${activeTab === "search" ? (isDark ? "bg-white/10 text-white font-bold shadow-sm" : "bg-black/[0.06] text-black font-bold shadow-sm") : "text-zinc-500 hover:text-black dark:hover:text-white"}`}
+              >
+                Find Leads
+              </button>
+              <button
+                onClick={() => { setActiveTab("leads"); setSidebarOpen(false); }}
+                className={`w-full flex items-center justify-between px-3.5 py-2 rounded-xl text-xs font-semibold text-left transition-all duration-200 ${activeTab === "leads" ? (isDark ? "bg-white/10 text-white font-bold shadow-sm" : "bg-black/[0.06] text-black font-bold shadow-sm") : "text-zinc-500 hover:text-black dark:hover:text-white"}`}
+              >
+                <span>Saved Leads</span>
+                {jobs.length > 0 && (
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${isDark ? "bg-white/10 text-zinc-300" : "bg-black/5 text-zinc-700"}`}>
+                    {jobs.length}
+                  </span>
+                )}
+              </button>
+              {userCanProxy && (
+                <button
+                  onClick={() => { setActiveTab("settings"); setSidebarOpen(false); }}
+                  className={`w-full flex items-center gap-2.5 px-3.5 py-2 rounded-xl text-xs font-semibold text-left transition-all duration-200 ${activeTab === "settings" ? (isDark ? "bg-white/10 text-white font-bold shadow-sm" : "bg-black/[0.06] text-black font-bold shadow-sm") : "text-zinc-500 hover:text-black dark:hover:text-white"}`}
+                >
+                  Proxy Settings
+                </button>
+              )}
+              <button
+                onClick={() => {
+                  setProfileName(user?.name || "");
+                  setProfileUsername(user?.username || "");
+                  setProfileAvatar(user?.avatar || "");
+                  setProfileMsg(null);
+                  setSidebarOpen(false);
+                  setShowProfileModal(true);
+                }}
+                className="w-full flex items-center gap-2.5 px-3.5 py-2 rounded-xl text-xs font-semibold text-left transition-all duration-200 text-zinc-500 hover:text-black dark:hover:text-white"
+              >
+                My Profile
+              </button>
+            </nav>
+          ) : (
+            <nav className="space-y-1">
+              <div className="text-[10px] font-bold uppercase tracking-wider text-zinc-500 px-3.5 mb-2">Admin Tools</div>
+              <button
+                onClick={() => { setAdminTab("overview"); setSidebarOpen(false); }}
+                className={`w-full flex items-center gap-2.5 px-3.5 py-2 rounded-xl text-xs font-semibold text-left transition-all duration-200 ${adminTab === "overview" ? (isDark ? "bg-white/10 text-white font-bold shadow-sm" : "bg-black/[0.06] text-black font-bold shadow-sm") : "text-zinc-500 hover:text-black dark:hover:text-white"}`}
+              >
+                System & Stats
+              </button>
+              <button
+                onClick={() => { setAdminTab("users"); setSidebarOpen(false); }}
+                className={`w-full flex items-center justify-between px-3.5 py-2 rounded-xl text-xs font-semibold text-left transition-all duration-200 ${adminTab === "users" ? (isDark ? "bg-white/10 text-white font-bold shadow-sm" : "bg-black/[0.06] text-black font-bold shadow-sm") : "text-zinc-500 hover:text-black dark:hover:text-white"}`}
+              >
+                <span>Users & Proxies</span>
+                {adminUsers.length > 0 && (
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-green-600 text-white shadow-sm">
+                    {adminUsers.length}
+                  </span>
+                )}
+              </button>
+              <button
+                onClick={() => { setAdminTab("leads"); fetchAdminGlobalLeads(); setSidebarOpen(false); }}
+                className={`w-full flex items-center justify-between px-3.5 py-2 rounded-xl text-xs font-semibold text-left transition-all duration-200 ${adminTab === "leads" ? (isDark ? "bg-white/10 text-white font-bold shadow-sm" : "bg-black/[0.06] text-black font-bold shadow-sm") : "text-zinc-500 hover:text-black dark:hover:text-white"}`}
+              >
+                <span>All Users Leads</span>
+                {adminGlobalTotal > 0 && (
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-green-600 text-white shadow-sm">
+                    {adminGlobalTotal}
+                  </span>
+                )}
+              </button>
+              <button
+                onClick={() => { setAdminTab("settings"); setSidebarOpen(false); }}
+                className={`w-full flex items-center gap-2.5 px-3.5 py-2 rounded-xl text-xs font-semibold text-left transition-all duration-200 ${adminTab === "settings" ? (isDark ? "bg-white/10 text-white font-bold shadow-sm" : "bg-black/[0.06] text-black font-bold shadow-sm") : "text-zinc-500 hover:text-black dark:hover:text-white"}`}
+              >
+                System Settings
+              </button>
+            </nav>
+          )}
+        </div>
+
+        <div className="space-y-3">
+          <div className="flex items-center justify-between pt-3 border-t border-zinc-500/20 text-xs">
+            <span className="text-zinc-500">Theme</span>
+            <button
+              onClick={() => { toggleTheme(); setSidebarOpen(false); }}
+              className={`px-3 py-1 rounded-xl text-xs font-semibold btn-spring ${isDark ? "glass-icon-dark text-zinc-300" : "glass-icon-light text-zinc-700"}`}
+            >
+              {isDark ? "Light" : "Dark"}
+            </button>
+          </div>
+
+          <div
+            onClick={() => {
+              setProfileName(user?.name || "");
+              setProfileUsername(user?.username || "");
+              setProfileAvatar(user?.avatar || "");
+              setProfileMsg(null);
+              setSidebarOpen(false);
+              setShowProfileModal(true);
+            }}
+            className={`p-3 rounded-2xl border flex items-center justify-between text-xs cursor-pointer btn-spring ${isDark ? "glass-surface-dark border-white/5 hover:border-white/20" : "glass-surface-light border-zinc-200 hover:border-zinc-300"}`}
+          >
+            <div className="flex items-center gap-2.5 truncate">
+              {user.avatar ? (
+                <img src={user.avatar} alt={user.name} className="w-8 h-8 rounded-full object-cover shrink-0 border border-zinc-500/20" />
+              ) : (
+                <div className="w-8 h-8 rounded-xl bg-zinc-800 text-white flex items-center justify-center font-bold text-xs shrink-0">
+                  {(user.username || user.name || user.email)[0].toUpperCase()}
+                </div>
+              )}
+              <div className="truncate">
+                <div className="font-bold truncate">{user.name || user.username || user.email}</div>
+                <div className="text-[10px] text-zinc-500 truncate">@{user.username || user.email.split('@')[0]}</div>
+              </div>
+            </div>
+            <button onClick={(e) => { e.stopPropagation(); setSidebarOpen(false); logout(); }} className="text-zinc-500 hover:text-red-500 font-semibold ml-2 btn-spring">
+              Exit
+            </button>
+          </div>
+        </div>
+      </aside>
+
+      <main className="flex-1 flex flex-col h-full overflow-hidden z-10 w-full min-w-0">
+        <header className={`h-14 border-b px-4 sm:px-5 flex items-center justify-between shrink-0 transition-colors ${isDark ? "glass-surface-dark border-white/5" : "glass-surface-light border-zinc-200"}`}>
+          <div className="flex items-center gap-3 min-w-0">
+            <button
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold btn-spring flex items-center gap-1.5 shrink-0 ${isDark ? "glass-icon-dark text-white" : "glass-icon-light text-black"}`}
+              title="Toggle Menu"
+            >
+              <span>☰</span>
+              <span className="hidden sm:inline">Menu</span>
+            </button>
+            <h2 className="text-sm font-bold tracking-tight truncate">
               {viewMode === "admin"
                 ? (adminTab === "overview" ? "System & Stats" : (adminTab === "users" ? "User Management" : (adminTab === "leads" ? "All Users Leads (Global Database)" : "System Settings")))
                 : (activeTab === "search" ? "Find Leads" : (activeTab === "leads" ? "Saved Leads" : "Proxy Settings"))}
@@ -1147,7 +1281,7 @@ export default function Home() {
           </div>
         </header>
 
-        <div className="flex-1 p-6 md:p-8 overflow-y-auto">
+        <div className="flex-1 p-3.5 sm:p-5 md:p-8 overflow-y-auto overflow-x-hidden w-full max-w-full">
           {viewMode === "app" && activeTab === "search" && (
             <div className="max-w-2xl mx-auto space-y-6">
               <div>
@@ -1173,30 +1307,189 @@ export default function Home() {
                   </button>
                 </div>
 
+                <div className="space-y-4 pt-1">
+                  <div>
+                    <label className="text-xs font-semibold block mb-1.5">Search Engine</label>
+                    <div className={`grid grid-cols-2 gap-2 p-1 rounded-2xl ${isDark ? "bg-black/40 border border-white/5" : "bg-black/[0.04] border border-black/5"}`}>
+                      <button
+                        type="button"
+                        onClick={() => setSearchEngine("gmaps")}
+                        className={`py-2 px-3 rounded-xl text-xs font-bold transition-all duration-200 btn-spring flex items-center justify-center gap-2 ${searchEngine === "gmaps" ? (isDark ? "bg-white/10 text-white shadow-sm border border-white/15" : "bg-white text-black shadow-sm border border-zinc-200") : "text-zinc-500 hover:text-black dark:hover:text-white"}`}
+                      >
+                        <span>Google Maps</span>
+                        <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-green-600/20 text-green-500 font-semibold">Global</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setSearchEngine("2gis")}
+                        className={`py-2 px-3 rounded-xl text-xs font-bold transition-all duration-200 btn-spring flex items-center justify-center gap-2 ${searchEngine === "2gis" ? (isDark ? "bg-white/10 text-white shadow-sm border border-white/15" : "bg-white text-black shadow-sm border border-zinc-200") : "text-zinc-500 hover:text-black dark:hover:text-white"}`}
+                      >
+                        <span>2GIS Directory</span>
+                        <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-green-600/20 text-green-500 font-semibold">UAE / GCC</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
                 {searchMode === "single" ? (
                   <form onSubmit={startLeadSearch} className="space-y-5">
-                    <div>
-                      <label className="text-xs font-semibold block mb-1.5">Business or Keyword</label>
-                      <input
-                        type="text"
-                        value={keyword}
-                        onChange={e => setKeyword(e.target.value)}
-                        placeholder="e.g. Real Estate, Coffee Shops, Dentists"
-                        className={`w-full px-4 py-3 rounded-2xl text-xs outline-none transition-all duration-200 ${isDark ? "glass-input-dark text-white focus:border-green-500" : "glass-input-light text-black focus:border-black"}`}
-                        required
-                      />
+                    <div className="relative">
+                      <div className="flex items-center justify-between mb-1.5">
+                        <label className="text-xs font-semibold">Business Category or Keyword</label>
+                        <button
+                          type="button"
+                          onClick={() => setShowCategoryDropdown(!showCategoryDropdown)}
+                          className="text-[11px] text-green-600 hover:underline font-semibold flex items-center gap-1"
+                        >
+                          <span>{showCategoryDropdown ? "Close List" : "Browse Categories"}</span>
+                          <span className="text-[9px]">{showCategoryDropdown ? "▲" : "▼"}</span>
+                        </button>
+                      </div>
+
+                      <div className="relative">
+                        <input
+                          type="text"
+                          value={keyword}
+                          onChange={e => {
+                            setKeyword(e.target.value);
+                            if (!showCategoryDropdown) setShowCategoryDropdown(true);
+                          }}
+                          onFocus={() => setShowCategoryDropdown(true)}
+                          placeholder="Type or pick e.g. Real Estate, Dental Clinics, Restaurants"
+                          className={`w-full pl-4 pr-10 py-3 rounded-2xl text-xs outline-none transition-all duration-200 ${isDark ? "glass-input-dark text-white focus:border-green-500" : "glass-input-light text-black focus:border-black"}`}
+                          required
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowCategoryDropdown(!showCategoryDropdown)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-black dark:hover:text-white text-xs p-1"
+                        >
+                          ▼
+                        </button>
+                      </div>
+
+                      {showCategoryDropdown && (
+                        <div className={`absolute left-0 right-0 top-full mt-1.5 z-30 rounded-2xl p-2 border shadow-2xl max-h-56 overflow-y-auto backdrop-blur-2xl transition-all duration-200 ${isDark ? "bg-[#18181D]/95 border-white/10 text-white" : "bg-white/95 border-zinc-200 text-black"}`}>
+                          <div className="text-[10px] uppercase tracking-wider text-zinc-500 px-3 py-1 font-bold">
+                            {keyword.trim() ? "Matching Categories" : "Popular Categories (Scroll or Pick)"}
+                          </div>
+                          {POPULAR_CATEGORIES.filter(c => c.toLowerCase().includes(keyword.toLowerCase())).length > 0 ? (
+                            POPULAR_CATEGORIES
+                              .filter(c => c.toLowerCase().includes(keyword.toLowerCase()))
+                              .map((cat, i) => (
+                                <button
+                                  key={i}
+                                  type="button"
+                                  onClick={() => {
+                                    setKeyword(cat);
+                                    setShowCategoryDropdown(false);
+                                  }}
+                                  className={`w-full text-left px-3 py-2 rounded-xl text-xs transition flex items-center justify-between ${keyword.toLowerCase() === cat.toLowerCase() ? "bg-green-600 text-white font-bold" : (isDark ? "hover:bg-white/[0.08]" : "hover:bg-black/[0.05]")}`}
+                                >
+                                  <span>{cat}</span>
+                                  {keyword.toLowerCase() === cat.toLowerCase() && <span className="text-[10px]">✓</span>}
+                                </button>
+                              ))
+                          ) : (
+                            <div className="px-3 py-2 text-xs text-zinc-500">
+                              <span>Custom search term: &ldquo;{keyword}&rdquo;</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
 
-                    <div>
-                      <label className="text-xs font-semibold block mb-1.5">City or Location</label>
-                      <input
-                        type="text"
-                        value={location}
-                        onChange={e => setLocation(e.target.value)}
-                        placeholder="e.g. Dubai, New York, London, Riyadh"
-                        className={`w-full px-4 py-3 rounded-2xl text-xs outline-none transition-all duration-200 ${isDark ? "glass-input-dark text-white focus:border-green-500" : "glass-input-light text-black focus:border-black"}`}
-                      />
-                    </div>
+                    {searchEngine === "2gis" ? (
+                      <div className="space-y-3 p-4 rounded-2xl border border-green-500/25 bg-green-500/[0.04]">
+                        <div className="flex items-center justify-between">
+                          <label className="text-xs font-bold text-green-500 flex items-center gap-1.5">
+                            <span>2GIS Supported Location</span>
+                            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-green-500/15 border border-green-500/20 font-medium">Strict Region Mode</span>
+                          </label>
+                          <span className="text-[10px] text-zinc-500">Only official 2GIS regions supported</span>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div>
+                            <label className="text-[11px] font-semibold text-zinc-400 block mb-1">Country</label>
+                            <select
+                              value={twoGisCountry}
+                              onChange={e => {
+                                const newCountry = e.target.value;
+                                setTwoGisCountry(newCountry);
+                                const found = TWOGIS_SUPPORTED_REGIONS.find(r => r.country === newCountry);
+                                if (found && found.cities.length > 0) {
+                                  setTwoGisCity(found.cities[0].name);
+                                }
+                              }}
+                              className={`w-full px-3 py-2.5 rounded-xl text-xs outline-none transition-all duration-200 cursor-pointer ${isDark ? "glass-input-dark text-white focus:border-green-500" : "glass-input-light text-black focus:border-black"}`}
+                            >
+                              {TWOGIS_SUPPORTED_REGIONS.map(reg => (
+                                <option key={reg.country} value={reg.country} className={isDark ? "bg-[#18181D] text-white" : "bg-white text-black"}>
+                                  {reg.country}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+
+                          <div>
+                            <label className="text-[11px] font-semibold text-zinc-400 block mb-1">Emirate / City</label>
+                            <select
+                              value={twoGisCity}
+                              onChange={e => setTwoGisCity(e.target.value)}
+                              className={`w-full px-3 py-2.5 rounded-xl text-xs outline-none transition-all duration-200 cursor-pointer ${isDark ? "glass-input-dark text-white focus:border-green-500" : "glass-input-light text-black focus:border-black"}`}
+                            >
+                              {(TWOGIS_SUPPORTED_REGIONS.find(r => r.country === twoGisCountry)?.cities || []).map(c => (
+                                <option key={c.name} value={c.name} className={isDark ? "bg-[#18181D] text-white" : "bg-white text-black"}>
+                                  {c.label}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+
+                        {twoGisCountry === "United Arab Emirates" && (
+                          <div>
+                            <span className="text-[10px] uppercase font-bold tracking-wider text-zinc-500 block mb-1.5">7 Emirates Quick Select:</span>
+                            <div className="flex flex-wrap gap-1.5">
+                              {TWOGIS_SUPPORTED_REGIONS[0].cities.map(c => (
+                                <button
+                                  key={c.name}
+                                  type="button"
+                                  onClick={() => setTwoGisCity(c.name)}
+                                  className={`px-2.5 py-1 rounded-xl text-[11px] font-semibold transition btn-spring ${twoGisCity === c.name ? "bg-green-600 text-white font-bold shadow-sm shadow-green-600/30" : (isDark ? "glass-icon-dark text-zinc-400 hover:text-white" : "glass-icon-light text-zinc-600 hover:text-black")}`}
+                                >
+                                  {c.name}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div>
+                        <label className="text-xs font-semibold block mb-1.5">City or Location</label>
+                        <input
+                          type="text"
+                          value={location}
+                          onChange={e => setLocation(e.target.value)}
+                          placeholder="e.g. Dubai, Abu Dhabi, Riyadh, London, New York"
+                          className={`w-full px-4 py-3 rounded-2xl text-xs outline-none transition-all duration-200 ${isDark ? "glass-input-dark text-white focus:border-green-500" : "glass-input-light text-black focus:border-black"}`}
+                        />
+                        <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                          <span className="text-[11px] text-zinc-500">Popular:</span>
+                          {["Dubai", "Abu Dhabi", "Sharjah", "Riyadh", "Doha", "London", "New York"].map(loc => (
+                            <button
+                              key={loc}
+                              type="button"
+                              onClick={() => setLocation(loc)}
+                              className={`px-2.5 py-1 rounded-xl text-[11px] font-semibold transition btn-spring ${location.toLowerCase() === loc.toLowerCase() ? "bg-green-600 text-white font-bold" : (isDark ? "glass-icon-dark text-zinc-400 hover:text-white" : "glass-icon-light text-zinc-600 hover:text-black")}`}
+                            >
+                              {loc}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
 
                     <div>
                       <label className="text-xs font-semibold block mb-1.5">Number of Leads</label>
@@ -1478,13 +1771,13 @@ export default function Home() {
                           <h3 className="text-sm font-bold capitalize">{selectedJob?.target}</h3>
                           <span className="text-[11px] text-zinc-500">{jobResults.length} leads saved</span>
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-2">
                           <input
                             type="text"
                             placeholder="Filter..."
                             value={searchFilter}
                             onChange={e => setSearchFilter(e.target.value)}
-                            className={`px-3 py-1.5 rounded-xl text-xs outline-none transition ${isDark ? "glass-input-dark text-white" : "glass-input-light text-black"}`}
+                            className={`flex-1 sm:flex-none px-3 py-1.5 rounded-xl text-xs outline-none transition ${isDark ? "glass-input-dark text-white" : "glass-input-light text-black"}`}
                           />
                           <button
                             onClick={() => {
@@ -1512,8 +1805,8 @@ export default function Home() {
                       ) : filteredResults.length === 0 ? (
                         <div className="p-12 text-center text-xs text-zinc-500">No records found.</div>
                       ) : (
-                        <div className="overflow-x-auto max-h-[500px]">
-                          <table className="w-full text-left text-xs">
+                        <div className="overflow-x-auto max-h-[500px] w-full">
+                          <table className="w-full min-w-[650px] text-left text-xs">
                             <thead className={`text-[11px] font-bold uppercase tracking-wider border-b border-zinc-500/15 sticky top-0 backdrop-blur-md ${isDark ? "bg-black/60 text-zinc-400" : "bg-white/80 text-zinc-600"}`}>
                               <tr>
                                 <th className="px-4 py-2.5">Business</th>
@@ -1740,7 +2033,7 @@ export default function Home() {
 
                   <div className={`rounded-3xl overflow-hidden ${isDark ? "glass-surface-dark" : "glass-surface-light shadow-sm"}`}>
                     <div className="overflow-x-auto">
-                      <table className="w-full text-left text-xs">
+                      <table className="w-full min-w-[850px] text-left text-xs">
                         <thead className={`text-[11px] font-bold uppercase tracking-wider border-b border-zinc-500/15 ${isDark ? "bg-black/40 text-zinc-400" : "bg-black/[0.02] text-zinc-600"}`}>
                           <tr>
                             <th className="px-4 py-3">Owner</th>
@@ -2221,8 +2514,8 @@ export default function Home() {
           )}
 
           {isTableZoomed && (
-            <div className={`fixed inset-0 z-50 flex flex-col p-4 md:p-6 backdrop-blur-3xl animate-in fade-in duration-200 ${isDark ? "bg-black/90 text-white" : "bg-white/95 text-black"}`}>
-              <div className="flex items-center justify-between pb-4 border-b border-zinc-500/20 shrink-0">
+            <div className={`fixed inset-0 z-50 flex flex-col p-3 sm:p-5 md:p-6 backdrop-blur-3xl animate-in fade-in duration-200 ${isDark ? "bg-black/95 text-white" : "bg-white/95 text-black"}`}>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 sm:pb-4 border-b border-zinc-500/20 shrink-0 gap-3">
                 <div className="flex items-center gap-3">
                   <button
                     onClick={() => setIsTableZoomed(false)}
@@ -2233,23 +2526,23 @@ export default function Home() {
                     <span>Zoom Out</span>
                   </button>
                   <div>
-                    <h2 className="text-base font-bold capitalize">{selectedJob?.target}</h2>
+                    <h2 className="text-sm sm:text-base font-bold capitalize">{selectedJob?.target}</h2>
                     <span className="text-[11px] text-zinc-500">{filteredResults.length} leads displayed (Press Esc to zoom out)</span>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-3">
+                <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                   <input
                     type="text"
                     placeholder="Search in table..."
                     value={searchFilter}
                     onChange={e => setSearchFilter(e.target.value)}
-                    className={`px-4 py-2 rounded-xl text-xs outline-none transition ${isDark ? "glass-input-dark text-white focus:border-green-500" : "glass-input-light text-black focus:border-black"}`}
+                    className={`flex-1 sm:flex-none px-4 py-2 rounded-xl text-xs outline-none transition ${isDark ? "glass-input-dark text-white focus:border-green-500" : "glass-input-light text-black focus:border-black"}`}
                   />
                   <button
                     onClick={() => setExportJobId(selectedJobId)}
                     disabled={jobResults.length === 0}
-                    className="px-4 py-2 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white text-xs font-bold rounded-xl btn-spring shadow-md shadow-green-600/25 flex items-center gap-1.5"
+                    className="px-4 py-2 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white text-xs font-bold rounded-xl btn-spring shadow-md shadow-green-600/25 flex items-center gap-1.5 shrink-0"
                   >
                     <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
                     Export
@@ -2257,8 +2550,8 @@ export default function Home() {
                 </div>
               </div>
 
-              <div className="flex-1 overflow-y-auto overflow-x-hidden mt-4 rounded-2xl border border-zinc-500/20">
-                <table className="w-full table-fixed text-left text-xs">
+              <div className="flex-1 overflow-y-auto overflow-x-auto mt-3 sm:mt-4 rounded-2xl border border-zinc-500/20">
+                <table className="w-full min-w-[760px] text-left text-xs">
                   <thead className={`text-[11px] font-bold uppercase tracking-wider border-b border-zinc-500/20 sticky top-0 z-10 backdrop-blur-2xl ${isDark ? "bg-[#121216]/95 text-zinc-400" : "bg-white/95 text-zinc-600"}`}>
                     <tr>
                       <th className="w-[22%] px-4 py-3">Business</th>

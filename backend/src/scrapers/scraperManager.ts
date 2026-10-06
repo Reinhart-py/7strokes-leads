@@ -15,20 +15,22 @@ export class ScraperManager {
   private twoGisHttp = new TwoGisHttpProvider();
   private twoGisPlaywright = new TwoGisPlaywrightFallback();
 
-  private getGridCells(options: ScraperOptions): GridCell[] {
+  private async getGridCells(options: ScraperOptions): Promise<GridCell[]> {
     if (options.bbox) {
       return GeoGrid.generateCells(options.bbox, options.cellSizeKm || 3.0);
     }
-    const detectedBbox = options.city ? GeoGrid.getBoundingBoxForCity(options.city) : null;
-    if (detectedBbox) {
-      return GeoGrid.generateCells(detectedBbox, options.cellSizeKm || 3.0);
+    if (options.city) {
+      const detectedBbox = await GeoGrid.resolveCityBoundingBox(options.city);
+      if (detectedBbox) {
+        return GeoGrid.generateCells(detectedBbox, options.cellSizeKm || 3.0);
+      }
     }
-    for (const city of ['dubai', 'abu_dhabi', 'riyadh', 'jeddah', 'doha', 'london', 'new_york']) {
-      if (options.query.toLowerCase().includes(city.replace('_', ' '))) {
-        const bbox = GeoGrid.getBoundingBoxForCity(city);
-        if (bbox) {
-          return GeoGrid.generateCells(bbox, options.cellSizeKm || 3.0);
-        }
+    const inMatch = options.query.match(/\bin\s+([a-zA-Z\s,]+)$/i);
+    if (inMatch && inMatch[1]) {
+      const cityCandidate = inMatch[1].trim();
+      const detectedBbox = await GeoGrid.resolveCityBoundingBox(cityCandidate);
+      if (detectedBbox) {
+        return GeoGrid.generateCells(detectedBbox, options.cellSizeKm || 3.0);
       }
     }
     return [];
@@ -56,79 +58,9 @@ export class ScraperManager {
     };
 
     if (engine === 'gmaps') {
-      const cells = this.getGridCells(options);
-
-      if (cells.length > 0) {
-        await log(`[Geo Grid] Partitioned area into ${cells.length} geographic cells for maximum coverage`);
-
-        const concurrency = options.concurrency && options.concurrency > 0 ? options.concurrency : 6;
-        let consecutiveEmptyBatches = 0;
-        for (let i = 0; i < cells.length; i += concurrency) {
-          if (await checkCancelled()) break;
-          if (cap > 0 && allLeads.length >= cap) break;
-
-          const beforeCount = allLeads.length;
-          const batch = cells.slice(i, i + concurrency);
-          await Promise.all(
-            batch.map(async (cell, cellOffset) => {
-              if (await checkCancelled()) return;
-              if (cap > 0 && allLeads.length >= cap) return;
-
-              const cellIndex = i + cellOffset + 1;
-              try {
-                const cellLeads = await this.gmapsHttp.search(
-                  {
-                    ...options,
-                    lat: cell.lat,
-                    lon: cell.lon,
-                    zoom: 14,
-                    maxPagesPerCell: 3,
-                    seenKeys: seenTitles
-                  },
-                  {
-                    checkCancelled,
-                    log: async () => {},
-                    updateProgress: async () => {},
-                    saveLead: handleSave
-                  }
-                );
-
-                if (cellLeads.length === 0 && !(await checkCancelled()) && this.gmapsExternal.isAvailable()) {
-                  await this.gmapsExternal.search(
-                    { ...options, query: `${query} near ${cell.lat},${cell.lon}`, seenKeys: seenTitles },
-                    {
-                      checkCancelled,
-                      log: async () => {},
-                      updateProgress: async () => {},
-                      saveLead: handleSave
-                    }
-                  );
-                }
-              } catch (err: any) {
-                await log(`[HTTP Error] Cell ${cellIndex}: ${err.message}`);
-              }
-            })
-          );
-
-          const addedThisBatch = allLeads.length - beforeCount;
-          if (addedThisBatch === 0) {
-            consecutiveEmptyBatches++;
-            if (consecutiveEmptyBatches >= 4 && allLeads.length > 50) {
-              await log(`[Completed] Exhausted regional results. No more new leads available.`);
-              break;
-            }
-          } else {
-            consecutiveEmptyBatches = 0;
-          }
-        }
-
-        if (allLeads.length > 0) {
-          await log(`[Completed] Finished grid search. Collected ${allLeads.length} unique leads.`);
-          return allLeads;
-        }
-      }
-
       const subQueries = GeographicPartitioner.getSubQueries(query);
+      await log(`[Partition Engine] Expanded target into ${subQueries.length} district search partitions`);
+
       for (let idx = 0; idx < subQueries.length; idx++) {
         if (await checkCancelled()) break;
         if (cap > 0 && allLeads.length >= cap) break;
@@ -138,7 +70,7 @@ export class ScraperManager {
 
         try {
           subLeads = await this.gmapsHttp.search(
-            { ...options, query: subQ, seenKeys: seenTitles },
+            { ...options, query: subQ, maxPagesPerCell: 5, seenKeys: seenTitles },
             {
               checkCancelled,
               log,
@@ -147,32 +79,12 @@ export class ScraperManager {
             }
           );
         } catch (err: any) {
-          await log(`[HTTP Primary Failed] ${err.message}. Trying fallbacks...`);
+          await log(`[HTTP Error] ${err.message}`);
         }
 
-        if (subLeads.length === 0 && !(await checkCancelled())) {
-          if (this.gmapsExternal.isAvailable()) {
-            await log(`[External API Fallback] Triggering SerpApi for "${subQ}"`);
-            try {
-              subLeads = await this.gmapsExternal.search(
-                { ...options, query: subQ, seenKeys: seenTitles },
-                {
-                  checkCancelled,
-                  log,
-                  updateProgress: async () => {},
-                  saveLead: handleSave
-                }
-              );
-            } catch (extErr: any) {
-              await log(`[External API Failed] ${extErr.message}`);
-            }
-          }
-        }
-
-        if (subLeads.length === 0 && !(await checkCancelled())) {
-          await log(`[Playwright Fallback] Triggering browser automation for "${subQ}"`);
+        if (subLeads.length === 0 && !(await checkCancelled()) && this.gmapsExternal.isAvailable()) {
           try {
-            subLeads = await this.gmapsPlaywright.search(
+            subLeads = await this.gmapsExternal.search(
               { ...options, query: subQ, seenKeys: seenTitles },
               {
                 checkCancelled,
@@ -181,34 +93,83 @@ export class ScraperManager {
                 saveLead: handleSave
               }
             );
-          } catch (pwErr: any) {
-            await log(`[Playwright Fallback Failed] ${pwErr.message}`);
+          } catch {}
+        }
+      }
+
+      if (allLeads.length === 0 && !(await checkCancelled())) {
+        try {
+          await this.gmapsPlaywright.search(
+            { ...options, query, seenKeys: seenTitles },
+            {
+              checkCancelled,
+              log,
+              updateProgress: async () => {},
+              saveLead: handleSave
+            }
+          );
+        } catch (pwErr: any) {
+          await log(`[Playwright Fallback Failed] ${pwErr.message}`);
+        }
+      }
+
+      if ((cap === 0 || allLeads.length < cap) && !(await checkCancelled())) {
+        const cells = await this.getGridCells(options);
+        if (cells.length > 0) {
+          await log(`[Geo Grid] Sweeping ${cells.length} geographic coordinate cells`);
+          const concurrency = options.concurrency && options.concurrency > 0 ? options.concurrency : 6;
+          for (let i = 0; i < cells.length; i += concurrency) {
+            if (await checkCancelled()) break;
+            if (cap > 0 && allLeads.length >= cap) break;
+
+            const batch = cells.slice(i, i + concurrency);
+            await Promise.all(
+              batch.map(async (cell) => {
+                if (await checkCancelled()) return;
+                if (cap > 0 && allLeads.length >= cap) return;
+
+                try {
+                  await this.gmapsHttp.search(
+                    {
+                      ...options,
+                      lat: cell.lat,
+                      lon: cell.lon,
+                      zoom: 14,
+                      maxPagesPerCell: 2,
+                      seenKeys: seenTitles
+                    },
+                    {
+                      checkCancelled,
+                      log: async () => {},
+                      updateProgress: async () => {},
+                      saveLead: handleSave
+                    }
+                  );
+                } catch {}
+              })
+            );
           }
         }
       }
     } else {
-      let leads: ScrapedLead[] = [];
       try {
-        leads = await this.twoGisHttp.search(options, {
+        await this.twoGisHttp.search(options, {
           checkCancelled,
           log,
           updateProgress: async () => {},
           saveLead: handleSave
         });
-      } catch (err: any) {
-        await log(`[2GIS HTTP Failed] ${err.message}. Triggering Playwright fallback...`);
-      }
-
-      if (leads.length === 0 && !(await checkCancelled())) {
+      } catch (httpErr: any) {
+        await log(`[2GIS HTTP Error] ${httpErr.message}. Trying browser fallback...`);
         try {
-          leads = await this.twoGisPlaywright.search(options, {
+          await this.twoGisPlaywright.search(options, {
             checkCancelled,
             log,
             updateProgress: async () => {},
             saveLead: handleSave
           });
         } catch (pwErr: any) {
-          await log(`[2GIS Playwright Failed] ${pwErr.message}`);
+          await log(`[2GIS Fallback Failed] ${pwErr.message}`);
         }
       }
     }
