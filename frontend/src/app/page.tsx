@@ -2514,8 +2514,8 @@ export default function Home() {
           )}
 
           {isTableZoomed && (
-            <div className={`fixed inset-0 z-50 flex flex-col p-3 sm:p-5 md:p-6 backdrop-blur-3xl animate-in fade-in duration-200 ${isDark ? "bg-black/95 text-white" : "bg-white/95 text-black"}`}>
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 sm:pb-4 border-b border-zinc-500/20 shrink-0 gap-3">
+            <div className={`fixed inset-0 z-50 flex flex-col p-4 md:p-6 backdrop-blur-3xl animate-in fade-in duration-200 ${isDark ? "bg-black/90 text-white" : "bg-white/95 text-black"}`}>
+              <div className="flex items-center justify-between pb-4 border-b border-zinc-500/20 shrink-0 gap-3">
                 <div className="flex items-center gap-3">
                   <button
                     onClick={() => setIsTableZoomed(false)}
@@ -2531,13 +2531,13 @@ export default function Home() {
                   </div>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+                <div className="flex items-center gap-3">
                   <input
                     type="text"
                     placeholder="Search in table..."
                     value={searchFilter}
                     onChange={e => setSearchFilter(e.target.value)}
-                    className={`flex-1 sm:flex-none px-4 py-2 rounded-xl text-xs outline-none transition ${isDark ? "glass-input-dark text-white focus:border-green-500" : "glass-input-light text-black focus:border-black"}`}
+                    className={`px-4 py-2 rounded-xl text-xs outline-none transition ${isDark ? "glass-input-dark text-white focus:border-green-500" : "glass-input-light text-black focus:border-black"}`}
                   />
                   <button
                     onClick={() => setExportJobId(selectedJobId)}
@@ -2550,8 +2550,8 @@ export default function Home() {
                 </div>
               </div>
 
-              <div className="flex-1 overflow-y-auto overflow-x-auto mt-3 sm:mt-4 rounded-2xl border border-zinc-500/20">
-                <table className="w-full min-w-[760px] text-left text-xs">
+              <div className="flex-1 overflow-y-auto overflow-x-hidden mt-4 rounded-2xl border border-zinc-500/20">
+                <table className="w-full table-fixed text-left text-xs">
                   <thead className={`text-[11px] font-bold uppercase tracking-wider border-b border-zinc-500/20 sticky top-0 z-10 backdrop-blur-2xl ${isDark ? "bg-[#121216]/95 text-zinc-400" : "bg-white/95 text-zinc-600"}`}>
                     <tr>
                       <th className="w-[22%] px-4 py-3">Business</th>
@@ -2566,7 +2566,7 @@ export default function Home() {
                   <tbody className="divide-y divide-zinc-500/10">
                     {filteredResults.map((r, i) => (
                       <tr key={i} className={`transition ${isDark ? "hover:bg-white/[0.04]" : "hover:bg-black/[0.03]"}`}>
-                        <td className="px-4 py-3 font-bold break-words leading-snug">{r.title}</td>
+                        <td className="px-4 py-3 font-bold truncate" title={r.title}>{r.title}</td>
                         <td className="px-3 py-3 font-mono text-[11px] whitespace-nowrap">{r.phone_1 || "—"}</td>
                         <td className="px-3 py-3">
                           {r.website ? (
@@ -2580,7 +2580,7 @@ export default function Home() {
                           {r.rating ? `${r.rating} (${r.reviews || 0})` : "—"}
                         </td>
                         <td className="px-3 py-3 text-zinc-500 truncate" title={r.city || ""}>{r.city || "—"}</td>
-                        <td className="px-4 py-3 text-zinc-500 break-words leading-snug text-[11px]">{r.address || "—"}</td>
+                        <td className="px-4 py-3 text-zinc-500 truncate text-[11px]" title={r.address || ""}>{r.address || "—"}</td>
                       </tr>
                     ))}
                   </tbody>
