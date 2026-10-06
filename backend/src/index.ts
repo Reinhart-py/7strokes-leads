@@ -1,17 +1,19 @@
 import express from 'express';
 import cors from 'cors';
+import dotenv from 'dotenv';
 import authRoutes from './routes/auth';
 import jobsRoutes from './routes/jobs';
 import adminRoutes from './routes/admin';
 
+dotenv.config();
+
 const app = express();
 
-const corsOrigin = process.env.CORS_ORIGIN || 'http://localhost:3000';
 app.use(cors({
-  origin: corsOrigin === '*' ? true : corsOrigin.split(','),
+  origin: true,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization', 'ngrok-skip-browser-warning']
 }));
 
 app.use(express.json());
