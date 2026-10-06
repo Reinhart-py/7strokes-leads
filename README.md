@@ -1,72 +1,76 @@
-# DashMin
+# 7strokes — High-Performance B2B Lead Generation Engine
+
+<p align="center">
+  <img src="https://ik.imagekit.io/Reinhart/nox/7strokeslogo.png" alt="7strokes Logo" width="220" />
+</p>
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Node.js](https://img.shields.io/badge/Node.js-v20+-green.svg)](https://nodejs.org/)
 [![Next.js](https://img.shields.io/badge/Next.js-16+-black.svg)](https://nextjs.org/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16+-336791.svg)](https://www.postgresql.org/)
+[![SQLite](https://img.shields.io/badge/SQLite-Zero--Config-003B57.svg)](https://www.sqlite.org/)
 [![Redis](https://img.shields.io/badge/Redis-BullMQ-DC382D.svg)](https://redis.io/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-Strict-3178C6.svg)](https://www.typescriptlang.org/)
 
-`DashMin` lets you easily extract high-volume B2B leads from Google Maps and 2GIS at high speed using direct concurrent HTTP requests, smart geographic grid partitioning, full-detail data extraction, customizable column filtering, mobile-responsive glassy interface, and multi-format exports.
+**7strokes** is a modern, high-speed B2B lead generation and web scraping platform designed to extract local business leads, verified phone numbers, and operational details at massive scale. Built with direct concurrent HTTP scrapers, intelligent geographic grid partitioning, multi-tenant authentication, and a responsive glassmorphic dashboard.
 
 ---
 
 # Contents
 
-- [DashMin](#dashmin)
-- [Contents](#contents)
-    - [Why?](#why)
-    - [Architecture](#architecture)
-    - [Directory Structure](#directory-structure)
-    - [Installation](#installation)
-      - [Method 1: Docker Compose (Recommended)](#method-1-docker-compose-recommended)
-      - [Method 2: Manual Setup (Local Dev)](#method-2-manual-setup-local-dev)
-      - [Method 3: Cloudflare Pages + Local Desktop Tunnel](#method-3-cloudflare-pages--local-desktop-tunnel)
-    - [Dependencies \& Prerequisites](#dependencies--prerequisites)
-    - [Usage](#usage)
-      - [User Registration \& Admin Approval](#user-registration--admin-approval)
-      - [Starting a Google Maps Job](#starting-a-google-maps-job)
-      - [Starting a 2GIS Fast HTTP Job](#starting-a-2gis-fast-http-job)
-      - [Viewing Leads \& Live Search](#viewing-leads--live-search)
-      - [Mobile \& Responsive Drawer Experience](#mobile--responsive-drawer-experience)
-      - [Exporting with Column Filters (CSV, XLSX, JSON, HTML)](#exporting-with-column-filters-csv-xlsx-json-html)
-    - [What can I extract?](#what-can-i-extract)
-    - [Configuration \& Proxy Setup](#configuration--proxy-setup)
-    - [How the Provider Engine Works](#how-the-provider-engine-works)
-    - [Want to Contribute?](#want-to-contribute)
+- [Overview & Key Features](#overview--key-features)
+- [Architecture](#architecture)
+- [Directory Structure](#directory-structure)
+- [Deployment & Setup Guide](#deployment--setup-guide)
+  - [Method 1: Local Zero-Config Setup (Fastest)](#method-1-local-zero-config-setup-fastest)
+  - [Method 2: Docker Compose (Full Stack)](#method-2-docker-compose-full-stack)
+  - [Method 3: Cloudflare Workers/Pages + Public Tunnel](#method-3-cloudflare-workerspages--public-tunnel)
+- [Usage & Features](#usage--features)
+  - [Theme-Aware Experience](#theme-aware-experience)
+  - [User Access & Admin Approval](#user-access--admin-approval)
+  - [Registration Visibility Controls](#registration-visibility-controls)
+  - [Starting a Google Maps Search](#starting-a-google-maps-search)
+  - [Starting a 2GIS Fast HTTP Search](#starting-a-2gis-fast-http-search)
+  - [Saved Leads & Real-Time Monitoring](#saved-leads--real-time-monitoring)
+  - [Fullscreen Zoom & Responsive Drawer](#fullscreen-zoom--responsive-drawer)
+  - [Custom Multi-Format Exports](#custom-multi-format-exports)
+  - [Reverse-Engineering Honeypot](#reverse-engineering-honeypot)
+- [What Can 7strokes Extract?](#what-can-7strokes-extract)
+- [Configuration & Environment Variables](#configuration--environment-variables)
+- [Troubleshooting & FAQ](#troubleshooting--faq)
+- [License & Contributions](#license--contributions)
 
 ---
 
-### Why?
+### Overview & Key Features
 
-I wanted a lead generation tool that allows you to:
-
-- Extract leads **without starting heavy Chromium browser instances** on every query.
-- Bypass Google Maps' ~120 results ceiling using **mathematical geographic grid cells**.
-- Extract **all details without skipping anything**: phones, emails, websites, all categories, ratings, reviews, addresses, price tiers, operating status, weekly opening hours, plus codes, timezones, and social media links.
-- Avoid IP bans with **built-in rotating residential/datacenter proxy support**.
-- Prevent database bloat and duplicate inserts using **unique composite constraints**.
-- Choose **which columns to keep and which to exclude** before downloading.
-- Export leads in multiple formats: **CSV, Excel (.xlsx), JSON, and sanitized standalone HTML reports**.
-- Control user access with an **account registration and admin approval workflow**.
-- Run resilient scraping with a **multi-tiered provider hierarchy** (Direct HTTP &rarr; External API &rarr; Playwright browser fallback).
-
-`DashMin` checks all of those boxes.
+- **No Headless Browser Overhead by Default**: Extracts thousands of leads using direct, high-concurrency HTTP requests rather than running heavy Chromium instances on every query.
+- **Bypasses the 120-Result Ceiling**: Employs mathematical geographic coordinate grids and district partitioning to sweep entire metropolitan areas and extract thousands of leads per search.
+- **Dual Scraping Engines**:
+  - **Google Maps**: Signature-based defensive payload parser extracting phones, categories, ratings, reviews, addresses, and hours.
+  - **2GIS Directory**: High-speed catalog pagination and firm detail scraping with official GCC coverage (all 7 UAE Emirates, Saudi Arabia, Qatar, Kuwait, Bahrain, Oman, Azerbaijan, Cyprus).
+- **Zero-Config Resilient Fallbacks**:
+  - Automatically falls back from PostgreSQL to local **SQLite** (`dashmin.sqlite`) when PostgreSQL is offline.
+  - Automatically falls back from Redis/BullMQ to an **in-process queue** when Redis is offline.
+- **Tunnel & Cloudflare Ready**:
+  - Built-in automatic `ngrok-skip-browser-warning` headers ensure seamless live communication with free ngrok tunnels and Cloudflare Pages/Workers deployments.
+- **Granular Column Selection & Multi-Format Export**:
+  - Export filtered datasets to **CSV**, **Excel (.xlsx)**, **JSON**, or standalone **HTML** reports.
 
 ---
 
 ### Architecture
 
 ```
-                           KIRI / DASHMIN INTERFACE
-                                     │
-                 ┌───────────────────┴───────────────────┐
-          GoogleMapsProvider                       TwoGISProvider
-                 │                                       │
-     ┌───────────┼───────────┐               ┌───────────┴───────────┐
-     │           │           │               │                       │
-Direct HTTP   SerpApi    Playwright     Direct HTTP             Playwright
- (Primary)   (External)  (Fallback)      (Primary)              (Fallback)
+                            7STROKES WEB INTERFACE
+                                      │
+                   ┌──────────────────┴──────────────────┐
+            GoogleMapsProvider                     TwoGISProvider
+                   │                                     │
+       ┌───────────┼───────────┐             ┌───────────┴───────────┐
+       │           │           │             │                       │
+  Direct HTTP   SerpApi    Playwright   Direct HTTP             Playwright
+   (Primary)   (External)  (Fallback)    (Primary)              (Fallback)
 ```
 
 ---
@@ -74,14 +78,14 @@ Direct HTTP   SerpApi    Playwright     Direct HTTP             Playwright
 ### Directory Structure
 
 ```
-DashMin/
+7strokes/
 ├── backend/
 │   ├── src/
 │   │   ├── scrapers/
 │   │   │   ├── http/
-│   │   │   │   ├── gmapsHttpProvider.ts      # Fast direct Google Maps HTTP search with proxy agent
-│   │   │   │   ├── gmapsParser.ts            # Signature-based defensive payload parser (all fields)
-│   │   │   │   └── twoGisHttpProvider.ts     # Direct 2GIS Catalog API 3.0 scraper with proxy support
+│   │   │   │   ├── gmapsHttpProvider.ts      # Fast direct Google Maps HTTP search
+│   │   │   │   ├── gmapsParser.ts            # Signature-based defensive payload parser
+│   │   │   │   └── twoGisHttpProvider.ts     # Direct 2GIS Catalog API 3.0 scraper
 │   │   │   ├── grid/
 │   │   │   │   └── geoGrid.ts                # Latitude/Longitude bounding box & cell generator
 │   │   │   ├── external/
@@ -93,17 +97,18 @@ DashMin/
 │   │   │   ├── scraperManager.ts             # Provider orchestrator & deduplicator
 │   │   │   └── types.ts                      # Core interfaces & data models
 │   │   ├── workers/
-│   │   │   └── scraperWorker.ts              # BullMQ queue background worker with ON CONFLICT deduplication
+│   │   │   ├── jobExecutor.ts                # In-process and queue scraper executor
+│   │   │   └── scraperWorker.ts              # BullMQ queue background worker
 │   │   ├── routes/
-│   │   │   ├── auth.ts                       # User registration, login & session
-│   │   │   ├── admin.ts                      # Admin approval and user access control
-│   │   │   └── jobs.ts                       # Jobs, leads view & multi-format sanitized exports
+│   │   │   ├── auth.ts                       # Auth, sessions & registration visibility status
+│   │   │   ├── admin.ts                      # User management, stats & system settings
+│   │   │   └── jobs.ts                       # Scraper jobs, results & multi-format exports
 │   │   ├── middlewares/
 │   │   │   └── auth.ts                       # JWT Bearer token authentication
-│   │   ├── db.ts                             # PostgreSQL connection pool
-│   │   ├── redis.ts                          # Redis connection client
+│   │   ├── db.ts                             # PostgreSQL pool with automatic SQLite fallback
+│   │   ├── redis.ts                          # Redis client with local queue fallback
 │   │   ├── queue.ts                          # BullMQ job dispatch queue
-│   │   └── index.ts                          # Express server with credentials CORS & routes
+│   │   └── index.ts                          # Express server with CORS & honeypot root page
 │   ├── Dockerfile
 │   ├── package.json
 │   ├── schema.sql                            # Relational database schema with unique constraints
@@ -111,237 +116,207 @@ DashMin/
 ├── frontend/
 │   ├── src/
 │   │   └── app/
-│   │       ├── globals.css                   # Global styling & Tailwind utilities
-│   │       ├── layout.tsx                    # Root layout component
-│   │       └── page.tsx                      # Web dashboard, leads table, search, admin & export modal
+│   │       ├── globals.css                   # Global styling & glassmorphic utilities
+│   │       ├── layout.tsx                    # Root layout with 7strokes branding & metadata
+│   │       └── page.tsx                      # Single-page app: search, saved leads, admin & export
 │   ├── Dockerfile
 │   ├── package.json
 │   └── tsconfig.json
 ├── docker-compose.yml                        # Full container stack (PostgreSQL, Redis, API, Worker, UI)
-├── .gitignore
 └── README.md
 ```
 
 ---
 
-### Installation
+### Deployment & Setup Guide
 
-#### Method 1: Docker Compose (Recommended)
+#### Method 1: Local Zero-Config Setup (Fastest)
 
-The easiest way to run the complete stack (Database, Redis, API Server, Queue Worker, and Web UI) is with Docker Compose:
+7strokes includes automatic fallbacks to SQLite and in-memory execution, requiring only Node.js to get started.
 
-```bash
-git clone https://github.com/Reinhart-py/DashMin.git
-cd DashMin
-docker compose up -d
-```
-
-Once running:
-- Open your browser to `http://localhost:3000` to access the Dashboard.
-- The Backend API will be available at `http://localhost:4000`.
-
-#### Method 2: Manual Setup (Local Dev)
-
-**1. Clone the repository:**
+**1. Clone and install dependencies:**
 ```bash
 git clone https://github.com/Reinhart-py/DashMin.git
 cd DashMin
 ```
 
-**2. Setup PostgreSQL & Redis:**
-Ensure PostgreSQL is running on port `5432` with a database named `dashmin`, and Redis is running on port `6379`.
-Run the SQL schema:
-```bash
-psql -U postgres -d dashmin -f backend/schema.sql
-```
-
-**3. Setup and start the Backend:**
+**2. Start the Backend:**
 ```bash
 cd backend
 npm install
 npm run build
 npm start
 ```
-*(Or `npm run dev`, which compiles with `tsc` and runs `node dist/index.js`)*
+*The server will start on port `4000`. If PostgreSQL and Redis are not running, it automatically uses `dashmin.sqlite` and the local queue.*
 
-**4. Start the Background Queue Worker:**
-In a separate terminal window:
-```bash
-cd backend
-npm run worker
-```
-*(Runs `node dist/workers/scraperWorker.js`)*
-
-**5. Setup and start the Frontend:**
-In another terminal window:
+**3. Start the Frontend:**
+In a separate terminal:
 ```bash
 cd frontend
 npm install
 npm run dev
 ```
+*Open `http://localhost:3000` in your browser.*
 
-Visit `http://localhost:3000`.
+---
 
-#### Method 3: Cloudflare Pages + Local Desktop Tunnel
+#### Method 2: Docker Compose (Full Stack)
 
-If you want to host the frontend on the web for free and share it with anyone while running the backend scrapers and database on your local desktop:
+For production deployments with dedicated PostgreSQL and Redis instances:
+
+```bash
+docker compose up -d
+```
+
+- **Frontend Dashboard**: `http://localhost:3000`
+- **Backend API**: `http://localhost:4000`
+
+---
+
+#### Method 3: Cloudflare Workers/Pages + Public Tunnel
+
+Deploy the frontend globally on Cloudflare for free while keeping the backend scrapers running locally on your workstation:
 
 **1. Run your local Backend:**
 ```bash
 cd backend
-npm install
-npm run build
 npm start
 ```
-*(Automatically falls back to local `dashmin.sqlite` if PostgreSQL is offline)*
 
-**2. Expose the Backend via Tunnel (Cloudflare or ngrok):**
-- **Cloudflare Quick Tunnel:**
+**2. Open a public tunnel to port 4000:**
+- **Using ngrok:**
+  ```bash
+  ngrok http 4000
+  ```
+  *(Example URL: `https://your-tunnel.ngrok-free.dev`)*
+- **Using Cloudflare Tunnel:**
   ```bash
   cloudflared tunnel --url http://localhost:4000
   ```
-- **ngrok (with free static domain):**
-  ```bash
-  npx ngrok http 4000 --url=<your-domain>.ngrok-free.app
-  ```
-Copy your public HTTPS forwarding URL.
 
 **3. Deploy the Frontend on Cloudflare Pages:**
-1. In Cloudflare Dashboard, go to **Workers & Pages > Create Application > Pages > Connect to Git**.
-2. Select your `DashMin` repository.
-3. Configure build settings:
+1. Connect your GitHub repository to Cloudflare Pages.
+2. Build settings:
    - **Framework preset**: `Next.js (Static HTML Export)`
-   - **Root directory**: `frontend` *(Required)*
+   - **Root directory**: `frontend`
    - **Build command**: `npm run build`
    - **Build output directory**: `out`
-4. Add Environment Variable:
-   - **Variable name**: `NEXT_PUBLIC_API_URL`
-   - **Value**: Your public tunnel URL (e.g. `https://your-domain.ngrok-free.app` or `https://xxxx.trycloudflare.com`)
-5. Click **Save and Deploy**.
+3. Environment variables:
+   - `NEXT_PUBLIC_API_URL`: Your public tunnel URL (e.g. `https://your-tunnel.ngrok-free.dev`)
+4. Deploy! The frontend will automatically route requests through `apiFetch` with the required `ngrok-skip-browser-warning` headers.
 
 ---
 
-### Dependencies & Prerequisites
+### Usage & Features
 
-- **Node.js** (v20 or newer recommended, tested on v24)
-- **PostgreSQL** (v14 or newer)
-- **Redis** (v6 or newer)
-- **Docker & Docker Compose** (Optional, for containerized run)
+#### Theme-Aware Experience
+7strokes automatically adapts to light and dark modes with dedicated high-contrast logos:
+- **Light Theme**: [7strokes Vibrant Green](https://ik.imagekit.io/Reinhart/nox/7strokeslogo.png)
+- **Dark Theme**: [7strokes High-Contrast Neon Dark](https://ik.imagekit.io/Reinhart/nox/logo7strokes-dark.png)
 
----
+#### User Access & Admin Approval
+- The **first account registered** automatically receives the `admin` role with immediate active status.
+- Subsequent registrations are created in `pending` status until an administrator approves them from the **Admin > Users** tab.
 
-### Usage
+#### Registration Visibility Controls
+- Administrators can toggle **Allow Public Registration** from the System Settings tab.
+- When toggled off, the registration tab and buttons are completely hidden from the authentication screen, preventing unauthorized registrations.
 
-#### User Registration & Admin Approval
-1. On `http://localhost:3000`, switch to **Register**.
-2. The **first registered account** automatically receives the `admin` role with immediate active status.
-3. Any subsequent accounts are created with `pending` status and cannot log in until an administrator approves them.
-4. Administrators can navigate to the **Admin / Users** tab to approve, suspend, or remove user accounts.
+#### Starting a Google Maps Search
+1. Select the **Google Maps** engine.
+2. Enter your keyword and location (e.g., `Real Estate in Dubai`, Cap: `500`).
+3. The engine partitions the target area into geographic grid cells and sweeps them concurrently, extracting verified business details directly from Google Maps payload signatures.
 
-#### Starting a Google Maps Job
-1. Navigate to **Google Maps** in the sidebar.
-2. Enter your keyword and target location (e.g. `Real Estate in Dubai`, Cap: `200`).
-3. The system automatically:
-   - Detects city boundaries and generates geographic cells (e.g. 3km x 3km squares).
-   - Sends direct HTTP requests extracting business data directly from Google Maps response payloads.
-   - Paginates up to 120 leads per cell without launching Chromium.
-   - Deduplicates leads using `(job_id, place_id)` unique indexing and saves records to PostgreSQL in real-time.
+#### Starting a 2GIS Fast HTTP Search
+1. Select the **2GIS Directory** engine.
+2. Choose your target Country and City (with one-click pills for all 7 UAE Emirates: Abu Dhabi, Dubai, Sharjah, Ajman, Ras Al Khaimah, Fujairah, Umm Al Quwain).
+3. Select an industry category from the searchable category catalog.
+4. The engine executes parallel catalog requests and retrieves full firm profile pages.
 
-#### Starting a 2GIS Fast HTTP Job
-1. Select the **2GIS Directory** engine on the Find Leads tab.
-2. Select an official coverage Country and City (with 7 Emirates quick-pick pills for the UAE: Abu Dhabi, Dubai, Sharjah, Ajman, Ras Al Khaimah, Fujairah, Umm Al Quwain, and international GCC regions).
-3. Type or select a Category from the searchable category dropdown.
-4. The backend initiates a direct HTTP worker pipeline:
-   - Performs a session handshake once to retrieve operational cookies.
-   - Dispatches parallel HTTP catalog requests across multiple pages (`/dubai/search/<query>/page/<n>`).
-   - Concurrently fetches full firm detail pages (`/dubai/firm/<id>`) using a parallel worker pool (up to 6 workers).
-   - Extracts verified unmasked phone numbers (`tel:`), primary business names, categories, ratings, review counts, addresses, and websites at high speed without launching heavy browser instances.
+#### Saved Leads & Real-Time Monitoring
+- Inspect all collected datasets in the **Saved Leads** tab.
+- Active scrapers update in real-time every 2.5 seconds showing progress, total leads gathered, and operational status.
+- Stop or delete jobs with a single click.
 
-#### Viewing Leads & Live Search
-- Go to the **Saved Leads** tab.
-- Click any search to inspect collected leads.
-- Use the quick filter bar to filter loaded leads in real-time by business name, phone, email, category, or address.
-- Click **Zoom In** to expand into fullscreen inspection view with sticky headers, horizontal scrolling, and full column visibility on both desktop and mobile devices.
+#### Fullscreen Zoom & Responsive Drawer
+- **Zoom In**: Expands the lead table to full-viewport width with sticky headers, horizontal scrolling, and phone/email copy buttons. Press `Escape` or click "Exit Zoom" to return.
+- **Glassmorphic Navigation Drawer**: Smooth semi-transparent sliding drawer that auto-closes upon navigation.
 
-#### Mobile & Responsive Drawer Experience
-- **Overlapping Glassy Navigation**: Clicking the Menu button opens a semi-transparent, backdrop-blurred drawer that smoothly slides over the active viewport without pushing or distorting the content behind it.
-- **Auto-Close On Selection**: Tapping any navigation link, tab, admin tool, or theme automatically closes the drawer.
-- **Cross-Device Responsive Design**: Fully optimized for Android phones, tablets, and desktop displays. Column min-widths, flexible overflow handling, and smart layout stacking guarantee that no lead data, buttons, or controls ever clip outside the screen frame.
+#### Custom Multi-Format Exports
+Export any search dataset with custom column filtering to:
+- **Excel (.xlsx)**: Formatted Microsoft Excel workbook.
+- **CSV**: RFC-compliant comma-separated values.
+- **JSON**: Structured JSON array.
+- **HTML**: Standalone sanitized dark-mode HTML report with summary stats and clickable links.
 
-#### Exporting with Column Filters (CSV, XLSX, JSON, HTML)
-- Click **Export** on any completed or running job.
-- Select your preferred file format:
-  - **CSV**: RFC-compliant comma-separated values.
-  - **Excel (XLSX)**: Formatted Microsoft Excel workbook.
-  - **JSON**: Formatted JSON array.
-  - **HTML**: Standalone sanitized dark-mode HTML table report with clickable links and summary stats.
-- Check or uncheck individual columns to customize exactly which fields appear in your export file.
-- Click **Download** to save your dataset.
+#### Reverse-Engineering Honeypot
+Anyone attempting to inspect or access the root URL of the backend (`GET /`) is greeted by a playful honeypot response card with [lolOnYou.jfif](https://ik.imagekit.io/Reinhart/nox/lolOnYou.jfif).
 
 ---
 
-### What can I extract?
-
-DashMin extracts and preserves all available data points without skipping details:
+### What Can 7strokes Extract?
 
 | Field | Description |
 | :--- | :--- |
-| `Business Name` | Name of the company or establishment |
+| `Business Name` | Official company name |
 | `Category` | Primary business industry or rubric |
-| `All Categories` | Complete list of secondary categories and tags |
-| `Phone 1` | Primary contact phone number |
+| `All Categories` | Complete list of secondary tags & classifications |
+| `Phone 1` | Primary unmasked phone number |
 | `Phone 2` | Secondary contact phone number |
-| `Email` | Business email address (deeply scanned from payload & contacts) |
-| `Website` | Official business website URL |
-| `Address` | Complete formatted street, district, and location address |
+| `Email` | Business email address |
+| `Website` | Official website URL |
+| `Address` | Complete formatted street, district, and city address |
 | `City` | City or municipality |
-| `State` | State or administrative region |
+| `State` | State or administrative province |
 | `Country` | Country name |
 | `Postal Code` | Postal / ZIP code |
-| `Rating` | Star rating (e.g. 4.8) |
-| `Reviews Count` | Total number of customer reviews |
+| `Rating` | Customer star rating (e.g. 4.9) |
+| `Reviews Count` | Total number of published reviews |
 | `Price Level` | Price tier (`$`, `$$`, `$$$`, `$$$$`) |
 | `Operational Status` | Status (Open, Closed, Temporarily Closed) |
 | `Latitude` & `Longitude` | Exact geographic coordinates |
 | `Plus Code` | Open Location Code / Plus Code |
-| `Timezone` | Business operational timezone |
-| `Opening Hours` | Full weekly schedule by day & hours |
-| `Social Links` | Facebook, Instagram, LinkedIn, Twitter/X, TikTok, YouTube URLs |
-| `About Attributes` | Amenities, accessibility, service options, and feature lists |
-| `Place ID` | Unique Google Maps / 2GIS identifier |
+| `Timezone` | Operational timezone |
+| `Opening Hours` | Full weekly operating hours |
+| `Social Links` | Instagram, Facebook, LinkedIn, Twitter/X, YouTube |
+| `Place ID` | Unique Google Maps or 2GIS identifier |
 
 ---
 
-### Configuration & Proxy Setup
+### Configuration & Environment Variables
 
-Environment variables can be configured in `backend/.env`:
-
+Create or update `backend/.env`:
 ```env
 PORT=4000
 DATABASE_URL=postgresql://postgres:postgrespassword@localhost:5432/dashmin
 REDIS_URL=redis://localhost:6379
-JWT_SECRET=super-secret-jwt-key
-CORS_ORIGIN=http://localhost:3000
+JWT_SECRET=your-secure-jwt-secret-key
+CORS_ORIGIN=*
 PROXY_URL=http://username:password@rotating.proxyprovider.com:8000
-SERPAPI_API_KEY=your_optional_serpapi_key_here
+SERPAPI_API_KEY=your_optional_serpapi_key
 ```
 
-In `frontend/.env.local`:
+Create or update `frontend/.env.local`:
 ```env
 NEXT_PUBLIC_API_URL=http://localhost:4000
 ```
+*(Or your public tunnel URL when deployed on Cloudflare Pages)*
 
 ---
 
-### How the Provider Engine Works
+### Troubleshooting & FAQ
 
-1. **Direct HTTP First with Proxy Dispatch**: Requests Google Maps internal endpoints directly with custom protobuf parameters (`pb`) controlling viewport, location, and pagination offsets (`!8i${start}`), automatically routing through rotating proxy agents when configured.
-2. **Signature-Based Parsing**: Rather than relying on fragile CSS locators or fixed JSON paths, the parser searches for record signatures (`0x...:0x...` feature IDs). If Google moves elements, extraction does not crash.
-3. **Resilient Fallbacks**: If direct HTTP is challenged or blocked, the engine cascades to external APIs (like SerpApi) or launches headless Playwright browser workers to ensure you never lose data.
-4. **Dynamic Column Filtering & Sanitized Export**: The export layer filters database records on the fly and sanitizes all cell contents against HTML injection before rendering downloads.
+**Q: Why does Saved Leads say "No searches run yet" when accessing via ngrok?**  
+A: Free ngrok tunnels return an HTML warning interstitial unless the `ngrok-skip-browser-warning: true` header is sent. 7strokes automatically includes this header in its `apiFetch` wrapper. Ensure your frontend is deployed with the latest code.
+
+**Q: Can I run 7strokes without installing PostgreSQL or Redis?**  
+A: Yes! 7strokes automatically detects when PostgreSQL or Redis are unavailable and switches to built-in SQLite (`dashmin.sqlite`) and an in-process execution queue without requiring any configuration.
+
+**Q: How do I reset the admin password?**  
+A: An administrator can reset any user's password directly from the **Admin > Users** tab, or using the built-in password reset link.
 
 ---
 
-### Want to Contribute?
+### License & Contributions
 
-Contributions are welcome! Please feel free to submit a Pull Request or open an Issue for bug reports and feature suggestions.
+Distributed under the MIT License. Contributions and feature suggestions are welcome via Pull Requests.
