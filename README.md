@@ -21,6 +21,7 @@
     - [Installation](#installation)
       - [Method 1: Docker Compose (Recommended)](#method-1-docker-compose-recommended)
       - [Method 2: Manual Setup (Local Dev)](#method-2-manual-setup-local-dev)
+      - [Method 3: Cloudflare Pages + Local Desktop Tunnel](#method-3-cloudflare-pages--local-desktop-tunnel)
     - [Dependencies \& Prerequisites](#dependencies--prerequisites)
     - [Usage](#usage)
       - [User Registration \& Admin Approval](#user-registration--admin-approval)
@@ -180,6 +181,43 @@ npm run dev
 ```
 
 Visit `http://localhost:3000`.
+
+#### Method 3: Cloudflare Pages + Local Desktop Tunnel
+
+If you want to host the frontend on the web for free and share it with anyone while running the backend scrapers and database on your local desktop:
+
+**1. Run your local Backend:**
+```bash
+cd backend
+npm install
+npm run build
+npm start
+```
+*(Automatically falls back to local `dashmin.sqlite` if PostgreSQL is offline)*
+
+**2. Expose the Backend via Tunnel (Cloudflare or ngrok):**
+- **Cloudflare Quick Tunnel:**
+  ```bash
+  cloudflared tunnel --url http://localhost:4000
+  ```
+- **ngrok (with free static domain):**
+  ```bash
+  npx ngrok http 4000 --url=<your-domain>.ngrok-free.app
+  ```
+Copy your public HTTPS forwarding URL.
+
+**3. Deploy the Frontend on Cloudflare Pages:**
+1. In Cloudflare Dashboard, go to **Workers & Pages > Create Application > Pages > Connect to Git**.
+2. Select your `DashMin` repository.
+3. Configure build settings:
+   - **Framework preset**: `Next.js (Static HTML Export)`
+   - **Root directory**: `frontend` *(Required)*
+   - **Build command**: `npm run build`
+   - **Build output directory**: `out`
+4. Add Environment Variable:
+   - **Variable name**: `NEXT_PUBLIC_API_URL`
+   - **Value**: Your public tunnel URL (e.g. `https://your-domain.ngrok-free.app` or `https://xxxx.trycloudflare.com`)
+5. Click **Save and Deploy**.
 
 ---
 
