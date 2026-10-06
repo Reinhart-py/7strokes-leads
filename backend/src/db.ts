@@ -28,6 +28,10 @@ let sqliteDb: sqlite3.Database | null = null;
 function initSqlite() {
   sqliteDb = new sqlite3.Database(sqliteDbPath);
   sqliteDb.serialize(() => {
+    sqliteDb?.run('PRAGMA journal_mode = WAL;');
+    sqliteDb?.run('PRAGMA busy_timeout = 10000;');
+    sqliteDb?.run('PRAGMA synchronous = NORMAL;');
+    sqliteDb?.run('PRAGMA cache_size = -64000;');
     sqliteDb?.run(`
       CREATE TABLE IF NOT EXISTS users (
         id TEXT PRIMARY KEY,

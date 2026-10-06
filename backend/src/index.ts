@@ -5,6 +5,16 @@ import authRoutes from './routes/auth';
 import jobsRoutes from './routes/jobs';
 import adminRoutes from './routes/admin';
 
+process.env.UV_THREADPOOL_SIZE = process.env.UV_THREADPOOL_SIZE || '16';
+
+process.on('uncaughtException', (err) => {
+  console.error('[Process Error: Uncaught Exception]', err);
+});
+
+process.on('unhandledRejection', (reason) => {
+  console.error('[Process Error: Unhandled Rejection]', reason);
+});
+
 dotenv.config();
 
 const app = express();

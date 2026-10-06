@@ -47,13 +47,18 @@ export class ScraperManager {
     const allLeads: ScrapedLead[] = [];
     const seenTitles = new Set<string>();
 
+    let lastProgressTime = 0;
     const handleSave = async (lead: ScrapedLead) => {
       const normalizedKey = (lead.phone_1 || lead.title).toLowerCase().trim();
       if (!seenTitles.has(normalizedKey)) {
         seenTitles.add(normalizedKey);
         await saveLead(lead);
         allLeads.push(lead);
-        await updateProgress(allLeads.length, allLeads.length);
+        const now = Date.now();
+        if (now - lastProgressTime > 1500 || allLeads.length % 25 === 0) {
+          lastProgressTime = now;
+          await updateProgress(allLeads.length, allLeads.length);
+        }
       }
     };
 
@@ -174,6 +179,7 @@ export class ScraperManager {
       }
     }
 
+    await updateProgress(allLeads.length, allLeads.length);
     await log(`Extraction finished. Total unique leads collected: ${allLeads.length}`);
     return allLeads;
   }

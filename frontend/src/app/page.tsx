@@ -7,14 +7,23 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 const LOGO_LIGHT = "https://ik.imagekit.io/Reinhart/nox/7strokeslogo.png";
 const LOGO_DARK = "https://ik.imagekit.io/Reinhart/nox/logo7strokes-dark.png";
 
-const apiFetch = (url: string, options: RequestInit = {}) => {
+let setServerStatusGlobal: ((online: boolean) => void) | null = null;
+
+const apiFetch = async (url: string, options: RequestInit = {}) => {
   const headers = new Headers(options.headers || {});
   headers.set("ngrok-skip-browser-warning", "true");
   const fullUrl = url.startsWith("http") ? url : `${API_BASE}${url.startsWith("/") ? url : `/${url}`}`;
-  return fetch(fullUrl, {
-    ...options,
-    headers
-  });
+  try {
+    const res = await fetch(fullUrl, {
+      ...options,
+      headers
+    });
+    if (setServerStatusGlobal) setServerStatusGlobal(true);
+    return res;
+  } catch (err) {
+    if (setServerStatusGlobal) setServerStatusGlobal(false);
+    throw err;
+  }
 };
 
 const EXPORT_COLUMNS = [
@@ -247,16 +256,27 @@ export default function Home() {
   const [systemProxyEnabled, setSystemProxyEnabled] = useState(false);
   const [systemProxyUrl, setSystemProxyUrl] = useState("");
   const [settingsSuccess, setSettingsSuccess] = useState(false);
+  const [isServerOnline, setIsServerOnline] = useState<boolean>(true);
 
   useEffect(() => {
-    apiFetch("/api/auth/registration-status")
-      .then(r => r.json())
-      .then(d => {
-        if (d && typeof d.allowRegistration === "boolean") {
-          setPublicRegistration(d.allowRegistration);
-        }
-      })
-      .catch(() => {});
+    setServerStatusGlobal = setIsServerOnline;
+
+    const checkHealth = () => {
+      apiFetch("/api/auth/registration-status")
+        .then(r => r.json())
+        .then(d => {
+          setIsServerOnline(true);
+          if (d && typeof d.allowRegistration === "boolean") {
+            setPublicRegistration(d.allowRegistration);
+          }
+        })
+        .catch(() => {
+          setIsServerOnline(false);
+        });
+    };
+
+    checkHealth();
+    const healthInterval = setInterval(checkHealth, 5000);
 
     const savedTheme = localStorage.getItem("dashmin_theme") as "dark" | "light" | null;
     if (savedTheme) {
@@ -269,6 +289,11 @@ export default function Home() {
       setToken(savedToken);
       fetchUserProfile(savedToken);
     }
+
+    return () => {
+      clearInterval(healthInterval);
+      setServerStatusGlobal = null;
+    };
   }, []);
 
   useEffect(() => {
@@ -308,6 +333,7 @@ export default function Home() {
         headers: { Authorization: `Bearer ${t}` }
       });
       if (res.ok) {
+        setIsServerOnline(true);
         const data = await res.json();
         setUser(data);
         if (data.custom_proxy) {
@@ -319,11 +345,13 @@ export default function Home() {
           fetchTeamList(t);
           fetchSettings(t);
         }
-      } else {
+      } else if (res.status === 401 || res.status === 403) {
         logout();
+      } else {
+        setIsServerOnline(false);
       }
     } catch {
-      logout();
+      setIsServerOnline(false);
     }
   };
 
@@ -454,7 +482,8 @@ export default function Home() {
         setAuthError(data.error || "Authentication failed");
       }
     } catch {
-      setAuthError("Could not connect to server");
+      setIsServerOnline(false);
+      setAuthError("Server is currently offline or unreachable. Please verify backend service or contact administrator.");
     }
   };
 
@@ -910,6 +939,16 @@ export default function Home() {
             </button>
           </div>
 
+          {!isServerOnline && (
+            <div className="mb-5 p-3.5 rounded-2xl border border-red-500/30 bg-red-500/10 backdrop-blur-md flex items-start gap-3 text-left animate-pulse">
+              <span className="text-lg leading-none mt-0.5 shrink-0">⚠️</span>
+              <div>
+                <p className="font-bold text-red-500 text-xs">Server Offline</p>
+                <p className="text-zinc-400 text-[11px] mt-0.5 leading-snug">The backend service is currently unreachable or disconnected. Please contact the administrator to resolve.</p>
+              </div>
+            </div>
+          )}
+
           {publicRegistration ? (
             <div className={`flex rounded-xl p-1 mb-6 text-xs font-semibold ${isDark ? "bg-black/40 border border-white/5" : "bg-black/[0.04] border border-black/5"}`}>
               <button
@@ -1254,6 +1293,24 @@ export default function Home() {
       </aside>
 
       <main className="flex-1 flex flex-col h-full overflow-hidden z-10 w-full min-w-0">
+        {!isServerOnline && (
+          <div className="w-full bg-red-600/95 text-white px-4 py-2 flex items-center justify-between text-xs font-semibold backdrop-blur-md border-b border-red-400/40 shrink-0 z-30 shadow-lg animate-pulse">
+            <div className="flex items-center gap-2">
+              <span className="text-sm">⚠️</span>
+              <span>Server Offline: Backend service is currently disconnected or unreachable. Contact administrator to resolve.</span>
+            </div>
+            <button
+              onClick={() => {
+                apiFetch("/api/auth/registration-status")
+                  .then(r => { if (r.ok) setIsServerOnline(true); })
+                  .catch(() => {});
+              }}
+              className="px-2.5 py-0.5 rounded-lg bg-black/40 hover:bg-black/60 text-[11px] font-bold border border-white/20 transition-all shrink-0 ml-3"
+            >
+              Retry
+            </button>
+          </div>
+        )}
         <header className={`h-14 border-b px-4 sm:px-5 flex items-center justify-between shrink-0 transition-colors ${isDark ? "glass-surface-dark border-white/5" : "glass-surface-light border-zinc-200"}`}>
           <div className="flex items-center gap-3 min-w-0">
             <button
