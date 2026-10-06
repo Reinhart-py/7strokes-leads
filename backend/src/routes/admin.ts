@@ -57,19 +57,32 @@ router.post('/users', async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ error: 'Email and password are required' });
     }
 
+    if (!username || typeof username !== 'string' || !username.trim()) {
+      return res.status(400).json({ error: 'Username is required' });
+    }
+
+    const normUsername = username.trim().toLowerCase();
+    if (!/^[a-z0-9_]{3,30}$/.test(normUsername)) {
+      return res.status(400).json({ error: 'Username must be 3-30 lowercase characters (a-z, 0-9, _)' });
+    }
+
+    const userExisting = await query('SELECT id FROM users WHERE LOWER(username) = $1', [normUsername]);
+    if (userExisting.rows.length > 0) {
+      return res.status(409).json({ error: 'Username is already taken' });
+    }
+
     const normEmail = email.trim().toLowerCase();
     const existing = await query('SELECT id FROM users WHERE email = $1', [normEmail]);
     if (existing.rows.length > 0) {
       return res.status(409).json({ error: 'Email is already registered' });
     }
 
-    const normUsername = (username || name || normEmail.split('@')[0]).trim().toLowerCase().replace(/[^a-z0-9_-]/g, '');
     const salt = await bcrypt.genSalt(10);
     const passwordHash = await bcrypt.hash(password, salt);
 
     const result = await query(
       'INSERT INTO users (email, username, password_hash, name, role, status, can_use_proxy, custom_proxy) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id, email, username, name, role, status, can_use_proxy, custom_proxy',
-      [normEmail, normUsername, passwordHash, name || normEmail.split('@')[0], role, status, can_use_proxy ? 1 : 0, custom_proxy || null]
+      [normEmail, normUsername, passwordHash, name || normUsername, role, status, can_use_proxy ? 1 : 0, custom_proxy || null]
     );
 
     res.status(201).json(result.rows[0]);

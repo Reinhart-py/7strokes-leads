@@ -169,8 +169,9 @@ export async function query(text: string, params: any[] = []): Promise<{ rows: a
 
     let generatedId = generateUuid();
     if (insertMatch) {
+      const tbl = insertMatch[1].trim().toLowerCase();
       const colList = insertMatch[2].split(',').map(c => c.trim().toLowerCase());
-      if (!colList.includes('id')) {
+      if (tbl !== 'settings' && !colList.includes('id')) {
         sqliteSql = sqliteSql.replace(insertMatch[0], `INSERT INTO ${insertMatch[1]} (id, ${insertMatch[2]}) VALUES (?, ${insertMatch[3]})`);
         finalParams = [generatedId, ...finalParams];
       }

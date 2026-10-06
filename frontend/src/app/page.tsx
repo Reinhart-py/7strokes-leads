@@ -226,11 +226,18 @@ export default function Home() {
 
   const [showCreateUserModal, setShowCreateUserModal] = useState(false);
   const [newUserName, setNewUserName] = useState("");
+  const [newUserUsername, setNewUserUsername] = useState("");
+  const [newUserUsernameStatus, setNewUserUsernameStatus] = useState<{ checked: boolean; valid: boolean; message?: string }>({ checked: false, valid: true });
   const [newUserEmail, setNewUserEmail] = useState("");
   const [newUserPassword, setNewUserPassword] = useState("");
   const [newUserRole, setNewUserRole] = useState("user");
   const [newUserCanProxy, setNewUserCanProxy] = useState(false);
   const [createUserMsg, setCreateUserMsg] = useState("");
+
+  const [regUsernameStatus, setRegUsernameStatus] = useState<{ checked: boolean; valid: boolean; message?: string }>({ checked: false, valid: true });
+  const [showContactModal, setShowContactModal] = useState(false);
+  const [contactTopic, setContactTopic] = useState("reset_password");
+  const [contactCustomMsg, setContactCustomMsg] = useState("");
 
   const [editingUser, setEditingUser] = useState<any | null>(null);
   const [editUserName, setEditUserName] = useState("");
@@ -268,6 +275,9 @@ export default function Home() {
           setIsServerOnline(true);
           if (d && typeof d.allowRegistration === "boolean") {
             setPublicRegistration(d.allowRegistration);
+            if (!d.allowRegistration) {
+              setAuthMode(prev => prev === "register" ? "login" : prev);
+            }
           }
         })
         .catch(() => {
@@ -419,34 +429,83 @@ export default function Home() {
     }
   };
 
+  const verifyUsernameAvailability = async (uname: string, mode: "reg" | "newUser") => {
+    const clean = uname.trim().toLowerCase();
+    if (!clean || clean.length < 3) {
+      const res = { checked: false, valid: false, message: "Must be 3-30 lowercase characters (a-z, 0-9, _)" };
+      if (mode === "reg") setRegUsernameStatus(res);
+      else setNewUserUsernameStatus(res);
+      return;
+    }
+    if (!/^[a-z0-9_]{3,30}$/.test(clean)) {
+      const res = { checked: true, valid: false, message: "Only letters a-z, digits 0-9, and _ allowed" };
+      if (mode === "reg") setRegUsernameStatus(res);
+      else setNewUserUsernameStatus(res);
+      return;
+    }
+    try {
+      const res = await apiFetch(`/api/auth/check-username?username=${encodeURIComponent(clean)}`);
+      const data = await res.json();
+      if (data.valid && !data.taken) {
+        const resVal = { checked: true, valid: true, message: "Username is available!" };
+        if (mode === "reg") setRegUsernameStatus(resVal);
+        else setNewUserUsernameStatus(resVal);
+      } else {
+        const resVal = { checked: true, valid: false, message: data.error || "Username is already taken" };
+        if (mode === "reg") setRegUsernameStatus(resVal);
+        else setNewUserUsernameStatus(resVal);
+      }
+    } catch {
+      const resVal = { checked: false, valid: true };
+      if (mode === "reg") setRegUsernameStatus(resVal);
+      else setNewUserUsernameStatus(resVal);
+    }
+  };
+
+  const getContactLinks = () => {
+    const topicLabels: Record<string, string> = {
+      reset_password: "Account Recovery / Password Reset",
+      change_email: "Account Email Update",
+      scraper_help: "Scraper Assistance & Lead Extraction",
+      custom_proxy: "Custom Proxies & VPS Hosting",
+      other: "General Inquiry"
+    };
+
+    const topicText = topicLabels[contactTopic] || "Assistance";
+    const extra = contactCustomMsg.trim() ? ` Notes: ${contactCustomMsg.trim()}` : "";
+    const rawText = `Hello Reinhart, I am contacting you from the 7strokes lead finder tool regarding: ${topicText}.${extra}`;
+    const encodedText = encodeURIComponent(rawText);
+
+    return {
+      whatsapp: `https://wa.me/13153701897?text=${encodedText}`,
+      telegramReinhart: `https://t.me/reinhart96x?text=${encodedText}`,
+      telegramKiri: `https://t.me/kiri0507?text=${encodedText}`,
+      email: `mailto:reinhart96x@gmail.com?subject=${encodeURIComponent(`7strokes Support: ${topicText}`)}&body=${encodedText}`
+    };
+  };
+
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setAuthError("");
     setAuthSuccess("");
 
     if (authMode === "forgot") {
-      try {
-        const res = await apiFetch("/api/auth/forgot-password", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email })
-        });
-        const data = await res.json();
-        if (res.ok) {
-          setForgotResult(data);
-        } else {
-          setAuthError(data.error || "Password reset failed");
-        }
-      } catch {
-        setAuthError("Failed to reach server");
-      }
+      setShowContactModal(true);
       return;
+    }
+
+    if (authMode === "register") {
+      const cleanU = regUsername.trim().toLowerCase();
+      if (!cleanU || !/^[a-z0-9_]{3,30}$/.test(cleanU)) {
+        setAuthError("Username is required and must be 3-30 lowercase characters (a-z, 0-9, _)");
+        return;
+      }
     }
 
     const endpoint = authMode === "login" ? "/api/auth/login" : "/api/auth/register";
     const payload = authMode === "login"
       ? { identifier: email, password }
-      : { email, password, name, username: regUsername };
+      : { email, password, name, username: regUsername.trim().toLowerCase() };
 
     try {
       const res = await apiFetch(endpoint, {
@@ -749,6 +808,11 @@ export default function Home() {
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
     setCreateUserMsg("");
+    const cleanUsername = newUserUsername.trim().toLowerCase();
+    if (!cleanUsername || !/^[a-z0-9_]{3,30}$/.test(cleanUsername)) {
+      setCreateUserMsg("Username is required (3-30 lowercase characters: only a-z, 0-9, _)");
+      return;
+    }
     try {
       const res = await apiFetch("/api/admin/users", {
         method: "POST",
@@ -757,7 +821,8 @@ export default function Home() {
           Authorization: `Bearer ${token}`
         },
         body: JSON.stringify({
-          name: newUserName,
+          name: newUserName || cleanUsername,
+          username: cleanUsername,
           email: newUserEmail,
           password: newUserPassword,
           role: newUserRole,
@@ -769,6 +834,7 @@ export default function Home() {
       if (res.ok) {
         setShowCreateUserModal(false);
         setNewUserName("");
+        setNewUserUsername("");
         setNewUserEmail("");
         setNewUserPassword("");
         setNewUserCanProxy(false);
@@ -865,7 +931,8 @@ export default function Home() {
       });
       if (res.ok) {
         setSettingsSuccess(true);
-        setTimeout(() => setSettingsSuccess(false), 2000);
+        setTimeout(() => setSettingsSuccess(false), 1200);
+        fetchSettings(token);
       }
     } catch {}
   };
@@ -984,54 +1051,37 @@ export default function Home() {
 
           {authMode === "forgot" ? (
             <div className="space-y-4">
-              <div>
-                <h2 className="text-sm font-bold">Reset Password</h2>
-                <p className="text-xs text-zinc-500 mt-1">Enter your email to receive temporary login credentials.</p>
+              <div className="text-center sm:text-left">
+                <div className="w-10 h-10 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-500 flex items-center justify-center mx-auto sm:mx-0 mb-3">
+                  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                </div>
+                <h2 className="text-sm sm:text-base font-bold">Admin-Managed Password Recovery</h2>
+                <p className="text-xs text-zinc-400 mt-1.5 leading-relaxed">
+                  For platform security, self-serve password resets are disabled. Only administrators can reset passwords or recover accounts. Please contact administrator support.
+                </p>
               </div>
 
-              {!forgotResult ? (
-                <form onSubmit={handleAuth} className="space-y-3 pt-1">
-                  <input
-                    type="email"
-                    placeholder="Email address"
-                    value={email}
-                    onChange={e => setEmail(e.target.value)}
-                    className={`w-full px-4 py-2.5 rounded-xl text-xs outline-none transition-all duration-200 ${isDark ? "glass-input-dark text-white focus:border-green-500" : "glass-input-light text-black focus:border-black"}`}
-                    required
-                  />
-                  <button
-                    type="submit"
-                    className="w-full py-2.5 rounded-xl text-xs font-bold text-white bg-green-600 hover:bg-green-700 btn-spring shadow-lg shadow-green-600/25"
-                  >
-                    Reset Password
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => { setAuthMode("login"); setAuthError(""); setForgotResult(null); }}
-                    className="w-full py-1 text-xs text-zinc-500 hover:underline"
-                  >
-                    Back to Sign In
-                  </button>
-                </form>
-              ) : (
-                <div className="space-y-3 pt-1">
-                  <div className="p-3.5 rounded-xl text-xs border border-green-500/30 bg-green-500/10 text-green-500">
-                    <div className="font-bold mb-1">Temporary Password:</div>
-                    <code className="font-mono font-bold text-sm bg-black/20 px-2 py-0.5 rounded">{forgotResult.temporaryPassword}</code>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setPassword(forgotResult.temporaryPassword);
-                      setAuthMode("login");
-                      setForgotResult(null);
-                    }}
-                    className="w-full py-2.5 rounded-xl text-xs font-bold text-white bg-green-600 hover:bg-green-700 btn-spring shadow-lg shadow-green-600/25"
-                  >
-                    Log In Now
-                  </button>
-                </div>
-              )}
+              <div className="pt-2 space-y-2.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setContactTopic("reset_password");
+                    setShowContactModal(true);
+                  }}
+                  className="w-full py-2.5 rounded-xl text-xs font-bold text-white bg-green-600 hover:bg-green-700 btn-spring shadow-lg shadow-green-600/25 flex items-center justify-center gap-2"
+                >
+                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                  <span>Contact Admin / Support</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => { setAuthMode("login"); setAuthError(""); setForgotResult(null); }}
+                  className="w-full py-1 text-xs text-zinc-500 hover:text-black dark:hover:text-white transition-colors"
+                >
+                  ← Back to Sign In
+                </button>
+              </div>
             </div>
           ) : (
             <form onSubmit={handleAuth} className="space-y-3.5">
@@ -1049,15 +1099,32 @@ export default function Home() {
                     />
                   </div>
                   <div>
-                    <label className="text-xs font-semibold block mb-1">Username</label>
-                    <input
-                      type="text"
-                      placeholder="e.g. alex_leadgen"
-                      value={regUsername}
-                      onChange={e => setRegUsername(e.target.value)}
-                      className={`w-full px-4 py-2.5 rounded-xl text-xs outline-none transition-all duration-200 ${isDark ? "glass-input-dark text-white focus:border-green-500" : "glass-input-light text-black focus:border-black"}`}
-                      required
-                    />
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-xs font-semibold">Username <span className="text-red-500">*</span></label>
+                      {regUsername.trim().length >= 3 && regUsernameStatus.checked && (
+                        <span className={`text-[10px] font-bold ${regUsernameStatus.valid ? "text-green-500" : "text-red-500"}`}>
+                          {regUsernameStatus.valid ? "✓ Available" : "✗ Taken"}
+                        </span>
+                      )}
+                    </div>
+                    <div className="relative">
+                      <span className="absolute left-3.5 top-2.5 text-xs text-zinc-500 font-mono">@</span>
+                      <input
+                        type="text"
+                        placeholder="username (lowercase)"
+                        value={regUsername}
+                        onChange={e => {
+                          const val = e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '');
+                          setRegUsername(val);
+                          verifyUsernameAvailability(val, "reg");
+                        }}
+                        className={`w-full pl-8 pr-4 py-2.5 rounded-xl text-xs outline-none transition-all duration-200 font-mono ${isDark ? "glass-input-dark text-white focus:border-green-500" : "glass-input-light text-black focus:border-black"}`}
+                        required
+                      />
+                    </div>
+                    <span className="text-[10px] text-zinc-500 mt-1 block">
+                      3-30 lowercase characters (a-z, 0-9, _) and unique.
+                    </span>
                   </div>
                 </>
               )}
@@ -1110,6 +1177,20 @@ export default function Home() {
               </div>
             </form>
           )}
+
+          <div className="mt-5 pt-4 border-t border-zinc-500/15 text-center">
+            <button
+              type="button"
+              onClick={() => {
+                setContactTopic("other");
+                setShowContactModal(true);
+              }}
+              className="text-xs font-medium text-zinc-500 hover:text-green-500 transition-colors inline-flex items-center gap-1.5"
+            >
+              <svg className="w-3.5 h-3.5 text-green-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+              <span>Need Help? Contact Admin & Support</span>
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -1247,6 +1328,16 @@ export default function Home() {
               </button>
             </nav>
           )}
+
+          <div className="pt-3 mt-2 border-t border-zinc-500/15">
+            <button
+              onClick={() => { setSidebarOpen(false); setShowContactModal(true); }}
+              className="w-full flex items-center gap-2.5 px-3.5 py-2 rounded-xl text-xs font-semibold text-left transition-all duration-200 text-green-600 dark:text-green-400 hover:bg-green-500/10 btn-spring"
+            >
+              <svg className="w-4 h-4 text-green-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+              <span>Help & Support</span>
+            </button>
+          </div>
         </div>
 
         <div className="space-y-3">
@@ -1329,7 +1420,15 @@ export default function Home() {
             </h2>
           </div>
 
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2 sm:gap-2.5">
+            <button
+              onClick={() => setShowContactModal(true)}
+              className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-semibold btn-spring ${isDark ? "glass-icon-dark text-white hover:border-white/30" : "glass-icon-light text-black hover:border-black/30"}`}
+              title="Help & Support (WhatsApp, Telegram, Email)"
+            >
+              <svg className="w-3.5 h-3.5 text-green-500 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+              <span className="hidden sm:inline">Support</span>
+            </button>
             <button
               onClick={() => {
                 setProfileName(user?.name || "");
@@ -1338,11 +1437,11 @@ export default function Home() {
                 setProfileMsg(null);
                 setShowProfileModal(true);
               }}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold btn-spring ${isDark ? "glass-icon-dark text-white hover:border-white/30" : "glass-icon-light text-black hover:border-black/30"}`}
+              className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-semibold btn-spring ${isDark ? "glass-icon-dark text-white hover:border-white/30" : "glass-icon-light text-black hover:border-black/30"}`}
               title="My Profile & Security"
             >
-              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
-              <span>{user?.name || user?.username || "Profile"}</span>
+              <svg className="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+              <span className="truncate max-w-[80px] sm:max-w-[120px]">{user?.name || user?.username || "Profile"}</span>
             </button>
             <button
               onClick={toggleTheme}
@@ -2259,13 +2358,20 @@ export default function Home() {
                     </div>
                   </div>
 
-                  <div className="pt-3 border-t border-zinc-500/15">
+                  <div className="pt-3 border-t border-zinc-500/15 flex items-center gap-3">
                     <button
                       onClick={handleSaveSettings}
-                      className="px-5 py-2.5 bg-green-600 hover:bg-green-700 text-white font-bold text-xs rounded-xl btn-spring shadow-md shadow-green-600/25"
+                      className="px-5 py-2.5 bg-green-600 hover:bg-green-700 text-white font-bold text-xs rounded-xl btn-spring shadow-md shadow-green-600/25 flex items-center gap-1.5"
                     >
-                      Save Settings
+                      <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
+                      <span>Save Settings</span>
                     </button>
+                    {settingsSuccess && (
+                      <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold bg-green-500/15 text-green-500 border border-green-500/30 animate-in fade-in duration-150 shadow-sm">
+                        <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                        Saved!
+                      </span>
+                    )}
                   </div>
                 </div>
               )}
@@ -2286,14 +2392,40 @@ export default function Home() {
 
                 <form onSubmit={handleCreateUser} className="space-y-3">
                   <div>
-                    <label className="text-xs font-semibold block mb-1">Name</label>
+                    <label className="text-xs font-semibold block mb-1">Full Name</label>
                     <input
                       type="text"
+                      placeholder="e.g. Alex Taylor"
                       value={newUserName}
                       onChange={e => setNewUserName(e.target.value)}
                       className={`w-full px-3.5 py-2 rounded-xl text-xs outline-none transition ${isDark ? "glass-input-dark text-white" : "glass-input-light text-black"}`}
                       required
                     />
+                  </div>
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-xs font-semibold">Username <span className="text-red-500">*</span></label>
+                      {newUserUsername.trim().length >= 3 && newUserUsernameStatus.checked && (
+                        <span className={`text-[10px] font-bold ${newUserUsernameStatus.valid ? "text-green-500" : "text-red-500"}`}>
+                          {newUserUsernameStatus.valid ? "✓ Available" : "✗ Taken"}
+                        </span>
+                      )}
+                    </div>
+                    <div className="relative">
+                      <span className="absolute left-3 top-2 text-xs text-zinc-500 font-mono">@</span>
+                      <input
+                        type="text"
+                        placeholder="username (lowercase)"
+                        value={newUserUsername}
+                        onChange={e => {
+                          const val = e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '');
+                          setNewUserUsername(val);
+                          verifyUsernameAvailability(val, "newUser");
+                        }}
+                        className={`w-full pl-7 pr-3.5 py-2 rounded-xl text-xs outline-none transition font-mono ${isDark ? "glass-input-dark text-white" : "glass-input-light text-black"}`}
+                        required
+                      />
+                    </div>
                   </div>
                   <div>
                     <label className="text-xs font-semibold block mb-1">Email</label>
@@ -2587,73 +2719,73 @@ export default function Home() {
           )}
 
           {isTableZoomed && (
-            <div className={`fixed inset-0 z-50 flex flex-col p-4 md:p-6 backdrop-blur-3xl animate-in fade-in duration-200 ${isDark ? "bg-black/90 text-white" : "bg-white/95 text-black"}`}>
-              <div className="flex items-center justify-between pb-4 border-b border-zinc-500/20 shrink-0 gap-3">
-                <div className="flex items-center gap-3">
+            <div className={`fixed inset-0 z-50 flex flex-col p-2.5 sm:p-4 md:p-6 backdrop-blur-3xl animate-in fade-in duration-200 ${isDark ? "bg-[#0A0A0E]/95 text-white" : "bg-white/95 text-black"}`}>
+              <div className="flex items-center justify-between pb-2.5 sm:pb-3 border-b border-zinc-500/20 shrink-0 gap-2 sm:gap-3">
+                <div className="flex items-center gap-2 sm:gap-3 min-w-0">
                   <button
                     onClick={() => setIsTableZoomed(false)}
-                    className={`p-2.5 rounded-xl text-xs font-bold btn-spring flex items-center gap-2 ${isDark ? "glass-icon-dark text-white hover:border-white/30" : "glass-icon-light text-black hover:border-black/30"}`}
+                    className={`p-1.5 sm:p-2 px-2.5 sm:px-3 rounded-xl text-[11px] sm:text-xs font-bold btn-spring flex items-center gap-1.5 shrink-0 ${isDark ? "glass-icon-dark text-white hover:border-white/30" : "glass-icon-light text-black hover:border-black/30"}`}
                     title="Zoom Out (Exit Fullscreen)"
                   >
-                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="4 14 10 14 10 20"></polyline><polyline points="20 10 14 10 14 4"></polyline><line x1="14" y1="10" x2="21" y2="3"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg>
+                    <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="4 14 10 14 10 20"></polyline><polyline points="20 10 14 10 14 4"></polyline><line x1="14" y1="10" x2="21" y2="3"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg>
                     <span>Zoom Out</span>
                   </button>
-                  <div>
-                    <h2 className="text-sm sm:text-base font-bold capitalize">{selectedJob?.target}</h2>
-                    <span className="text-[11px] text-zinc-500">{filteredResults.length} leads displayed (Press Esc to zoom out)</span>
+                  <div className="min-w-0">
+                    <h2 className="text-xs sm:text-sm md:text-base font-bold capitalize truncate max-w-[130px] sm:max-w-xs">{selectedJob?.target}</h2>
+                    <span className="text-[10px] sm:text-[11px] text-zinc-500 whitespace-nowrap block">{filteredResults.length} leads</span>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
                   <input
                     type="text"
-                    placeholder="Search in table..."
+                    placeholder="Filter..."
                     value={searchFilter}
                     onChange={e => setSearchFilter(e.target.value)}
-                    className={`px-4 py-2 rounded-xl text-xs outline-none transition ${isDark ? "glass-input-dark text-white focus:border-green-500" : "glass-input-light text-black focus:border-black"}`}
+                    className={`w-24 sm:w-40 md:w-56 px-2.5 sm:px-3.5 py-1.5 sm:py-2 rounded-xl text-[11px] sm:text-xs outline-none transition ${isDark ? "glass-input-dark text-white focus:border-green-500" : "glass-input-light text-black focus:border-black"}`}
                   />
                   <button
                     onClick={() => setExportJobId(selectedJobId)}
                     disabled={jobResults.length === 0}
-                    className="px-4 py-2 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white text-xs font-bold rounded-xl btn-spring shadow-md shadow-green-600/25 flex items-center gap-1.5 shrink-0"
+                    className="px-2.5 sm:px-4 py-1.5 sm:py-2 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white text-[11px] sm:text-xs font-bold rounded-xl btn-spring shadow-md shadow-green-600/25 flex items-center gap-1 shrink-0"
                   >
-                    <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-                    Export
+                    <svg className="w-3 h-3 sm:w-3.5 sm:h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                    <span>Export</span>
                   </button>
                 </div>
               </div>
 
-              <div className="flex-1 overflow-y-auto overflow-x-hidden mt-4 rounded-2xl border border-zinc-500/20">
-                <table className="w-full table-fixed text-left text-xs">
+              <div className="flex-1 overflow-auto mt-2 sm:mt-3.5 rounded-xl sm:rounded-2xl border border-zinc-500/20 shadow-inner">
+                <table className="w-full min-w-[780px] sm:min-w-[850px] text-left text-xs">
                   <thead className={`text-[11px] font-bold uppercase tracking-wider border-b border-zinc-500/20 sticky top-0 z-10 backdrop-blur-2xl ${isDark ? "bg-[#121216]/95 text-zinc-400" : "bg-white/95 text-zinc-600"}`}>
                     <tr>
-                      <th className="w-[22%] px-4 py-3">Business</th>
-                      <th className="w-[14%] px-3 py-3">Phone</th>
-                      <th className="w-[15%] px-3 py-3">Website</th>
-                      <th className="w-[13%] px-3 py-3">Category</th>
-                      <th className="w-[10%] px-3 py-3">Rating</th>
-                      <th className="w-[10%] px-3 py-3">City</th>
-                      <th className="w-[16%] px-4 py-3">Address</th>
+                      <th className="px-3.5 sm:px-4 py-2.5 sm:py-3 min-w-[180px]">Business</th>
+                      <th className="px-3 py-2.5 sm:py-3 min-w-[130px]">Phone</th>
+                      <th className="px-3 py-2.5 sm:py-3 min-w-[140px]">Website</th>
+                      <th className="px-3 py-2.5 sm:py-3 min-w-[130px]">Category</th>
+                      <th className="px-3 py-2.5 sm:py-3 min-w-[90px]">Rating</th>
+                      <th className="px-3 py-2.5 sm:py-3 min-w-[100px]">City</th>
+                      <th className="px-3.5 sm:px-4 py-2.5 sm:py-3 min-w-[200px]">Address</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-zinc-500/10">
                     {filteredResults.map((r, i) => (
                       <tr key={i} className={`transition ${isDark ? "hover:bg-white/[0.04]" : "hover:bg-black/[0.03]"}`}>
-                        <td className="px-4 py-3 font-bold truncate" title={r.title}>{r.title}</td>
-                        <td className="px-3 py-3 font-mono text-[11px] whitespace-nowrap">{r.phone_1 || "—"}</td>
-                        <td className="px-3 py-3">
+                        <td className="px-3.5 sm:px-4 py-2.5 sm:py-3 font-bold truncate max-w-[220px]" title={r.title}>{r.title}</td>
+                        <td className="px-3 py-2.5 sm:py-3 font-mono text-[11px] whitespace-nowrap">{r.phone_1 || "—"}</td>
+                        <td className="px-3 py-2.5 sm:py-3">
                           {r.website ? (
-                            <a href={r.website} target="_blank" rel="noreferrer" className="text-green-600 hover:underline truncate block text-[11px]" title={r.website}>
+                            <a href={r.website} target="_blank" rel="noreferrer" className="text-green-600 hover:underline truncate block text-[11px] max-w-[160px]" title={r.website}>
                               {r.website.replace(/^https?:\/\//, '')}
                             </a>
                           ) : "—"}
                         </td>
-                        <td className="px-3 py-3 text-zinc-500 truncate" title={r.category || ""}>{r.category || "—"}</td>
-                        <td className="px-3 py-3 whitespace-nowrap font-semibold">
+                        <td className="px-3 py-2.5 sm:py-3 text-zinc-500 truncate max-w-[140px]" title={r.category || ""}>{r.category || "—"}</td>
+                        <td className="px-3 py-2.5 sm:py-3 whitespace-nowrap font-semibold">
                           {r.rating ? `${r.rating} (${r.reviews || 0})` : "—"}
                         </td>
-                        <td className="px-3 py-3 text-zinc-500 truncate" title={r.city || ""}>{r.city || "—"}</td>
-                        <td className="px-4 py-3 text-zinc-500 truncate text-[11px]" title={r.address || ""}>{r.address || "—"}</td>
+                        <td className="px-3 py-2.5 sm:py-3 text-zinc-500 truncate max-w-[120px]" title={r.city || ""}>{r.city || "—"}</td>
+                        <td className="px-3.5 sm:px-4 py-2.5 sm:py-3 text-zinc-500 truncate text-[11px] max-w-[240px]" title={r.address || ""}>{r.address || "—"}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -2827,6 +2959,124 @@ export default function Home() {
                     </button>
                   </div>
                 </form>
+              </div>
+            </div>
+          )}
+
+          {showContactModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xl p-4 animate-in fade-in duration-200">
+              <div className={`rounded-3xl p-6 max-w-md w-full space-y-4 max-h-[92vh] overflow-y-auto ${isDark ? "glass-surface-dark text-white" : "glass-surface-light text-black shadow-2xl"}`}>
+                <div className="flex items-center justify-between border-b pb-3 border-zinc-500/15">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-9 h-9 rounded-2xl bg-green-500/10 border border-green-500/20 flex items-center justify-center text-green-500">
+                      <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-bold">Contact Admin & Support</h3>
+                      <p className="text-[11px] text-zinc-500">7strokes Lead Generation Platform</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setShowContactModal(false)}
+                    className="text-xs text-zinc-500 hover:text-black dark:hover:text-white btn-spring p-1 rounded-lg"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                {/* Admin / Dev Card */}
+                <div className={`p-3.5 rounded-2xl border flex items-center gap-3 ${isDark ? "bg-white/[0.03] border-white/10" : "bg-black/[0.02] border-black/10"}`}>
+                  <img
+                    src={LOGO_LIGHT}
+                    alt="Reinhart"
+                    className="w-12 h-12 rounded-xl object-contain bg-black/20 p-1 border border-zinc-500/20 shrink-0"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5">
+                      <h4 className="text-xs font-bold truncate">Reinhart</h4>
+                      <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-green-500/20 text-green-500 border border-green-500/30">Dev & Admin</span>
+                    </div>
+                    <p className="text-[11px] text-zinc-500 truncate mt-0.5 font-mono">reinhart96x@gmail.com</p>
+                    <p className="text-[11px] text-green-500 font-mono font-semibold">+1 (315) 370-1897</p>
+                  </div>
+                </div>
+
+                {/* Query Topic selector */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold block">Select inquiry type:</label>
+                  <div className="grid grid-cols-1 gap-1.5">
+                    {[
+                      { id: "reset_password", label: "🔑 Password Reset / Account Recovery" },
+                      { id: "change_email", label: "📧 Change Account Email" },
+                      { id: "scraper_help", label: "⚡ Scraper Assistance / Lead Help" },
+                      { id: "custom_proxy", label: "🌐 Custom Proxies & VPS Hosting" },
+                      { id: "other", label: "💬 General Support / Questions" }
+                    ].map(opt => (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() => setContactTopic(opt.id)}
+                        className={`text-left px-3 py-2 rounded-xl text-xs font-medium transition-all ${contactTopic === opt.id ? "bg-green-600 text-white font-bold shadow-md shadow-green-600/25" : (isDark ? "bg-white/5 text-zinc-300 hover:bg-white/10" : "bg-black/[0.04] text-zinc-700 hover:bg-black/[0.08]")}`}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold block mb-1">Additional details (optional)</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. My username is alex or inquiry detail..."
+                    value={contactCustomMsg}
+                    onChange={e => setContactCustomMsg(e.target.value)}
+                    className={`w-full px-3.5 py-2 rounded-xl text-xs outline-none transition ${isDark ? "glass-input-dark text-white" : "glass-input-light text-black"}`}
+                  />
+                </div>
+
+                {/* Direct Contact Buttons */}
+                <div className="space-y-2 pt-2 border-t border-zinc-500/15">
+                  <a
+                    href={getContactLinks().whatsapp}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="w-full py-2.5 px-4 rounded-xl text-xs font-bold text-white bg-[#25D366] hover:bg-[#20ba59] btn-spring shadow-md shadow-[#25D366]/25 flex items-center justify-center gap-2"
+                  >
+                    <svg className="w-4 h-4 fill-current shrink-0" viewBox="0 0 24 24"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/></svg>
+                    <span>Chat on WhatsApp (+1 315-370-1897)</span>
+                  </a>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <a
+                      href={getContactLinks().telegramReinhart}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="py-2.5 px-3 rounded-xl text-xs font-bold text-white bg-[#229ED9] hover:bg-[#1e8cc0] btn-spring shadow-md shadow-[#229ED9]/25 flex items-center justify-center gap-1.5"
+                    >
+                      <svg className="w-4 h-4 fill-current shrink-0" viewBox="0 0 24 24"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>
+                      <span className="truncate">@reinhart96x</span>
+                    </a>
+
+                    <a
+                      href={getContactLinks().telegramKiri}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="py-2.5 px-3 rounded-xl text-xs font-bold text-white bg-[#229ED9] hover:bg-[#1e8cc0] btn-spring shadow-md shadow-[#229ED9]/25 flex items-center justify-center gap-1.5"
+                    >
+                      <svg className="w-4 h-4 fill-current shrink-0" viewBox="0 0 24 24"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>
+                      <span className="truncate">@kiri0507</span>
+                    </a>
+                  </div>
+
+                  <a
+                    href={getContactLinks().email}
+                    className={`w-full py-2.5 px-4 rounded-xl text-xs font-bold border btn-spring flex items-center justify-center gap-2 ${isDark ? "bg-white/5 border-white/10 hover:bg-white/10 text-white" : "bg-black/5 border-black/10 hover:bg-black/10 text-black"}`}
+                  >
+                    <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
+                    <span>Email: reinhart96x@gmail.com</span>
+                  </a>
+                </div>
               </div>
             </div>
           )}

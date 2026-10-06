@@ -41,11 +41,50 @@ router.get('/registration-status', async (req, res) => {
   }
 });
 
+router.get('/check-username', async (req, res) => {
+  try {
+    const raw = (req.query.username as string || '').trim().toLowerCase();
+    if (!raw) {
+      return res.status(400).json({ valid: false, error: 'Username is required' });
+    }
+    if (!/^[a-z0-9_]{3,30}$/.test(raw)) {
+      return res.json({ valid: false, error: 'Username must be 3-30 lowercase characters (a-z, 0-9, _)' });
+    }
+    const check = await query('SELECT id FROM users WHERE LOWER(username) = $1', [raw]);
+    if (check.rows.length > 0) {
+      return res.json({ valid: false, taken: true, error: 'Username is already taken' });
+    }
+    res.json({ valid: true, taken: false });
+  } catch {
+    res.status(500).json({ error: 'Server error checking username' });
+  }
+});
+
 router.post('/register', async (req, res) => {
   try {
     const { email, password, name, username } = req.body;
+
+    const regSetting = await query("SELECT value FROM settings WHERE key = 'allow_registration'");
+    if (regSetting.rows[0]?.value === 'false') {
+      return res.status(403).json({ error: 'Public registration is disabled by administrator' });
+    }
+
     if (!email || !password) {
       return res.status(400).json({ error: 'Email and password are required' });
+    }
+
+    if (!username || typeof username !== 'string' || !username.trim()) {
+      return res.status(400).json({ error: 'Username is required' });
+    }
+
+    const cleanUsername = username.trim().toLowerCase();
+    if (!/^[a-z0-9_]{3,30}$/.test(cleanUsername)) {
+      return res.status(400).json({ error: 'Username must be 3-30 lowercase characters (only letters a-z, numbers 0-9, and _)' });
+    }
+
+    const userExisting = await query('SELECT id FROM users WHERE LOWER(username) = $1', [cleanUsername]);
+    if (userExisting.rows.length > 0) {
+      return res.status(409).json({ error: 'Username is already taken. Please choose another username.' });
     }
 
     const normEmail = email.trim().toLowerCase();
@@ -56,18 +95,6 @@ router.post('/register', async (req, res) => {
     const existing = await query('SELECT id FROM users WHERE email = $1', [normEmail]);
     if (existing.rows.length > 0) {
       return res.status(409).json({ error: 'Email is already registered' });
-    }
-
-    const rawUsername = (username || name || normEmail.split('@')[0]).trim().toLowerCase().replace(/[^a-z0-9_-]/g, '');
-    const userExisting = await query('SELECT id FROM users WHERE username = $1', [rawUsername]);
-    if (userExisting.rows.length > 0 && username) {
-      return res.status(409).json({ error: 'Username is already taken' });
-    }
-    const finalUsername = userExisting.rows.length > 0 ? `${rawUsername}_${Date.now().toString().slice(-4)}` : rawUsername;
-
-    const regSetting = await query("SELECT value FROM settings WHERE key = 'allow_registration'");
-    if (regSetting.rows[0]?.value === 'false') {
-      return res.status(403).json({ error: 'Public registration is disabled by administrator' });
     }
 
     const countResult = await query('SELECT COUNT(*) as count FROM users');
@@ -82,7 +109,7 @@ router.post('/register', async (req, res) => {
 
     const result = await query(
       'INSERT INTO users (email, username, password_hash, name, role, status, can_use_proxy) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, email, username, name, role, status, can_use_proxy, avatar',
-      [normEmail, finalUsername, passwordHash, name || normEmail.split('@')[0], role, status, canUseProxy]
+      [normEmail, cleanUsername, passwordHash, name || cleanUsername, role, status, canUseProxy]
     );
 
     const newUser = result.rows[0];
@@ -151,37 +178,10 @@ router.post('/login', async (req, res) => {
   }
 });
 
-router.post('/forgot-password', async (req, res) => {
-  try {
-    const { email } = req.body;
-    if (!email) {
-      return res.status(400).json({ error: 'Email address is required' });
-    }
-
-    const normEmail = email.trim().toLowerCase();
-    const result = await query('SELECT id, email FROM users WHERE email = $1', [normEmail]);
-    if (result.rows.length === 0) {
-      return res.json({
-        message: 'If an account exists with this email address, password reset instructions have been issued.',
-        resetLink: null
-      });
-    }
-
-    const tempPassword = 'Temp' + crypto.randomBytes(3).toString('hex') + '!1';
-    const salt = await bcrypt.genSalt(10);
-    const passwordHash = await bcrypt.hash(tempPassword, salt);
-
-    await query('UPDATE users SET password_hash = $1 WHERE email = $2', [passwordHash, normEmail]);
-
-    res.json({
-      message: 'Password reset generated successfully',
-      email: normEmail,
-      temporaryPassword: tempPassword,
-      resetLink: `${req.protocol}://${req.get('host')}/reset-password?token=${crypto.randomBytes(16).toString('hex')}`
-    });
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to process password reset' });
-  }
+router.post('/forgot-password', async (_req, res) => {
+  res.status(403).json({
+    error: 'Self-serve password reset is disabled. Please contact the administrator directly to request a password reset.'
+  });
 });
 
 router.get('/me', authMiddleware, async (req: AuthRequest, res) => {

@@ -25,6 +25,7 @@
   - [Method 1: Local Zero-Config Setup (Fastest)](#method-1-local-zero-config-setup-fastest)
   - [Method 2: Docker Compose (Full Stack)](#method-2-docker-compose-full-stack)
   - [Method 3: Cloudflare Workers/Pages + Public Tunnel](#method-3-cloudflare-workerspages--public-tunnel)
+  - [Method 4: 24/7 Production VPS Hosting (Ubuntu + PM2 + Nginx + SSL)](#method-4-247-production-vps-hosting-ubuntu--pm2--nginx--ssl)
 - [Usage & Features](#usage--features)
   - [Theme-Aware Experience](#theme-aware-experience)
   - [User Access & Admin Approval](#user-access--admin-approval)
@@ -207,6 +208,123 @@ npm start
 
 ---
 
+### Method 4: 24/7 Production VPS Hosting (Ubuntu + PM2 + Nginx + SSL)
+
+Deploy 7strokes on any virtual private server (DigitalOcean Droplet, Hetzner, AWS EC2, Linode, Vultr, OVH) running **Ubuntu 22.04 LTS or 24.04 LTS**.
+
+#### 1. Server Prerequisites & Node.js 20 Setup
+Log in via SSH and install system packages, Node.js v20, and PM2:
+```bash
+# Update server repositories
+sudo apt update && sudo apt upgrade -y
+sudo apt install -y curl git nginx certbot python3-certbot-nginx build-essential
+
+# Install Node.js 20 LTS (NodeSource)
+curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+sudo apt install -y nodejs
+
+# Install PM2 process manager globally
+sudo npm install -g pm2
+```
+
+#### 2. Clone Repository & Install Dependencies
+```bash
+# Clone repository to /var/www
+sudo mkdir -p /var/www/7strokes
+sudo chown -R $USER:$USER /var/www/7strokes
+git clone https://github.com/Reinhart-py/kiri-lead.git /var/www/7strokes/repo
+cd /var/www/7strokes/repo/DashMin
+
+# Install Backend dependencies
+cd backend
+npm install
+npm run build
+
+# Install Frontend dependencies
+cd ../frontend
+npm install
+npm run build
+```
+
+#### 3. Configure Production Environment
+Create `/var/www/7strokes/repo/DashMin/backend/.env`:
+```env
+PORT=4000
+DATABASE_URL=postgresql://postgres:yourpassword@localhost:5432/dashmin
+# (If PostgreSQL is omitted, 7strokes automatically uses SQLite: dashmin.sqlite)
+JWT_SECRET=super-secure-production-jwt-token-string-7strokes
+CORS_ORIGIN=https://yourdomain.com
+PROXY_URL=
+```
+
+Create `/var/www/7strokes/repo/DashMin/frontend/.env.local`:
+```env
+NEXT_PUBLIC_API_URL=https://yourdomain.com
+```
+
+#### 4. Launch Backend & Frontend with PM2
+```bash
+# Start backend
+cd /var/www/7strokes/repo/DashMin/backend
+pm2 start dist/index.js --name "7strokes-backend"
+
+# Start Next.js frontend
+cd /var/www/7strokes/repo/DashMin/frontend
+pm2 start npm --name "7strokes-frontend" -- start -- -p 3000
+
+# Save process list and enable system auto-restart on reboot
+pm2 save
+pm2 startup
+```
+
+#### 5. Configure Nginx Reverse Proxy
+Create `/etc/nginx/sites-available/7strokes`:
+```nginx
+server {
+    listen 80;
+    server_name yourdomain.com www.yourdomain.com;
+
+    # Frontend routes
+    location / {
+        proxy_pass http://localhost:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_cache_bypass $http_upgrade;
+    }
+
+    # Backend API endpoints
+    location /api/ {
+        proxy_pass http://localhost:4000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 300s;
+        proxy_connect_timeout 75s;
+    }
+}
+```
+
+Enable the Nginx virtual host:
+```bash
+sudo ln -s /etc/nginx/sites-available/7strokes /etc/nginx/sites-enabled/
+sudo nginx -t
+sudo systemctl restart nginx
+```
+
+#### 6. Issue Free Automatic SSL Certificate
+```bash
+sudo certbot --nginx -d yourdomain.com -d www.yourdomain.com
+```
+Certbot will automatically install SSL certificates and configure HTTPS redirects. Your 7strokes lead generation system is now live 24/7!
+
+---
+
 ### Usage & Features
 
 #### Theme-Aware Experience
@@ -314,6 +432,17 @@ A: Yes! 7strokes automatically detects when PostgreSQL or Redis are unavailable 
 
 **Q: How do I reset the admin password?**  
 A: An administrator can reset any user's password directly from the **Admin > Users** tab, or using the built-in password reset link.
+
+---
+
+### Support & Developer Contact
+
+For technical questions, VPS deployment support, custom proxies, or account recovery:
+
+- **Lead Developer & Administrator**: Reinhart
+- **Email**: [reinhart96x@gmail.com](mailto:reinhart96x@gmail.com)
+- **WhatsApp**: [+1 (315) 370-1897](https://wa.me/13153701897?text=Hello%20Reinhart%2C%20I%20am%20using%20the%207strokes%20lead%20finder%20tool%20and%20need%20assistance)
+- **Telegram**: [@reinhart96x](https://t.me/reinhart96x) / [@kiri0507](https://t.me/kiri0507)
 
 ---
 
