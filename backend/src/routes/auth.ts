@@ -31,6 +31,16 @@ function isDisposableEmail(email: string): boolean {
   return false;
 }
 
+router.get('/registration-status', async (req, res) => {
+  try {
+    const regSetting = await query("SELECT value FROM settings WHERE key = 'allow_registration'");
+    const isAllowed = regSetting.rows[0]?.value !== 'false';
+    res.json({ allowRegistration: isAllowed });
+  } catch {
+    res.json({ allowRegistration: true });
+  }
+});
+
 router.post('/register', async (req, res) => {
   try {
     const { email, password, name, username } = req.body;

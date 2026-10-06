@@ -229,13 +229,24 @@ export default function Home() {
   const [bulkStatusMsg, setBulkStatusMsg] = useState("");
   const [parallelConcurrency, setParallelConcurrency] = useState<number>(6);
 
-  const [platformName, setPlatformName] = useState("DashMin");
+  const [platformName, setPlatformName] = useState("7strokes");
   const [publicRegistration, setPublicRegistration] = useState(true);
   const [systemProxyEnabled, setSystemProxyEnabled] = useState(false);
   const [systemProxyUrl, setSystemProxyUrl] = useState("");
   const [settingsSuccess, setSettingsSuccess] = useState(false);
 
   useEffect(() => {
+    fetch(`${API_BASE}/api/auth/registration-status`, {
+      headers: { "ngrok-skip-browser-warning": "true" }
+    })
+      .then(r => r.json())
+      .then(d => {
+        if (d && typeof d.allowRegistration === "boolean") {
+          setPublicRegistration(d.allowRegistration);
+        }
+      })
+      .catch(() => {});
+
     const savedTheme = localStorage.getItem("dashmin_theme") as "dark" | "light" | null;
     if (savedTheme) {
       setTheme(savedTheme);
@@ -877,10 +888,7 @@ export default function Home() {
         <div className={`w-full max-w-[400px] rounded-3xl p-8 transition-all duration-300 ${isDark ? "glass-surface-dark text-white" : "glass-surface-light text-black shadow-lg"}`}>
           <div className="flex justify-between items-center mb-6">
             <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-xl bg-green-600 flex items-center justify-center text-white font-bold text-sm shadow-md shadow-green-600/25">
-                D
-              </div>
-              <span className="text-lg font-bold tracking-tight">{platformName}</span>
+              <img src="https://ik.imagekit.io/Reinhart/nox/7strokeslogo.png" alt="7strokes" className="h-8 w-auto object-contain" />
             </div>
             <button
               onClick={toggleTheme}
@@ -890,20 +898,27 @@ export default function Home() {
             </button>
           </div>
 
-          <div className={`flex rounded-xl p-1 mb-6 text-xs font-semibold ${isDark ? "bg-black/40 border border-white/5" : "bg-black/[0.04] border border-black/5"}`}>
-            <button
-              onClick={() => { setAuthMode("login"); setAuthError(""); setForgotResult(null); }}
-              className={`flex-1 py-1.5 rounded-lg transition-all duration-200 ${authMode === "login" ? (isDark ? "bg-white/10 text-white font-bold shadow-sm" : "bg-white text-black font-bold shadow-sm") : "text-zinc-500"}`}
-            >
-              Sign In
-            </button>
-            <button
-              onClick={() => { setAuthMode("register"); setAuthError(""); setForgotResult(null); }}
-              className={`flex-1 py-1.5 rounded-lg transition-all duration-200 ${authMode === "register" ? (isDark ? "bg-white/10 text-white font-bold shadow-sm" : "bg-white text-black font-bold shadow-sm") : "text-zinc-500"}`}
-            >
-              Register
-            </button>
-          </div>
+          {publicRegistration ? (
+            <div className={`flex rounded-xl p-1 mb-6 text-xs font-semibold ${isDark ? "bg-black/40 border border-white/5" : "bg-black/[0.04] border border-black/5"}`}>
+              <button
+                onClick={() => { setAuthMode("login"); setAuthError(""); setForgotResult(null); }}
+                className={`flex-1 py-1.5 rounded-lg transition-all duration-200 ${authMode === "login" ? (isDark ? "bg-white/10 text-white font-bold shadow-sm" : "bg-white text-black font-bold shadow-sm") : "text-zinc-500"}`}
+              >
+                Sign In
+              </button>
+              <button
+                onClick={() => { setAuthMode("register"); setAuthError(""); setForgotResult(null); }}
+                className={`flex-1 py-1.5 rounded-lg transition-all duration-200 ${authMode === "register" ? (isDark ? "bg-white/10 text-white font-bold shadow-sm" : "bg-white text-black font-bold shadow-sm") : "text-zinc-500"}`}
+              >
+                Register
+              </button>
+            </div>
+          ) : (
+            <div className="mb-6">
+              <h2 className="text-base font-bold tracking-tight">Sign In</h2>
+              <p className="text-xs text-zinc-500 mt-0.5">Enter your credentials to access your workspace</p>
+            </div>
+          )}
 
           {authError && (
             <div className="mb-4 p-3 rounded-xl text-xs font-semibold border border-red-500/20 bg-red-500/10 text-red-500">
@@ -1077,10 +1092,7 @@ export default function Home() {
         <div>
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-xl bg-green-600 flex items-center justify-center text-white font-bold text-xs shadow-md shadow-green-600/25">
-                D
-              </div>
-              <span className="text-base font-bold tracking-tight">{platformName}</span>
+              <img src="https://ik.imagekit.io/Reinhart/nox/7strokeslogo.png" alt="7strokes" className="h-7 w-auto object-contain" />
             </div>
             <button
               onClick={() => setSidebarOpen(false)}
@@ -1201,32 +1213,33 @@ export default function Home() {
             </button>
           </div>
 
-          <div
-            onClick={() => {
-              setProfileName(user?.name || "");
-              setProfileUsername(user?.username || "");
-              setProfileAvatar(user?.avatar || "");
-              setProfileMsg(null);
-              setSidebarOpen(false);
-              setShowProfileModal(true);
-            }}
-            className={`p-3 rounded-2xl border flex items-center justify-between text-xs cursor-pointer btn-spring ${isDark ? "glass-surface-dark border-white/5 hover:border-white/20" : "glass-surface-light border-zinc-200 hover:border-zinc-300"}`}
-          >
-            <div className="flex items-center gap-2.5 truncate">
-              {user.avatar ? (
-                <img src={user.avatar} alt={user.name} className="w-8 h-8 rounded-full object-cover shrink-0 border border-zinc-500/20" />
-              ) : (
-                <div className="w-8 h-8 rounded-xl bg-zinc-800 text-white flex items-center justify-center font-bold text-xs shrink-0">
-                  {(user.username || user.name || user.email)[0].toUpperCase()}
-                </div>
-              )}
+          <div className="space-y-2 mt-auto">
+            <div
+              onClick={() => {
+                setProfileName(user?.name || "");
+                setProfileUsername(user?.username || "");
+                setProfileAvatar(user?.avatar || "");
+                setProfileMsg(null);
+                setSidebarOpen(false);
+                setShowProfileModal(true);
+              }}
+              className={`p-3 rounded-2xl border flex items-center justify-between text-xs cursor-pointer btn-spring ${isDark ? "glass-surface-dark border-white/5 hover:border-white/20" : "glass-surface-light border-zinc-200 hover:border-zinc-300"}`}
+              title="Edit Profile & Security"
+            >
               <div className="truncate">
-                <div className="font-bold truncate">{user.name || user.username || user.email}</div>
+                <div className="font-bold text-xs truncate">{user.name || user.username || user.email}</div>
                 <div className="text-[10px] text-zinc-500 truncate">@{user.username || user.email.split('@')[0]}</div>
               </div>
+              <span className="text-[10px] text-zinc-400 hover:text-white px-2 py-1 rounded-lg bg-white/5 shrink-0">Profile</span>
             </div>
-            <button onClick={(e) => { e.stopPropagation(); setSidebarOpen(false); logout(); }} className="text-zinc-500 hover:text-red-500 font-semibold ml-2 btn-spring">
-              Exit
+
+            <button
+              onClick={() => { setSidebarOpen(false); logout(); }}
+              className="w-full py-2.5 px-4 rounded-2xl bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/20 hover:border-red-500/30 font-bold text-xs btn-spring flex items-center justify-center gap-2 shadow-sm"
+              title="Logout of session"
+            >
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+              <span>Logout</span>
             </button>
           </div>
         </div>
@@ -1243,6 +1256,7 @@ export default function Home() {
               <span>☰</span>
               <span className="hidden sm:inline">Menu</span>
             </button>
+            <img src="https://ik.imagekit.io/Reinhart/nox/7strokeslogo.png" alt="7strokes" className="h-6 w-auto object-contain shrink-0" />
             <h2 className="text-sm font-bold tracking-tight truncate">
               {viewMode === "admin"
                 ? (adminTab === "overview" ? "System & Stats" : (adminTab === "users" ? "User Management" : (adminTab === "leads" ? "All Users Leads (Global Database)" : "System Settings")))
@@ -1259,17 +1273,11 @@ export default function Home() {
                 setProfileMsg(null);
                 setShowProfileModal(true);
               }}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold btn-spring ${isDark ? "glass-icon-dark text-white hover:border-white/30" : "glass-icon-light text-black hover:border-black/30"}`}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold btn-spring ${isDark ? "glass-icon-dark text-white hover:border-white/30" : "glass-icon-light text-black hover:border-black/30"}`}
               title="My Profile & Security"
             >
-              {user?.avatar ? (
-                <img src={user.avatar} alt="Profile" className="w-4 h-4 rounded-full object-cover" />
-              ) : (
-                <span className="w-4 h-4 rounded-full bg-green-600 text-white text-[9px] flex items-center justify-center font-bold">
-                  {(user?.username || user?.name || user?.email || "U")[0].toUpperCase()}
-                </span>
-              )}
-              <span>Profile</span>
+              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+              <span>{user?.name || user?.username || "Profile"}</span>
             </button>
             <button
               onClick={toggleTheme}
