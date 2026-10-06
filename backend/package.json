@@ -6,9 +6,9 @@
   "scripts": {
     "build": "tsc",
     "start": "node dist/index.js",
-    "worker": "ts-node src/workers/scraperWorker.ts",
+    "worker": "node dist/workers/scraperWorker.js",
     "worker:prod": "node dist/workers/scraperWorker.js",
-    "dev": "nodemon --watch src --exec ts-node src/index.ts"
+    "dev": "tsc && node dist/index.js"
   },
   "keywords": [],
   "author": "",

@@ -13,24 +13,26 @@
 
 # Contents
 
-- [Why?](#why)
-- [Architecture](#architecture)
-- [Directory Structure](#directory-structure)
-- [Installation](#installation)
-  - [Method 1: Docker Compose (Recommended)](#method-1-docker-compose-recommended)
-  - [Method 2: Manual Setup (Local Dev)](#method-2-manual-setup-local-dev)
-- [Dependencies & Prerequisites](#dependencies--prerequisites)
-- [Usage](#usage)
-  - [User Registration & Admin Approval](#user-registration--admin-approval)
-  - [Starting a Google Maps Job](#starting-a-google-maps-job)
-  - [Starting a 2GIS Fast HTTP Job](#starting-a-2gis-fast-http-job)
-  - [Viewing Leads & Live Search](#viewing-leads--live-search)
-  - [Mobile & Responsive Drawer Experience](#mobile--responsive-drawer-experience)
-  - [Exporting with Column Filters (CSV, XLSX, JSON, HTML)](#exporting-with-column-filters-csv-xlsx-json-html)
-- [What can I extract?](#what-can-i-extract)
-- [Configuration & Proxy Setup](#configuration--proxy-setup)
-- [How the Provider Engine Works](#how-the-provider-engine-works)
-- [Want to Contribute?](#want-to-contribute)
+- [DashMin](#dashmin)
+- [Contents](#contents)
+    - [Why?](#why)
+    - [Architecture](#architecture)
+    - [Directory Structure](#directory-structure)
+    - [Installation](#installation)
+      - [Method 1: Docker Compose (Recommended)](#method-1-docker-compose-recommended)
+      - [Method 2: Manual Setup (Local Dev)](#method-2-manual-setup-local-dev)
+    - [Dependencies \& Prerequisites](#dependencies--prerequisites)
+    - [Usage](#usage)
+      - [User Registration \& Admin Approval](#user-registration--admin-approval)
+      - [Starting a Google Maps Job](#starting-a-google-maps-job)
+      - [Starting a 2GIS Fast HTTP Job](#starting-a-2gis-fast-http-job)
+      - [Viewing Leads \& Live Search](#viewing-leads--live-search)
+      - [Mobile \& Responsive Drawer Experience](#mobile--responsive-drawer-experience)
+      - [Exporting with Column Filters (CSV, XLSX, JSON, HTML)](#exporting-with-column-filters-csv-xlsx-json-html)
+    - [What can I extract?](#what-can-i-extract)
+    - [Configuration \& Proxy Setup](#configuration--proxy-setup)
+    - [How the Provider Engine Works](#how-the-provider-engine-works)
+    - [Want to Contribute?](#want-to-contribute)
 
 ---
 
@@ -156,8 +158,10 @@ psql -U postgres -d dashmin -f backend/schema.sql
 ```bash
 cd backend
 npm install
-npm run dev
+npm run build
+npm start
 ```
+*(Or `npm run dev`, which compiles with `tsc` and runs `node dist/index.js`)*
 
 **4. Start the Background Queue Worker:**
 In a separate terminal window:
@@ -165,6 +169,7 @@ In a separate terminal window:
 cd backend
 npm run worker
 ```
+*(Runs `node dist/workers/scraperWorker.js`)*
 
 **5. Setup and start the Frontend:**
 In another terminal window:
