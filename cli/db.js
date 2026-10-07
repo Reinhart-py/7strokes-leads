@@ -145,7 +145,7 @@ async function viewDatabase() {
       console.table(
         recentJobs.map((j) => ({
           'Job ID': j.id.slice(0, 8),
-          Engine: j.engine,
+          Source: j.engine,
           Target: j.target.slice(0, 30),
           Status: j.status,
           Leads: `${j.total_saved}/${j.cap || 'none'}`,

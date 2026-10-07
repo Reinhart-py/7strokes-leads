@@ -21,30 +21,30 @@ function printBanner(info = {}) {
   const isAndroid = isAndroidOrTermux();
   const platformLabel = isAndroid ? 'Android (Termux)' : `${process.platform} (${process.arch})`;
 
-  console.log('\n' + '='.repeat(64));
-  console.log('              7STROKES B2B LEAD ENGINE ONLINE                   ');
-  console.log('='.repeat(64));
-  console.log(`- Environment : ${platformLabel}`);
-  console.log(`- Local API   : http://localhost:${info.port || 4000}`);
+  console.log('\n' + '='.repeat(54));
+  console.log('                 7STROKES IS READY');
+  console.log('='.repeat(54));
+  console.log(`- Platform    : ${platformLabel}`);
+  console.log(`- Local App   : http://localhost:${info.port || 4000}`);
   if (info.publicUrl) {
-    console.log(`- Public URL  : ${info.publicUrl}`);
+    console.log(`- Public Link : ${info.publicUrl}`);
   }
-  console.log(`- Database    : SQLite (dashmin.sqlite - Healthy)`);
+  console.log(`- Database    : SQLite (dashmin.sqlite - connected)`);
   if (info.botActive) {
-    console.log(`- Telegram Bot: Active & Connected (Type /help in chat)`);
+    console.log(`- Telegram Bot: Active (type /help in chat)`);
   }
-  console.log('-'.repeat(64));
-  console.log('Quick Commands:');
+  console.log('-'.repeat(54));
+  console.log('Quick commands:');
   console.log('  kiki db view   - View database stats');
-  console.log('  kiki bot       - Start Telegram bot standalone');
-  console.log('  Press Ctrl+C to safely shut down all services');
-  console.log('='.repeat(64) + '\n');
+  console.log('  kiki bot       - Start Telegram bot');
+  console.log('  Press Ctrl+C to stop');
+  console.log('='.repeat(54) + '\n');
 }
 
 function checkBackendBuilt() {
   const distIndexPath = path.join(__dirname, 'backend/dist/index.js');
   if (!fs.existsSync(distIndexPath)) {
-    console.log('[*] Compiling backend TypeScript code...');
+    console.log('[*] Compiling backend code...');
     execSync('npm run build', { cwd: path.join(__dirname, 'backend'), stdio: 'inherit' });
   }
 }
@@ -80,19 +80,19 @@ async function startAll() {
   });
 
   backendProc.on('error', (err) => {
-    console.error('[!] Failed to spawn backend:', err.message);
+    console.error('[!] Failed to start backend:', err.message);
   });
 
   await waitForServer(config.backendPort || 4000);
-  console.log('[+] Backend server is listening on port ' + (config.backendPort || 4000));
+  console.log('[+] Backend server is running on port ' + (config.backendPort || 4000));
 
-  console.log('[*] Initializing public tunnel...');
+  console.log('[*] Initializing public link...');
   let publicUrl = null;
   try {
     const tunnelResult = await startTunnel(config.backendPort || 4000, config);
     publicUrl = tunnelResult.url;
   } catch (err) {
-    console.warn('[!] Tunnel initialization note:', err.message);
+    console.warn('[!] Public link note:', err.message);
   }
 
   let botActive = false;
@@ -112,7 +112,7 @@ async function startAll() {
   });
 
   const handleExit = () => {
-    console.log('\n[*] Stopping 7strokes services...');
+    console.log('\n[*] Stopping 7strokes...');
     stopTunnel();
     try { backendProc.kill(); } catch (_) {}
     process.exit(0);
@@ -129,15 +129,15 @@ function showInteractiveMenu() {
   });
 
   console.log('\n' + '='.repeat(54));
-  console.log('             7STROKES CONTROL PANEL (KIKI)        ');
+  console.log('             7STROKES CONTROL PANEL (KIKI)');
   console.log('='.repeat(54));
-  console.log(' [1] Start Engine (Backend + Public Tunnel)');
+  console.log(' [1] Start 7strokes (Backend + Public Link)');
   console.log(' [2] Start Telegram Bot');
   console.log(' [3] View Database Stats');
   console.log(' [4] Create Database Backup');
   console.log(' [5] Restore Database From Backup');
-  console.log(' [6] Configure Settings (Tokens, Domains, Bot)');
-  console.log(' [7] Start Android DNS Bridge (Port 8888)');
+  console.log(' [6] Change Settings (Tokens, Links, Bot)');
+  console.log(' [7] Android DNS Bridge (Port 8888)');
   console.log(' [0] Exit');
   console.log('='.repeat(54));
 
@@ -149,9 +149,14 @@ function showInteractiveMenu() {
       case '1':
         await startAll();
         break;
-      case '2':
-        await startTelegramBot();
+      case '2': {
+        const bot = await startTelegramBot();
+        if (bot) {
+          console.log('[*] Bot is running. Press Ctrl+C to stop.');
+          await new Promise(() => {});
+        }
         break;
+      }
       case '3':
         await viewDatabase();
         break;
@@ -177,7 +182,7 @@ function showInteractiveMenu() {
         await promptConfig(true, false);
         break;
       case '7': {
-        console.log('[*] Starting standalone Android Node.js DNS Bridge on 127.0.0.1:8888...');
+        console.log('[*] Starting Android DNS Bridge on 127.0.0.1:8888...');
         const bridge = await startDnsBridge(8888);
         console.log(`[+] DNS Bridge active on 127.0.0.1:${bridge.port}`);
         console.log('[*] Use with: ngrok http 4000 --proxy-url=http://127.0.0.1:' + bridge.port);
@@ -207,9 +212,14 @@ async function main() {
       await startAll();
       break;
 
-    case 'bot':
-      await startTelegramBot();
+    case 'bot': {
+      const bot = await startTelegramBot();
+      if (bot) {
+        console.log('[*] Bot is running. Press Ctrl+C to stop.');
+        await new Promise(() => {});
+      }
       break;
+    }
 
     case 'db':
       if (subCommand === 'view' || subCommand === 'stats' || subCommand === 'list' || !subCommand) {
@@ -228,7 +238,7 @@ async function main() {
       break;
 
     case 'bridge': {
-      console.log('[*] Starting standalone Android Node.js DNS Bridge on 127.0.0.1:8888...');
+      console.log('[*] Starting Android DNS Bridge on 127.0.0.1:8888...');
       const bridge = await startDnsBridge(8888);
       console.log(`[+] DNS Bridge active on 127.0.0.1:${bridge.port}`);
       console.log('[*] Use with: ngrok http 4000 --proxy-url=http://127.0.0.1:' + bridge.port);
@@ -244,7 +254,7 @@ async function main() {
     case '--help':
     case '-h':
       console.log(`
-7strokes - Universal CLI Manager (kiki)
+7strokes - Universal CLI (kiki)
 
 USAGE:
   kiki [command] [options]
@@ -252,13 +262,13 @@ USAGE:
 
 COMMANDS:
   (no args)           Open interactive numbered menu
-  start               Start backend and public tunnel together
-  bot                 Start or configure the 7strokes Telegram Bot
-  db view             Display database statistics (Mobile & Desktop view)
-  db backup           Create timestamped database backup in backups/
-  db restore <file>   Restore database from a previous backup file
-  bridge              Start standalone Node.js DNS bridge for Android Termux
-  config              Re-run interactive setup for tokens, domains, and chat IDs
+  start               Start backend and public link together
+  bot                 Start the 7strokes Telegram Bot
+  db view             Display database statistics
+  db backup           Create database backup in backups/
+  db restore <file>   Restore database from a backup file
+  bridge              Start standalone DNS bridge for Android Termux
+  config              Change settings (tokens, links, bot)
   help                Show this command manual
 `);
       break;
@@ -270,6 +280,6 @@ COMMANDS:
 }
 
 main().catch((err) => {
-  console.error('[!] Fatal error:', err);
+  console.error('[!] Error:', err.message);
   process.exit(1);
 });

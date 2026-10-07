@@ -91,7 +91,7 @@ async function promptConfig(forcePrompt = false, onlyBot = false) {
       };
     }
 
-    console.log('\n--- [2/2] TELEGRAM BOT CONFIGURATION (FK BOT) ---');
+    console.log('\n--- [2/2] TELEGRAM BOT SETTINGS ---');
     console.log('Control 7strokes, trigger searches, and receive leads directly via Telegram.\n');
 
     const botToken = await askQuestion(
