@@ -22,3 +22,5 @@ exports/*.html
 Thumbs.db
 tools/
 *.exe
+backups/
+.7strokes-config.json

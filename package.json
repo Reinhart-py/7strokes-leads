@@ -1,0 +1,25 @@
+{
+  "name": "7strokes",
+  "version": "1.0.0",
+  "description": "7strokes — High-Performance B2B Lead Generation Tool",
+  "main": "fk.js",
+  "scripts": {
+    "fk": "node fk.js",
+    "start": "node fk.js start",
+    "bot": "node fk.js bot",
+    "db:view": "node fk.js db view",
+    "db:backup": "node fk.js db backup",
+    "bridge": "node fk.js bridge",
+    "config": "node fk.js config"
+  },
+  "keywords": [
+    "lead-generation",
+    "b2b",
+    "gmaps",
+    "2gis",
+    "scraper",
+    "termux"
+  ],
+  "author": "Reinhart",
+  "license": "MIT"
+}
