@@ -101,7 +101,7 @@ async function handleCommand(bot, msg, allowedChatIds) {
     console.warn(`[!] Unauthorized access attempt from Telegram Chat ID: ${chatId}`);
     await bot.sendMessage(
       chatId,
-      `⛔ *Access Denied*\nYour Chat ID: \`${chatId}\` is not in the allowed administrators list.\nAdd it via: \`node fk.js config\``
+      `[!] *Access Denied*\nYour Chat ID: \`${chatId}\` is not in the allowed administrators list.\nAdd it via: \`fk config\``
     );
     return;
   }
@@ -116,27 +116,27 @@ async function handleCommand(bot, msg, allowedChatIds) {
     switch (command) {
       case '/start':
       case '/help': {
-        const welcomeText = `🚀 *7strokes B2B Lead Engine Bot*
-━━━━━━━━━━━━━━━━━━━━
+        const welcomeText = `*7strokes B2B Lead Engine Bot*
+------------------------------------
 Control your lead generation engine anywhere from Telegram.
 
-📌 *Available Commands:*
-• 📊 \`/status\` — Live server metrics & platform
-• 🌐 \`/tunnel\` — Get current public Web UI link
-• 🗄️ \`/db\` — Database summary (leads, jobs, users)
-• 📋 \`/jobs\` — View recent scraping jobs
-• 🔍 \`/search <engine> <target> [limit]\` — Start lead search
-  _Example:_ \`/search gmaps Real Estate Dubai 100\`
-  _Example:_ \`/search 2gis Dental Clinic Abu Dhabi 50\`
-• 📥 \`/export <job_id>\` — Send CSV file of leads to chat
-• ❓ \`/help\` — Show this help menu
-━━━━━━━━━━━━━━━━━━━━`;
+*Available Commands:*
+* \`/status\` - Live server metrics and platform
+* \`/tunnel\` - Get current public Web UI link
+* \`/db\` - Database summary (leads, jobs, users)
+* \`/jobs\` - View recent scraping jobs
+* \`/search <engine> <target> [limit]\` - Start lead search
+  Example: \`/search gmaps Real Estate Dubai 100\`
+  Example: \`/search 2gis Dental Clinic Abu Dhabi 50\`
+* \`/export <job_id>\` - Send CSV file of leads to chat
+* \`/help\` - Show this help menu
+------------------------------------`;
         await bot.sendMessage(chatId, welcomeText);
         break;
       }
 
       case '/status': {
-        const platform = process.platform === 'android' ? '📱 Android (Termux)' : `💻 ${process.platform} (${process.arch})`;
+        const platform = process.platform === 'android' ? 'Android (Termux)' : `${process.platform} (${process.arch})`;
         const uptimeMins = Math.floor(process.uptime() / 60);
         const memMb = Math.round(process.memoryUsage().rss / 1024 / 1024);
 
@@ -150,17 +150,17 @@ Control your lead generation engine anywhere from Telegram.
 
         const tunnelUrl = getPublicUrl() || 'http://localhost:4000';
 
-        const statusMsg = `⚡ *7strokes System Status*
-━━━━━━━━━━━━━━━━━━━━
-• *Platform:* ${platform}
-• *Node.js:* ${process.version}
-• *Uptime:* ${uptimeMins} minutes
-• *Memory Usage:* ${memMb} MB
-• *Total Leads Collected:* *${counts.total_leads.toLocaleString()}*
-• *Total Jobs Run:* ${counts.total_jobs}
-• *Active Scraping Jobs:* ${counts.running_jobs}
-• *Live Tunnel:* [Open Web UI](${tunnelUrl})
-━━━━━━━━━━━━━━━━━━━━`;
+        const statusMsg = `*7strokes System Status*
+------------------------------------
+* Platform: ${platform}
+* Node.js: ${process.version}
+* Uptime: ${uptimeMins} minutes
+* Memory Usage: ${memMb} MB
+* Total Leads Collected: *${counts.total_leads.toLocaleString()}*
+* Total Jobs Run: ${counts.total_jobs}
+* Active Scraping Jobs: ${counts.running_jobs}
+* Live Tunnel: [Open Web UI](${tunnelUrl})
+------------------------------------`;
         await bot.sendMessage(chatId, statusMsg);
         break;
       }
@@ -170,12 +170,12 @@ Control your lead generation engine anywhere from Telegram.
         if (tunnelUrl) {
           await bot.sendMessage(
             chatId,
-            `🌐 *Active Public Tunnel Link*\n━━━━━━━━━━━━━━━━━━━━\n🔗 ${tunnelUrl}\n\n_Tap the link above to access your 7strokes Web Dashboard from your phone or browser._`
+            `*Active Public Tunnel Link*\n------------------------------------\nLink: ${tunnelUrl}\n\nOpen the link above to access your 7strokes Web Dashboard from your phone or browser.`
           );
         } else {
           await bot.sendMessage(
             chatId,
-            `⚠️ *No External Tunnel Active*\nThe server is currently running locally on \`http://localhost:4000\`.\nRun \`node fk.js\` to launch ngrok / Cloudflare tunnel.`
+            `[!] *No External Tunnel Active*\nThe server is currently running locally on \`http://localhost:4000\`.\nRun \`fk start\` to launch ngrok or Cloudflare tunnel.`
           );
         }
         break;
@@ -198,18 +198,18 @@ Control your lead generation engine anywhere from Telegram.
            GROUP BY COALESCE(company, 'Unassigned')`
         );
 
-        let companyLines = companies.map((c) => `  • ${c.company}: ${c.user_count} users`).join('\n');
+        let companyLines = companies.map((c) => `  * ${c.company}: ${c.user_count} users`).join('\n');
 
-        const dbMsg = `🗄️ *Database Summary*
-━━━━━━━━━━━━━━━━━━━━
-• *Total Leads Saved:* *${counts.leads.toLocaleString()}*
-• *Total Search Jobs:* ${counts.jobs}
-• *Total Users:* ${counts.users}
-• *Active Companies:* ${counts.companies}
+        const dbMsg = `*Database Summary*
+------------------------------------
+* Total Leads Saved: *${counts.leads.toLocaleString()}*
+* Total Search Jobs: ${counts.jobs}
+* Total Users: ${counts.users}
+* Active Companies: ${counts.companies}
 
-🏢 *Companies:*
+*Companies:*
 ${companyLines || '  (None)'}
-━━━━━━━━━━━━━━━━━━━━`;
+------------------------------------`;
         await bot.sendMessage(chatId, dbMsg);
         break;
       }
@@ -224,18 +224,18 @@ ${companyLines || '  (None)'}
         );
 
         if (jobs.length === 0) {
-          await bot.sendMessage(chatId, '📋 *No search jobs found in database.*');
+          await bot.sendMessage(chatId, '*No search jobs found in database.*');
           break;
         }
 
-        let jobsText = `📋 *Recent Scraping Jobs*\n━━━━━━━━━━━━━━━━━━━━\n`;
+        let jobsText = `*Recent Scraping Jobs*\n------------------------------------\n`;
         jobs.forEach((j, i) => {
           const shortId = j.id ? j.id.slice(0, 8) : 'unknown';
-          const icon = j.status === 'completed' ? '✅' : j.status === 'running' ? '⏳' : '⏹️';
-          jobsText += `${icon} *[${i + 1}]* \`${shortId}\` — *${j.engine.toUpperCase()}*\n`;
-          jobsText += `   🎯 *Target:* ${j.target}\n`;
-          jobsText += `   📈 *Leads:* ${j.total_saved} / ${j.cap || '∞'} | *Status:* ${j.status}\n`;
-          jobsText += `   📥 Export: \`/export ${shortId}\`\n\n`;
+          const statusTag = j.status === 'completed' ? '[DONE]' : j.status === 'running' ? '[RUNNING]' : '[STOPPED]';
+          jobsText += `${statusTag} *[${i + 1}]* \`${shortId}\` - *${j.engine.toUpperCase()}*\n`;
+          jobsText += `   Target: ${j.target}\n`;
+          jobsText += `   Leads: ${j.total_saved} / ${j.cap || 'none'} | Status: ${j.status}\n`;
+          jobsText += `   Export: \`/export ${shortId}\`\n\n`;
         });
 
         await bot.sendMessage(chatId, jobsText);
@@ -246,14 +246,14 @@ ${companyLines || '  (None)'}
         if (args.length < 2) {
           await bot.sendMessage(
             chatId,
-            `⚠️ *Usage:* \`/search <engine> <target> [cap]\`\n\n*Examples:*\n• \`/search gmaps Real Estate Dubai 100\`\n• \`/search 2gis Dental Clinic Abu Dhabi 50\``
+            `[!] *Usage:* \`/search <engine> <target> [cap]\`\n\n*Examples:*\n* \`/search gmaps Real Estate Dubai 100\`\n* \`/search 2gis Dental Clinic Abu Dhabi 50\``
           );
           break;
         }
 
         const engine = args[0].toLowerCase();
         if (engine !== 'gmaps' && engine !== '2gis') {
-          await bot.sendMessage(chatId, `⚠️ Unsupported engine \`${engine}\`. Use \`gmaps\` or \`2gis\`.`);
+          await bot.sendMessage(chatId, `[!] Unsupported engine \`${engine}\`. Use \`gmaps\` or \`2gis\`.`);
           break;
         }
 
@@ -279,7 +279,7 @@ ${companyLines || '  (None)'}
 
         await bot.sendMessage(
           chatId,
-          `🚀 *Job Started!*\n━━━━━━━━━━━━━━━━━━━━\n• *ID:* \`${jobId}\`\n• *Engine:* ${engine.toUpperCase()}\n• *Target:* ${target}\n• *Lead Target:* ${cap}\n\n_Scraper is running in background. You will receive an alert once complete!_`
+          `[+] *Job Started!*\n------------------------------------\n* ID: \`${jobId}\`\n* Engine: ${engine.toUpperCase()}\n* Target: ${target}\n* Lead Target: ${cap}\n\nScraper is running in background. You will receive an alert once complete.`
         );
 
         try {
@@ -289,11 +289,11 @@ ${companyLines || '  (None)'}
               const updated = (await queryAll(db, 'SELECT total_saved, status FROM jobs WHERE id = ?', [jobId]))[0];
               await bot.sendMessage(
                 chatId,
-                `✅ *Search Completed!*\n━━━━━━━━━━━━━━━━━━━━\n• *Target:* ${target}\n• *Leads Found:* *${updated?.total_saved || 0}*\n• *ID:* \`${jobId}\`\n\n📥 Download now: \`/export ${jobId}\``
+                `[+] *Search Completed!*\n------------------------------------\n* Target: ${target}\n* Leads Found: *${updated?.total_saved || 0}*\n* ID: \`${jobId}\`\n\nDownload now: \`/export ${jobId}\``
               );
             })
             .catch(async (err) => {
-              await bot.sendMessage(chatId, `❌ *Job Failed:* ${err.message}`);
+              await bot.sendMessage(chatId, `[-] *Job Failed:* ${err.message}`);
             });
         } catch (e) {
           console.warn('[!] Direct executor dispatch note:', e.message);
@@ -304,7 +304,7 @@ ${companyLines || '  (None)'}
       case '/export': {
         const searchId = (args[0] || '').trim();
         if (!searchId) {
-          await bot.sendMessage(chatId, '⚠️ *Usage:* `/export <job_id>`\n_Use `/jobs` to copy the Job ID._');
+          await bot.sendMessage(chatId, '[!] *Usage:* `/export <job_id>`\nUse `/jobs` to copy the Job ID.');
           break;
         }
 
@@ -315,7 +315,7 @@ ${companyLines || '  (None)'}
         )[0];
 
         if (!job) {
-          await bot.sendMessage(chatId, `❌ No job found matching \`${searchId}\`.`);
+          await bot.sendMessage(chatId, `[-] No job found matching \`${searchId}\`.`);
           break;
         }
 
@@ -326,7 +326,7 @@ ${companyLines || '  (None)'}
         );
 
         if (leads.length === 0) {
-          await bot.sendMessage(chatId, `⚠️ No leads stored for job \`${job.id}\` yet.`);
+          await bot.sendMessage(chatId, `[!] No leads stored for job \`${job.id}\` yet.`);
           break;
         }
 
@@ -359,19 +359,19 @@ ${companyLines || '  (None)'}
           chatId,
           filename,
           csvBuffer,
-          `📊 *7strokes Leads Export*\n• *Target:* ${job.target}\n• *Total Records:* ${leads.length}`
+          `*7strokes Leads Export*\n* Target: ${job.target}\n* Total Records: ${leads.length}`
         );
         break;
       }
 
       default:
-        await bot.sendMessage(chatId, `❓ Unknown command \`${command}\`. Type \`/help\` for the command list.`);
+        await bot.sendMessage(chatId, `[!] Unknown command \`${command}\`. Type \`/help\` for the command list.`);
         break;
     }
   } catch (err) {
     console.error('[!] Telegram Bot error handling command:', err);
     try {
-      await bot.sendMessage(chatId, `⚠️ An error occurred: ${err.message}`);
+      await bot.sendMessage(chatId, `[!] An error occurred: ${err.message}`);
     } catch (_) {}
   } finally {
     db.close();
@@ -389,18 +389,18 @@ async function startTelegramBot(configOverride = null) {
 
   if (!botToken || !allowedChatIds || allowedChatIds.length === 0) {
     console.log('[!] Telegram Bot not enabled or missing Bot Token / Chat IDs.');
-    console.log('[*] Run "node fk.js config" to set up your Telegram Bot.');
+    console.log('[*] Run "fk config" to set up your Telegram Bot.');
     return null;
   }
 
   const bot = new TelegramBotClient(botToken);
 
-  console.log('\n=============================================================');
-  console.log('         🤖 7STROKES TELEGRAM BOT (FK BOT) ACTIVE            ');
-  console.log('=============================================================');
-  console.log(`• Allowed Chat IDs : ${allowedChatIds.join(', ')}`);
-  console.log(`• Status           : Polling for commands...`);
-  console.log('• Send /start to your bot in Telegram to begin!\n');
+  console.log('\n' + '='.repeat(60));
+  console.log('         7STROKES TELEGRAM BOT (FK BOT) ACTIVE            ');
+  console.log('='.repeat(60));
+  console.log(`- Allowed Chat IDs : ${allowedChatIds.join(', ')}`);
+  console.log(`- Status           : Polling for commands...`);
+  console.log('- Send /start to your bot in Telegram to begin.\n');
 
   bot.isRunning = true;
 
@@ -410,7 +410,7 @@ async function startTelegramBot(configOverride = null) {
       try {
         await bot.sendMessage(
           chatId,
-          `🚀 *7strokes Engine Online!*\n━━━━━━━━━━━━━━━━━━━━\n⚡ Platform: *${process.platform === 'android' ? 'Android (Termux)' : process.platform}*\n🌐 Live Link: [Open Dashboard](${tunnelUrl})\n\n_Type /help to see all commands._`
+          `[+] *7strokes Engine Online!*\n------------------------------------\nPlatform: *${process.platform === 'android' ? 'Android (Termux)' : process.platform}*\nLive Link: [Open Dashboard](${tunnelUrl})\n\nType /help to see all commands.`
         );
       } catch (err) {
         console.warn(`[!] Could not send startup notification to ${chatId}:`, err.message);

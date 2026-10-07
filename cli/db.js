@@ -84,53 +84,53 @@ async function viewDatabase() {
 
     if (mobile) {
       console.log('\n===========================================');
-      console.log('  📱 7STROKES DATABASE (Mobile/Termux View) ');
+      console.log('   7STROKES DATABASE (Mobile/Termux View)  ');
       console.log('===========================================');
-      console.log(`• File: dashmin.sqlite (${dbSize})`);
-      console.log(`• Total Leads Scraped : ${counts.total_leads.toLocaleString()}`);
-      console.log(`• Total Scraping Jobs : ${counts.total_jobs}`);
-      console.log(`• Total Users         : ${counts.total_users}`);
-      console.log(`• Total Companies     : ${counts.total_companies}`);
-      console.log('───────────────────────────────────────────');
+      console.log(`- File: dashmin.sqlite (${dbSize})`);
+      console.log(`- Total Leads Scraped : ${counts.total_leads.toLocaleString()}`);
+      console.log(`- Total Scraping Jobs : ${counts.total_jobs}`);
+      console.log(`- Total Users         : ${counts.total_users}`);
+      console.log(`- Total Companies     : ${counts.total_companies}`);
+      console.log('-------------------------------------------');
 
-      console.log('\n🏢 COMPANIES:');
+      console.log('\nCOMPANIES:');
       if (companyStats.length === 0) {
         console.log('  (No companies created yet)');
       } else {
         companyStats.forEach((c) => {
-          console.log(`▸ ${c.company}`);
+          console.log(`* ${c.company}`);
           console.log(`  Managers: ${c.managers_count} | Users: ${c.users_count} | Leads: ${c.leads_count.toLocaleString()}`);
         });
       }
 
-      console.log('\n📋 RECENT SEARCHES:');
+      console.log('\nRECENT SEARCHES:');
       if (recentJobs.length === 0) {
         console.log('  (No searches executed yet)');
       } else {
         recentJobs.forEach((j, i) => {
           const shortId = j.id ? j.id.slice(0, 8) : 'unknown';
           console.log(`[${i + 1}] ${j.target} (${j.engine.toUpperCase()})`);
-          console.log(`    Status: ${j.status} | Leads: ${j.total_saved}/${j.cap || '∞'} | ID: ${shortId}`);
+          console.log(`    Status: ${j.status} | Leads: ${j.total_saved}/${j.cap || 'none'} | ID: ${shortId}`);
         });
       }
 
-      console.log('\n👥 TEAM MEMBERS:');
+      console.log('\nTEAM MEMBERS:');
       usersList.forEach((u) => {
         const handle = u.username ? `@${u.username}` : u.email;
-        console.log(`• ${u.name || 'User'} (${handle})`);
+        console.log(`- ${u.name || 'User'} (${handle})`);
         console.log(`  Role: [${u.role.toUpperCase()}] | Company: ${u.company || 'None'} | Status: ${u.status}`);
       });
       console.log('===========================================\n');
     } else {
-      console.log('\n' + '═'.repeat(76));
-      console.log('                  🖥️  7STROKES DATABASE OVERVIEW (DESKTOP)   ');
-      console.log('═'.repeat(76));
+      console.log('\n' + '='.repeat(76));
+      console.log('                  7STROKES DATABASE OVERVIEW (DESKTOP)   ');
+      console.log('='.repeat(76));
       console.log(`Database File : ${DB_PATH}`);
       console.log(`Database Size : ${dbSize}`);
       console.log(`Total Leads   : ${counts.total_leads.toLocaleString()} | Total Jobs: ${counts.total_jobs} | Users: ${counts.total_users} | Companies: ${counts.total_companies}`);
-      console.log('─'.repeat(76));
+      console.log('-'.repeat(76));
 
-      console.log('\n🏢 COMPANY BREAKDOWN:');
+      console.log('\nCOMPANY BREAKDOWN:');
       console.table(
         companyStats.map((c) => ({
           Company: c.company,
@@ -141,19 +141,19 @@ async function viewDatabase() {
         }))
       );
 
-      console.log('\n📋 RECENT SEARCH JOBS:');
+      console.log('\nRECENT SEARCH JOBS:');
       console.table(
         recentJobs.map((j) => ({
           'Job ID': j.id.slice(0, 8),
           Engine: j.engine,
           Target: j.target.slice(0, 30),
           Status: j.status,
-          Leads: `${j.total_saved}/${j.cap || '∞'}`,
+          Leads: `${j.total_saved}/${j.cap || 'none'}`,
           Created: j.created_at
         }))
       );
 
-      console.log('\n👥 REGISTERED USERS:');
+      console.log('\nREGISTERED USERS:');
       console.table(
         usersList.map((u) => ({
           Name: u.name || '-',
@@ -164,7 +164,7 @@ async function viewDatabase() {
           Status: u.status
         }))
       );
-      console.log('═'.repeat(76) + '\n');
+      console.log('='.repeat(76) + '\n');
     }
   } finally {
     db.close();
@@ -193,10 +193,10 @@ async function backupDatabase() {
   }
 
   const stat = fs.statSync(backupFilePath);
-  console.log('\n[✓] Database Backup Created Successfully!');
-  console.log(`📁 File     : ${backupFilePath}`);
-  console.log(`💾 Size     : ${formatBytes(stat.size)}`);
-  console.log(`🕒 Timestamp: ${now.toLocaleString()}\n`);
+  console.log('\n[+] Database Backup Created Successfully!');
+  console.log(`File      : ${backupFilePath}`);
+  console.log(`Size      : ${formatBytes(stat.size)}`);
+  console.log(`Timestamp : ${now.toLocaleString()}\n`);
 
   return backupFilePath;
 }
@@ -216,8 +216,8 @@ async function restoreDatabase(sourcePath) {
     if (fs.existsSync(DB_PATH + '-shm')) fs.unlinkSync(DB_PATH + '-shm');
   } catch (_) {}
 
-  console.log(`\n[✓] Database Restored Successfully from: ${sourcePath}`);
-  console.log('[*] Run "node fk.js db view" to inspect the restored database.\n');
+  console.log(`\n[+] Database Restored Successfully from: ${sourcePath}`);
+  console.log('[*] Run "fk db view" to inspect the restored database.\n');
 }
 
 module.exports = {

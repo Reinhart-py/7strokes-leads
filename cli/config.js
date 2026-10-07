@@ -61,9 +61,9 @@ async function promptConfig(forcePrompt = false, onlyBot = false) {
     output: process.stdout
   });
 
-  console.log('\n=============================================================');
-  console.log('         ⚙️  7STROKES FIRST-TIME CONFIGURATION SETUP         ');
-  console.log('=============================================================');
+  console.log('\n' + '='.repeat(60));
+  console.log('         7STROKES FIRST-TIME CONFIGURATION SETUP         ');
+  console.log('='.repeat(60));
   console.log('Press [Enter] to accept defaults or skip any optional field.\n');
 
   try {
@@ -73,13 +73,13 @@ async function promptConfig(forcePrompt = false, onlyBot = false) {
 
       const authtoken = await askQuestion(
         rl,
-        '👉 Ngrok Authtoken (Optional, press Enter to skip)\n   Example: 2Nxxx_abcdef123456789\n   Value: ',
+        'Ngrok Authtoken (Optional, press Enter to skip)\n  Example: 2Nxxx_abcdef123456789\n  Value: ',
         config.tunnel?.authtoken || ''
       );
 
       const domain = await askQuestion(
         rl,
-        '\n👉 Ngrok Custom/Static Domain (Optional, press Enter for random)\n   Example: uremic-lupita-pedodontic.ngrok-free.dev\n   Value: ',
+        '\nNgrok Custom/Static Domain (Optional, press Enter for random)\n  Example: uremic-lupita-pedodontic.ngrok-free.dev\n  Value: ',
         config.tunnel?.domain || ''
       );
 
@@ -96,7 +96,7 @@ async function promptConfig(forcePrompt = false, onlyBot = false) {
 
     const botToken = await askQuestion(
       rl,
-      '👉 Telegram Bot Token (From @BotFather, press Enter to skip)\n   Example: 7123456789:AAHk123_xyzABCdef456\n   Value: ',
+      'Telegram Bot Token (From @BotFather, press Enter to skip)\n  Example: 7123456789:AAHk123_xyzABCdef456\n  Value: ',
       config.telegram?.botToken || ''
     );
 
@@ -104,7 +104,7 @@ async function promptConfig(forcePrompt = false, onlyBot = false) {
     if (botToken) {
       const chatIdsStr = await askQuestion(
         rl,
-        '\n👉 Allowed Telegram Chat IDs (comma-separated, get from @userinfobot)\n   Example: 12345678, 87654321\n   Value: ',
+        '\nAllowed Telegram Chat IDs (comma-separated, get from @userinfobot)\n  Example: 12345678, 87654321\n  Value: ',
         chatIds.join(', ')
       );
 
@@ -123,7 +123,7 @@ async function promptConfig(forcePrompt = false, onlyBot = false) {
     };
 
     saveConfig(config);
-    console.log('\n[✓] Configuration saved successfully to .7strokes-config.json!\n');
+    console.log('\n[+] Configuration saved successfully to .7strokes-config.json!\n');
     return config;
   } finally {
     rl.close();

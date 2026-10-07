@@ -4,6 +4,7 @@ const { spawn, execSync } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 const http = require('http');
+const readline = require('readline');
 
 const { loadConfig, saveConfig, promptConfig, CONFIG_PATH } = require('./cli/config');
 const { startTunnel, stopTunnel, getPublicUrl, isAndroidOrTermux } = require('./cli/tunnel');
@@ -12,32 +13,32 @@ const { viewDatabase, backupDatabase, restoreDatabase } = require('./cli/db');
 const { startDnsBridge } = require('./cli/bridge');
 
 const args = process.argv.slice(2);
-const command = (args[0] || 'start').toLowerCase();
+const command = (args[0] || '').toLowerCase();
 const subCommand = (args[1] || '').toLowerCase();
 const param = args[2] || '';
 
 function printBanner(info = {}) {
   const isAndroid = isAndroidOrTermux();
-  const platformLabel = isAndroid ? '📱 Android (Termux)' : `💻 ${process.platform} (${process.arch})`;
+  const platformLabel = isAndroid ? 'Android (Termux)' : `${process.platform} (${process.arch})`;
 
-  console.log('\n' + '═'.repeat(64));
-  console.log('              🚀 7STROKES B2B LEAD ENGINE ONLINE                ');
-  console.log('═'.repeat(64));
-  console.log(`• Environment : ${platformLabel}`);
-  console.log(`• Local API   : http://localhost:${info.port || 4000}`);
+  console.log('\n' + '='.repeat(64));
+  console.log('              7STROKES B2B LEAD ENGINE ONLINE                   ');
+  console.log('='.repeat(64));
+  console.log(`- Environment : ${platformLabel}`);
+  console.log(`- Local API   : http://localhost:${info.port || 4000}`);
   if (info.publicUrl) {
-    console.log(`• Public URL  : ${info.publicUrl}`);
+    console.log(`- Public URL  : ${info.publicUrl}`);
   }
-  console.log(`• Database    : SQLite (dashmin.sqlite — Healthy)`);
+  console.log(`- Database    : SQLite (dashmin.sqlite - Healthy)`);
   if (info.botActive) {
-    console.log(`• Telegram Bot: Active & Connected (Type /help in chat)`);
+    console.log(`- Telegram Bot: Active & Connected (Type /help in chat)`);
   }
-  console.log('─'.repeat(64));
-  console.log('💡 Quick Tips:');
-  console.log('  - Type "node fk.js db view" to view stats on mobile/desktop');
-  console.log('  - Type "node fk.js bot" to launch Telegram bot standalone');
-  console.log('  - Press [Ctrl + C] to safely shut down all services');
-  console.log('═'.repeat(64) + '\n');
+  console.log('-'.repeat(64));
+  console.log('Quick Commands:');
+  console.log('  fk db view   - View database stats');
+  console.log('  fk bot       - Start Telegram bot standalone');
+  console.log('  Press Ctrl+C to safely shut down all services');
+  console.log('='.repeat(64) + '\n');
 }
 
 function checkBackendBuilt() {
@@ -53,7 +54,7 @@ function waitForServer(port = 4000, maxRetries = 20) {
     let retries = 0;
     const interval = setInterval(() => {
       retries++;
-      const req = http.get(`http://127.0.0.1:${port}/health`, (res) => {
+      const req = http.get(`http://127.0.0.1:${port}/health`, () => {
         clearInterval(interval);
         resolve(true);
       });
@@ -83,7 +84,7 @@ async function startAll() {
   });
 
   await waitForServer(config.backendPort || 4000);
-  console.log('[✓] Backend server is listening on port ' + (config.backendPort || 4000));
+  console.log('[+] Backend server is listening on port ' + (config.backendPort || 4000));
 
   console.log('[*] Initializing public tunnel...');
   let publicUrl = null;
@@ -121,7 +122,84 @@ async function startAll() {
   process.on('SIGTERM', handleExit);
 }
 
+function showInteractiveMenu() {
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout
+  });
+
+  console.log('\n' + '='.repeat(54));
+  console.log('             7STROKES CONTROL PANEL               ');
+  console.log('='.repeat(54));
+  console.log(' [1] Start Engine (Backend + Public Tunnel)');
+  console.log(' [2] Start Telegram Bot');
+  console.log(' [3] View Database Stats');
+  console.log(' [4] Create Database Backup');
+  console.log(' [5] Restore Database From Backup');
+  console.log(' [6] Configure Settings (Tokens, Domains, Bot)');
+  console.log(' [7] Start Android DNS Bridge (Port 8888)');
+  console.log(' [0] Exit');
+  console.log('='.repeat(54));
+
+  rl.question('Select an option [0-7]: ', async (choice) => {
+    rl.close();
+    const sel = choice.trim();
+
+    switch (sel) {
+      case '1':
+        await startAll();
+        break;
+      case '2':
+        await startTelegramBot();
+        break;
+      case '3':
+        await viewDatabase();
+        break;
+      case '4':
+        await backupDatabase();
+        break;
+      case '5': {
+        const rlRestore = readline.createInterface({
+          input: process.stdin,
+          output: process.stdout
+        });
+        rlRestore.question('Enter path to backup file: ', async (backupPath) => {
+          rlRestore.close();
+          if (backupPath.trim()) {
+            await restoreDatabase(backupPath.trim());
+          } else {
+            console.log('[!] Cancelled.');
+          }
+        });
+        break;
+      }
+      case '6':
+        await promptConfig(true, false);
+        break;
+      case '7': {
+        console.log('[*] Starting standalone Android Node.js DNS Bridge on 127.0.0.1:8888...');
+        const bridge = await startDnsBridge(8888);
+        console.log(`[+] DNS Bridge active on 127.0.0.1:${bridge.port}`);
+        console.log('[*] Use with: ngrok http 4000 --proxy-url=http://127.0.0.1:' + bridge.port);
+        break;
+      }
+      case '0':
+        process.exit(0);
+        break;
+      default:
+        console.log('[!] Invalid option.');
+        process.exit(0);
+        break;
+    }
+  });
+}
+
 async function main() {
+  if (!command || command === 'menu') {
+    showInteractiveMenu();
+    return;
+  }
+
   switch (command) {
     case 'start':
     case 'run':
@@ -140,7 +218,7 @@ async function main() {
         await backupDatabase();
       } else if (subCommand === 'restore' || subCommand === 'import') {
         if (!param) {
-          console.error('[!] Usage: node fk.js db restore <path_to_backup.sqlite>');
+          console.error('[!] Usage: fk db restore <path_to_backup.sqlite>');
           process.exit(1);
         }
         await restoreDatabase(param);
@@ -152,7 +230,7 @@ async function main() {
     case 'bridge': {
       console.log('[*] Starting standalone Android Node.js DNS Bridge on 127.0.0.1:8888...');
       const bridge = await startDnsBridge(8888);
-      console.log(`[✓] DNS Bridge active on 127.0.0.1:${bridge.port}`);
+      console.log(`[+] DNS Bridge active on 127.0.0.1:${bridge.port}`);
       console.log('[*] Use with: ngrok http 4000 --proxy-url=http://127.0.0.1:' + bridge.port);
       break;
     }
@@ -166,16 +244,17 @@ async function main() {
     case '--help':
     case '-h':
       console.log(`
-7strokes — Universal CLI Manager (fk)
+7strokes - Universal CLI Manager (fk)
 
 USAGE:
-  node fk.js [command] [options]
   fk [command] [options]
+  node fk.js [command] [options]
 
 COMMANDS:
+  (no args)           Open interactive numbered menu
   start               Start backend and public tunnel together
   bot                 Start or configure the 7strokes Telegram Bot
-  db view             Display database statistics (auto Mobile/Termux or Desktop view)
+  db view             Display database statistics (Mobile & Desktop view)
   db backup           Create timestamped database backup in backups/
   db restore <file>   Restore database from a previous backup file
   bridge              Start standalone Node.js DNS bridge for Android Termux
@@ -185,7 +264,7 @@ COMMANDS:
       break;
 
     default:
-      console.log(`[!] Unknown command: "${command}". Run "node fk.js help" for usage.`);
+      console.log(`[!] Unknown command: "${command}". Run "fk help" for usage.`);
       break;
   }
 }

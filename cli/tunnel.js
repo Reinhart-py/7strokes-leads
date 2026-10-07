@@ -74,11 +74,11 @@ async function startTunnel(port = 4000, config = {}) {
 
   let dnsBridgePort = 8888;
   if (onAndroid) {
-    console.log('[*] Android / Termux environment detected!');
+    console.log('[*] Android / Termux environment detected.');
     console.log('[*] Starting native Node.js DNS Bridge on 127.0.0.1:8888...');
     const bridge = await startDnsBridge(8888);
     dnsBridgePort = bridge.port;
-    console.log(`[✓] DNS Bridge active on 127.0.0.1:${dnsBridgePort}`);
+    console.log(`[+] DNS Bridge active on 127.0.0.1:${dnsBridgePort}`);
   }
 
   if (tunnelType === 'ngrok' || authtoken || domain) {
