@@ -17,6 +17,10 @@ All notable changes, version upgrades, and development milestones for 7strokes a
 - **Dedicated Address Columns**:
   - Exports in CSV, Excel, and JSON now feature separate columns for `Street`, `City`, `State`, `Country`, `Postal Code`, and `Full Address`.
   - Added database migration to persist the `street` column.
+- **Full Database Leads Browser & Complete CSV Export**:
+  - Interactive Lead Browser: browse through all saved leads directly in chat page by page with `[<< Prev]` and `[Next >>]` navigation buttons, displaying business names, categories, phones, and addresses.
+  - Paginated Search History: view and navigate through all historical search jobs rather than being limited to just 5.
+  - Complete Leads CSV Export: download every single lead across the entire database in a single CSV file with one tap (`[Download All Leads CSV]` or `/export_all`).
 - **Telegram Bot Remote Service Management & Inline Buttons**:
   - Full remote management parity: start and stop the backend, frontend (Next.js), public tunnel, and Android DNS bridge directly from Telegram.
   - Interactive Inline Keyboard: one-tap buttons to start/stop all services, toggle individual services, view DB stats, trigger backups, and refresh status.

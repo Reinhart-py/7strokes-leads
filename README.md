@@ -290,30 +290,31 @@ The setup wizard will ask you for:
 
 #### Telegram Remote Control Panel:
 Send `/menu` or `/start` to your bot in Telegram to open the interactive control panel with tap-to-click inline buttons:
-- **[Start All]** / **[Stop All]** — Turn all services (backend, public link, frontend) on or off with a single tap.
-- **[Backend: ON/OFF]** — Toggle backend API server.
-- **[Tunnel: ON/OFF]** — Toggle public Ngrok / Cloudflare link.
-- **[Frontend: ON/OFF]** — Toggle Next.js web application.
-- **[Bridge: ON/OFF]** — Toggle Android DNS bridge.
-- **[Database Stats]** — View total leads and searches.
-- **[Backup Database]** — Trigger an instant database backup directly from your phone.
-- **[Recent Searches]** — View your latest search jobs.
-- **[Settings]** — View and change settings.
+- **[Services Control]** — Manage backend, public link, frontend, and bridge services.
+- **[Database & Backups]** — Download SQLite database file, create backups, or restore.
+- **[Browse All Leads]** — View and flip through all saved leads page by page directly in chat with `[<< Prev]` and `[Next >>]` buttons.
+- **[Search Jobs & Exports]** — Browse all historical searches with one-tap CSV download buttons for each job.
+- **[Download All Leads CSV]** — Instant one-tap download of the complete CSV containing all leads in the database.
+- **[Settings & Users]** — View configuration, ports, and allowed users.
+- **[Start All]** / **[Stop All]** — Turn all services on or off with a single tap.
 - **[Refresh Status]** — Update metrics and live service indicators.
 
 #### Telegram Text Commands:
 - `/menu` or `/start` — Open the interactive control panel with buttons.
+- `/leads [page]` — Browse all saved leads in Telegram with pagination (e.g. `/leads 2`).
+- `/export_all` — Download complete CSV export of all leads in the database.
+- `/jobs [page]` — Browse all search jobs with pagination and one-tap export buttons.
+- `/export <job_id>` — Download CSV file for a specific search job.
 - `/status` — Live server metrics, memory, uptime, and total leads.
 - `/start_all` | `/stop_all` — Start or stop all services remotely.
 - `/start_backend` | `/stop_backend` — Start or stop backend.
 - `/start_tunnel` | `/stop_tunnel` — Start or stop public link.
 - `/start_frontend` | `/stop_frontend` — Start or stop frontend.
 - `/link` — Get current live web dashboard link.
-- `/leads` — Summary of leads, jobs, users, and companies.
-- `/backup` — Create a database backup.
+- `/get_db` — Download live `dashmin.sqlite` file to Telegram.
+- `/get_config` — Download `.7strokes-config.json` configuration file.
+- `/backup` — Create a database backup in `backups/`.
 - `/search <target> [limit]` — Start lead search (e.g. `/search cafes in london 50`).
-- `/jobs` — View recent scraping jobs.
-- `/export <job_id>` — Download CSV file of leads directly to Telegram.
 - `/config` — View current configuration.
 - `/set_port <number>` — Change backend port.
 - `/set_ngrok <token>` — Change ngrok authtoken.

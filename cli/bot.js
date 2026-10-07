@@ -234,15 +234,19 @@ Select a menu below:`;
         { text: "Database & Backups", callback_data: "nav_database" }
       ],
       [
-        { text: "Lead Searches & Exports", callback_data: "nav_searches" },
-        { text: "Settings & Users", callback_data: "nav_settings" }
+        { text: "Browse All Leads", callback_data: "nav_leads_page_1" },
+        { text: "Search Jobs & Exports", callback_data: "nav_searches_page_1" }
+      ],
+      [
+        { text: `Download All Leads CSV (${leadCount.toLocaleString()})`, callback_data: "action_download_all_csv" }
+      ],
+      [
+        { text: "Settings & Users", callback_data: "nav_settings" },
+        { text: "Refresh Status", callback_data: "nav_main" }
       ],
       [
         { text: "Start All", callback_data: "action_start_all" },
         { text: "Stop All", callback_data: "action_stop_all" }
-      ],
-      [
-        { text: "Refresh Status", callback_data: "nav_main" }
       ]
     ]
   };
@@ -342,47 +346,145 @@ Features:
   return { text, replyMarkup };
 }
 
-async function renderSearchesMenu() {
+async function renderLeadsBrowser(page = 1) {
   const db = getDbConnection();
-  let jobs = [];
+  const limit = 5;
+  const pageNum = Math.max(1, parseInt(page, 10) || 1);
+  const offset = (pageNum - 1) * limit;
+
+  let totalCount = 0;
+  let leads = [];
 
   try {
-    jobs = await queryAll(
+    const countRes = (await queryAll(db, 'SELECT count(*) as count FROM results'))[0];
+    totalCount = countRes?.count || 0;
+
+    leads = await queryAll(
       db,
-      `SELECT id, engine, target, status, total_saved, cap, created_at 
-       FROM jobs 
-       ORDER BY created_at DESC 
-       LIMIT 5`
+      'SELECT id, title, category, phone_1, phone_2, email, website, city, street, rating, reviews FROM results ORDER BY id DESC LIMIT ? OFFSET ?',
+      [limit, offset]
     );
   } catch (_) {}
   finally {
     try { db.close(); } catch (_) {}
   }
 
-  let text = `Lead Searches & Exports\n------------------------------------\n`;
+  const totalPages = Math.max(1, Math.ceil(totalCount / limit));
+  const currentActualPage = Math.min(pageNum, totalPages);
+
+  let text = `Saved Leads (Page ${currentActualPage} of ${totalPages.toLocaleString()} | ${totalCount.toLocaleString()} Total)\n------------------------------------\n`;
+
+  if (leads.length === 0) {
+    text += 'No leads found in database.\nStart a search with: /search dentist dubai 50';
+  } else {
+    leads.forEach((l, i) => {
+      const idx = offset + i + 1;
+      text += `${idx}. ${l.title || 'Untitled Business'}\n`;
+      if (l.category) text += `   Category : ${l.category}\n`;
+      if (l.phone_1) text += `   Phone 1  : ${l.phone_1}\n`;
+      if (l.phone_2) text += `   Phone 2  : ${l.phone_2}\n`;
+      if (l.email) text += `   Email    : ${l.email}\n`;
+      const location = [l.street, l.city].filter(Boolean).join(', ');
+      if (location) text += `   Location : ${location}\n`;
+      if (l.rating) text += `   Rating   : ${l.rating} (${l.reviews || 0} reviews)\n`;
+      text += '\n';
+    });
+  }
+
+  const navRow = [];
+  if (currentActualPage > 1) {
+    navRow.push({ text: "<< Prev", callback_data: `nav_leads_page_${currentActualPage - 1}` });
+  }
+  navRow.push({ text: `Page ${currentActualPage}/${totalPages}`, callback_data: `nav_leads_page_${currentActualPage}` });
+  if (currentActualPage < totalPages) {
+    navRow.push({ text: "Next >>", callback_data: `nav_leads_page_${currentActualPage + 1}` });
+  }
+
+  const inlineButtons = [];
+  if (navRow.length > 0) {
+    inlineButtons.push(navRow);
+  }
+  inlineButtons.push([
+    { text: `Download All Leads CSV (${totalCount.toLocaleString()})`, callback_data: "action_download_all_csv" }
+  ]);
+  inlineButtons.push([
+    { text: "<< Back to Main Menu", callback_data: "nav_main" },
+    { text: "Refresh", callback_data: `nav_leads_page_${currentActualPage}` }
+  ]);
+
+  return { text, replyMarkup: { inline_keyboard: inlineButtons } };
+}
+
+async function renderSearchesMenu(page = 1) {
+  const db = getDbConnection();
+  const limit = 5;
+  const pageNum = Math.max(1, parseInt(page, 10) || 1);
+  const offset = (pageNum - 1) * limit;
+
+  let totalJobs = 0;
+  let jobs = [];
+
+  try {
+    const countRes = (await queryAll(db, 'SELECT count(*) as count FROM jobs'))[0];
+    totalJobs = countRes?.count || 0;
+
+    jobs = await queryAll(
+      db,
+      `SELECT id, engine, target, status, total_saved, cap, created_at 
+       FROM jobs 
+       ORDER BY created_at DESC 
+       LIMIT ? OFFSET ?`,
+      [limit, offset]
+    );
+  } catch (_) {}
+  finally {
+    try { db.close(); } catch (_) {}
+  }
+
+  const totalPages = Math.max(1, Math.ceil(totalJobs / limit));
+  const currentActualPage = Math.min(pageNum, totalPages);
+
+  let text = `Lead Searches (Page ${currentActualPage} of ${totalPages} | ${totalJobs} Total Searches)\n------------------------------------\n`;
   const inlineButtons = [];
 
   if (jobs.length === 0) {
     text += `No search jobs found yet.\nType /search dentist dubai 50 to start.`;
   } else {
-    text += `Recent Searches (Tap button to download CSV):\n\n`;
     jobs.forEach((j, i) => {
+      const idx = offset + i + 1;
       const shortId = j.id ? j.id.slice(0, 8) : 'unknown';
-      text += `#${i + 1} [${j.status.toUpperCase()}] ${j.target}\n`;
+      text += `#${idx} [${j.status.toUpperCase()}] ${j.target}\n`;
       text += `Leads: ${j.total_saved} / ${j.cap || 'no limit'} | ID: ${shortId}\n\n`;
 
       inlineButtons.push([
         {
-          text: `Download CSV: #${i + 1} (${j.total_saved} leads)`,
+          text: `Download CSV: #${idx} (${j.total_saved} leads)`,
           callback_data: `export_job_${shortId}`
         }
       ]);
     });
   }
 
+  const navRow = [];
+  if (currentActualPage > 1) {
+    navRow.push({ text: "<< Prev", callback_data: `nav_searches_page_${currentActualPage - 1}` });
+  }
+  navRow.push({ text: `Page ${currentActualPage}/${totalPages}`, callback_data: `nav_searches_page_${currentActualPage}` });
+  if (currentActualPage < totalPages) {
+    navRow.push({ text: "Next >>", callback_data: `nav_searches_page_${currentActualPage + 1}` });
+  }
+
+  if (navRow.length > 0) {
+    inlineButtons.push(navRow);
+  }
+
+  inlineButtons.push([
+    { text: "Download All Leads CSV", callback_data: "action_download_all_csv" }
+  ]);
+
   inlineButtons.push([
     { text: "<< Back to Main Menu", callback_data: "nav_main" },
-    { text: "Refresh", callback_data: "nav_searches" }
+    { text: "Refresh", callback_data: `nav_searches_page_${currentActualPage}` }
   ]);
 
   return { text, replyMarkup: { inline_keyboard: inlineButtons } };
@@ -432,9 +534,9 @@ async function exportAndSendJobCsv(bot, chatId, searchId) {
   const db = getDbConnection();
   try {
     let job = null;
-    if (/^\d+$/.test(searchId) && parseInt(searchId, 10) <= 20) {
+    if (/^\d+$/.test(searchId) && parseInt(searchId, 10) <= 50) {
       const index = parseInt(searchId, 10) - 1;
-      const recentJobs = await queryAll(db, 'SELECT id, target, engine, total_saved FROM jobs ORDER BY created_at DESC LIMIT 20');
+      const recentJobs = await queryAll(db, 'SELECT id, target, engine, total_saved FROM jobs ORDER BY created_at DESC LIMIT 50');
       job = recentJobs[index];
     }
 
@@ -517,6 +619,75 @@ async function exportAndSendJobCsv(bot, chatId, searchId) {
   }
 }
 
+async function exportAllLeadsToCsv(bot, chatId) {
+  const db = getDbConnection();
+  try {
+    await bot.sendMessage(chatId, 'Generating complete CSV export for all saved leads...');
+    const leads = await queryAll(
+      db,
+      'SELECT title, category, phone_1, phone_2, email, website, street, city, state, country, postal_code, address, rating, reviews FROM results ORDER BY id DESC'
+    );
+
+    if (leads.length === 0) {
+      await bot.sendMessage(chatId, 'No leads found in database.');
+      return;
+    }
+
+    const headers = [
+      'Business Name',
+      'Category',
+      'Primary Phone',
+      'Secondary Phone',
+      'Email',
+      'Website',
+      'Street',
+      'City',
+      'State',
+      'Country',
+      'Postal Code',
+      'Full Address',
+      'Rating',
+      'Reviews'
+    ];
+    const csvRows = [headers.join(',')];
+
+    leads.forEach((row) => {
+      const escapeCsv = (val) => {
+        if (val === null || val === undefined) return '""';
+        return `"${String(val).replace(/"/g, '""')}"`;
+      };
+      csvRows.push([
+        escapeCsv(row.title),
+        escapeCsv(row.category),
+        escapeCsv(row.phone_1),
+        escapeCsv(row.phone_2),
+        escapeCsv(row.email),
+        escapeCsv(row.website),
+        escapeCsv(row.street),
+        escapeCsv(row.city),
+        escapeCsv(row.state),
+        escapeCsv(row.country),
+        escapeCsv(row.postal_code),
+        escapeCsv(row.address),
+        escapeCsv(row.rating),
+        escapeCsv(row.reviews)
+      ].join(','));
+    });
+
+    const csvBuffer = Buffer.from(csvRows.join('\r\n'), 'utf8');
+    const filename = `7strokes_all_leads_${leads.length}.csv`;
+
+    await bot.sendDocument(
+      chatId,
+      filename,
+      csvBuffer,
+      `7strokes Complete Leads Export\nTotal Records: ${leads.length.toLocaleString()} leads`
+    );
+  } finally {
+    try { db.close(); } catch (_) {}
+  }
+}
+
 async function handleCallbackQuery(bot, query, allowedChatIds) {
   const chatId = String(query.message?.chat?.id || query.from?.id);
   const data = query.data || '';
@@ -550,9 +721,20 @@ async function handleCallbackQuery(bot, query, allowedChatIds) {
       return;
     }
 
-    if (data === 'nav_searches') {
+    if (data.startsWith('nav_leads_page_')) {
+      const pageStr = data.replace('nav_leads_page_', '');
+      const pageNum = parseInt(pageStr, 10) || 1;
       await bot.answerCallbackQuery(query.id);
-      const panel = await renderSearchesMenu();
+      const panel = await renderLeadsBrowser(pageNum);
+      await bot.editMessageText(chatId, messageId, panel.text, { reply_markup: panel.replyMarkup });
+      return;
+    }
+
+    if (data.startsWith('nav_searches_page_') || data === 'nav_searches') {
+      const pageStr = data.replace('nav_searches_page_', '').replace('nav_searches', '1');
+      const pageNum = parseInt(pageStr, 10) || 1;
+      await bot.answerCallbackQuery(query.id);
+      const panel = await renderSearchesMenu(pageNum);
       await bot.editMessageText(chatId, messageId, panel.text, { reply_markup: panel.replyMarkup });
       return;
     }
@@ -633,6 +815,12 @@ async function handleCallbackQuery(bot, query, allowedChatIds) {
       }
       const panel = await renderServicesMenu();
       await bot.editMessageText(chatId, messageId, panel.text, { reply_markup: panel.replyMarkup });
+      return;
+    }
+
+    if (data === 'action_download_all_csv') {
+      await bot.answerCallbackQuery(query.id, 'Exporting all leads...');
+      await exportAllLeadsToCsv(bot, chatId);
       return;
     }
 
@@ -851,6 +1039,18 @@ async function handleCommand(bot, msg, allowedChatIds) {
         break;
       }
 
+      case '/leads': {
+        const page = parseInt(args[0], 10) || 1;
+        const panel = await renderLeadsBrowser(page);
+        await bot.sendMessage(chatId, panel.text, { reply_markup: panel.replyMarkup });
+        break;
+      }
+
+      case '/export_all': {
+        await exportAllLeadsToCsv(bot, chatId);
+        break;
+      }
+
       case '/get_db':
       case '/download_db': {
         if (!fs.existsSync(DB_PATH)) {
@@ -988,40 +1188,6 @@ Memory Usage     : ${memMb} MB
         break;
       }
 
-      case '/leads':
-      case '/db': {
-        const counts = (await queryAll(
-          db,
-          `SELECT 
-            (SELECT count(*) FROM users) as users,
-            (SELECT count(DISTINCT company) FROM users WHERE company IS NOT NULL AND company != '') as companies,
-            (SELECT count(*) FROM jobs) as jobs,
-            (SELECT count(*) FROM results) as leads`
-        ))[0] || { users: 0, companies: 0, jobs: 0, leads: 0 };
-
-        const companies = await queryAll(
-          db,
-          `SELECT COALESCE(company, 'Unassigned') as company, count(*) as user_count 
-           FROM users 
-           GROUP BY COALESCE(company, 'Unassigned')`
-        );
-
-        let companyLines = companies.map((c) => `* ${c.company}: ${c.user_count} users`).join('\n');
-
-        const dbMsg = `Saved Leads Overview
-------------------------------------
-Total Leads: ${counts.leads.toLocaleString()}
-Total Searches: ${counts.jobs}
-Users: ${counts.users}
-Companies: ${counts.companies}
-
-User Companies:
-${companyLines || 'None'}
-------------------------------------`;
-        await bot.sendMessage(chatId, dbMsg);
-        break;
-      }
-
       case '/backup': {
         await bot.sendMessage(chatId, 'Creating database backup...');
         try {
@@ -1123,7 +1289,8 @@ ${companyLines || 'None'}
       }
 
       case '/jobs': {
-        const panel = await renderSearchesMenu();
+        const page = parseInt(args[0], 10) || 1;
+        const panel = await renderSearchesMenu(page);
         await bot.sendMessage(chatId, panel.text, { reply_markup: panel.replyMarkup });
         break;
       }
@@ -1219,10 +1386,13 @@ MENUS & CONTROL:
 /menu or /start - Main control panel
 /services - Services sub-menu (start/stop)
 /database - Database sub-menu (stats, download, restore)
-/jobs - Recent searches with one-tap CSV download buttons
+/leads [page] - Browse all leads page by page
+/jobs [page] - Browse searches with one-tap CSV download buttons
 /config - Settings & allowed users
 
 DOWNLOADS & BACKUPS:
+/export_all - Download complete CSV of ALL leads in database
+/export <id> - Download CSV of a specific search
 /get_db - Download SQLite database file to Telegram
 /get_config - Download .7strokes-config.json
 /backup - Trigger instant backup to backups/
@@ -1230,7 +1400,6 @@ RESTORE: Send any .sqlite or .db file to this chat!
 
 SEARCH & LEADS:
 /search <query> [limit] - Start scraping leads
-/export <id> - Download CSV of leads
 /status - Live server and database metrics
 /link - Get public dashboard link
 
