@@ -4,7 +4,28 @@ All notable changes, version upgrades, and development milestones for 7strokes a
 
 ---
 
-## [v2.2.0] — Universal CLI, Android Termux Support & Telegram Bot (Current)
+## [v2.3.0] — Kiki CLI, Phone Classifier, Structured Address Columns & Bot Reliability (Current)
+
+### Added
+- **Universal CLI Renamed to `kiki`**:
+  - `kiki` is now the primary global command with an interactive numbered menu (`[0-7]`) when run without arguments.
+  - `fk` is preserved as a backward-compatible alias.
+  - Added native `kiki.ps1`, `kiki.bat`, and `kiki` bash launchers.
+- **Intelligent Phone Classification**:
+  - Automatically sorts extracted numbers into Primary Phone (mobile/personal lines) and Secondary Phone (landlines, office numbers, toll-free lines).
+  - Handles international prefix patterns across UAE, Saudi Arabia, UK, US, and India.
+- **Dedicated Address Columns**:
+  - Exports in CSV, Excel, and JSON now feature separate columns for `Street`, `City`, `State`, `Country`, `Postal Code`, and `Full Address`.
+  - Added database migration to persist the `street` column.
+- **Telegram Bot Reliability**:
+  - Added automatic fallback to plain text if Telegram rejects markdown formatting.
+  - Bot now sends error details directly back into Telegram chat if any command or scraping task fails.
+  - Natural commands supported: `/search <query>`, `/jobs`, `/export <job_id>`, `/link`, `/leads`, and `/status`.
+  - Removed robot/engine terminology across all bot and CLI messages.
+
+---
+
+## [v2.2.0] — Universal CLI, Android Termux Support & Telegram Bot
 
 ### Added
 - **Global PowerShell CLI (`fk`)**:
