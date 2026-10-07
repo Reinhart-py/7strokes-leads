@@ -115,7 +115,7 @@ async function startFrontendService(port = 3000) {
     return { ok: false, message: 'Next.js dependencies not found in frontend directory' };
   }
 
-  const proc = spawn('node', [nextBin, 'start', '-p', String(port)], {
+  const proc = spawn('node', [nextBin, 'dev', '-p', String(port)], {
     cwd: frontendDir,
     stdio: ['ignore', 'pipe', 'pipe']
   });

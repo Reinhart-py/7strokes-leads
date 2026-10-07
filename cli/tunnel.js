@@ -17,6 +17,9 @@ function findCloudflaredBinary() {
   const localToolsPath = path.join(__dirname, '../tools/cloudflared.exe');
   if (fs.existsSync(localToolsPath)) return localToolsPath;
 
+  const localToolsUnix = path.join(__dirname, '../tools/cloudflared');
+  if (fs.existsSync(localToolsUnix)) return localToolsUnix;
+
   try {
     const whichCmd = process.platform === 'win32' ? 'where cloudflared' : 'which cloudflared';
     const found = execSync(whichCmd, { stdio: ['pipe', 'pipe', 'ignore'] }).toString().trim().split('\n')[0];
@@ -27,13 +30,19 @@ function findCloudflaredBinary() {
 }
 
 function findNgrokBinary() {
+  const localToolsPath = path.join(__dirname, '../tools/ngrok.exe');
+  if (fs.existsSync(localToolsPath)) return localToolsPath;
+
+  const localToolsUnix = path.join(__dirname, '../tools/ngrok');
+  if (fs.existsSync(localToolsUnix)) return localToolsUnix;
+
   try {
     const whichCmd = process.platform === 'win32' ? 'where ngrok' : 'which ngrok';
     const found = execSync(whichCmd, { stdio: ['pipe', 'pipe', 'ignore'] }).toString().trim().split('\n')[0];
     if (found) return found;
   } catch (_) {}
 
-  return 'ngrok';
+  return null;
 }
 
 function pollNgrokUrl(retries = 30, delayMs = 1000) {
@@ -74,48 +83,58 @@ async function startTunnel(port = 4000, config = {}) {
 
   let dnsBridgePort = 8888;
   if (onAndroid) {
-    console.log('[*] Android / Termux environment detected.');
-    console.log('[*] Starting native Node.js DNS Bridge on 127.0.0.1:8888...');
+    console.log('[*] Android environment detected. Starting DNS Bridge on 127.0.0.1:8888...');
     const bridge = await startDnsBridge(8888);
     dnsBridgePort = bridge.port;
     console.log(`[+] DNS Bridge active on 127.0.0.1:${dnsBridgePort}`);
   }
 
-  if (tunnelType === 'ngrok' || authtoken || domain) {
-    const ngrokBin = findNgrokBinary();
+  const ngrokBin = findNgrokBinary();
+  const cfBin = findCloudflaredBinary();
 
-    if (authtoken) {
-      try {
-        execSync(`${ngrokBin} config add-authtoken ${authtoken}`, { stdio: 'ignore' });
-      } catch (_) {}
-    }
+  if (tunnelType === 'ngrok' || (ngrokBin && !cfBin) || (authtoken && domain)) {
+    if (!ngrokBin) {
+      console.warn('[!] ngrok binary not found. Falling back to Cloudflare tunnel.');
+    } else {
+      if (authtoken) {
+        try {
+          execSync(`"${ngrokBin}" config add-authtoken ${authtoken}`, { stdio: 'ignore' });
+        } catch (_) {}
+      }
 
-    const args = ['http', String(port)];
+      const args = ['http', String(port)];
 
-    if (domain) {
-      args.push(`--domain=${domain}`);
-    }
+      if (domain) {
+        args.push(`--url=${domain}`);
+      }
 
-    if (onAndroid) {
-      args.push(`--proxy-url=http://127.0.0.1:${dnsBridgePort}`);
-    }
+      if (onAndroid) {
+        args.push(`--proxy-url=http://127.0.0.1:${dnsBridgePort}`);
+      }
 
-    console.log(`[*] Launching ngrok: ${ngrokBin} ${args.join(' ')}`);
-    const proc = spawn(ngrokBin, args, { stdio: ['ignore', 'pipe', 'pipe'] });
-    activeTunnelProcess = proc;
+      console.log(`[*] Launching ngrok: ${ngrokBin} ${args.join(' ')}`);
+      const proc = spawn(ngrokBin, args, { stdio: ['ignore', 'pipe', 'pipe'] });
+      activeTunnelProcess = proc;
 
-    proc.on('error', (err) => {
-      console.warn('[!] Ngrok process error:', err.message);
-    });
+      let lastError = '';
+      proc.stderr.on('data', (d) => {
+        lastError += d.toString();
+      });
 
-    const url = await pollNgrokUrl(25, 1000);
-    if (url) {
-      currentPublicUrl = url;
-      return { type: 'ngrok', url, process: proc };
+      proc.on('error', (err) => {
+        console.warn('[!] ngrok process error:', err.message);
+      });
+
+      const url = await pollNgrokUrl(25, 1000);
+      if (url) {
+        currentPublicUrl = url;
+        return { type: 'ngrok', url, process: proc };
+      } else if (lastError) {
+        console.warn('[!] ngrok output note:', lastError.trim());
+      }
     }
   }
 
-  const cfBin = findCloudflaredBinary();
   if (cfBin) {
     console.log(`[*] Launching Cloudflare Tunnel via ${cfBin}...`);
     const proc = spawn(cfBin, ['tunnel', '--url', `http://localhost:${port}`], {
@@ -157,6 +176,7 @@ function stopTunnel() {
     } catch (_) {}
     activeTunnelProcess = null;
   }
+  currentPublicUrl = null;
 }
 
 function getPublicUrl() {
