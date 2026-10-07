@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "description": "7strokes — High-Performance B2B Lead Generation Tool",
   "main": "fk.js",
+  "bin": {
+    "fk": "./fk.js"
+  },
   "scripts": {
     "fk": "node fk.js",
     "start": "node fk.js start",
