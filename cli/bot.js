@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const sqlite3 = require('../backend/node_modules/sqlite3');
-const { loadConfig, saveConfig, promptConfig } = require('./config');
+const { loadConfig, saveConfig, promptConfig, CONFIG_PATH } = require('./config');
 const { backupDatabase } = require('./db');
 const {
   isBackendRunning,
@@ -43,6 +43,14 @@ function queryRun(db, sql, params = []) {
       else resolve(this);
     });
   });
+}
+
+function formatBytes(bytes) {
+  if (!bytes || bytes === 0) return '0 B';
+  const k = 1024;
+  const sizes = ['B', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }
 
 class TelegramBotClient {
@@ -132,8 +140,13 @@ class TelegramBotClient {
       postData.push(`--${boundary}\r\nContent-Disposition: form-data; name="caption"\r\n\r\n${caption}\r\n`);
     }
 
+    let mimeType = 'application/octet-stream';
+    if (filename.endsWith('.csv')) mimeType = 'text/csv';
+    else if (filename.endsWith('.json')) mimeType = 'application/json';
+    else if (filename.endsWith('.sqlite') || filename.endsWith('.db')) mimeType = 'application/x-sqlite3';
+
     postData.push(
-      `--${boundary}\r\nContent-Disposition: form-data; name="document"; filename="${filename}"\r\nContent-Type: text/csv\r\n\r\n`
+      `--${boundary}\r\nContent-Disposition: form-data; name="document"; filename="${filename}"\r\nContent-Type: ${mimeType}\r\n\r\n`
     );
 
     const headBuffer = Buffer.from(postData.join(''), 'utf8');
@@ -156,6 +169,18 @@ class TelegramBotClient {
     }
   }
 
+  async getFile(fileId) {
+    return this.callApi('getFile', { file_id: fileId });
+  }
+
+  async downloadFile(filePath) {
+    const fileUrl = `https://api.telegram.org/file/bot${this.token}/${filePath}`;
+    const res = await fetch(fileUrl);
+    if (!res.ok) throw new Error(`Download failed with status ${res.status}`);
+    const arrayBuffer = await res.arrayBuffer();
+    return Buffer.from(arrayBuffer);
+  }
+
   async getUpdates(timeout = 25) {
     return this.callApi('getUpdates', {
       offset: this.offset,
@@ -165,7 +190,7 @@ class TelegramBotClient {
   }
 }
 
-async function getControlPanelData() {
+async function renderMainMenu() {
   const status = await getServicesStatus();
   const db = getDbConnection();
   let leadCount = 0;
@@ -200,14 +225,45 @@ DNS Bridge: ${bridgeLabel}
 Total Leads Saved: ${leadCount.toLocaleString()}
 Active Searches  : ${runningJobs}
 ------------------------------------
-Tap any button below to manage services.`;
+Select a menu below:`;
 
   const replyMarkup = {
     inline_keyboard: [
       [
-        { text: "Start All", callback_data: "cmd_start_all" },
-        { text: "Stop All", callback_data: "cmd_stop_all" }
+        { text: "Services Control", callback_data: "nav_services" },
+        { text: "Database & Backups", callback_data: "nav_database" }
       ],
+      [
+        { text: "Lead Searches & Exports", callback_data: "nav_searches" },
+        { text: "Settings & Users", callback_data: "nav_settings" }
+      ],
+      [
+        { text: "Start All", callback_data: "action_start_all" },
+        { text: "Stop All", callback_data: "action_stop_all" }
+      ],
+      [
+        { text: "Refresh Status", callback_data: "nav_main" }
+      ]
+    ]
+  };
+
+  return { text, replyMarkup };
+}
+
+async function renderServicesMenu() {
+  const status = await getServicesStatus();
+
+  const text = `Services Control
+------------------------------------
+Backend   : ${status.backend ? `ONLINE (port ${status.backendPort})` : 'OFFLINE'}
+Tunnel    : ${status.tunnel ? (status.tunnelUrl ? `ONLINE (${status.tunnelUrl})` : 'ONLINE') : 'OFFLINE'}
+Frontend  : ${status.frontend ? `ONLINE (port ${status.frontendPort})` : 'OFFLINE'}
+DNS Bridge: ${status.bridge ? 'ACTIVE' : 'INACTIVE'}
+------------------------------------
+Tap any service below to toggle on or off:`;
+
+  const replyMarkup = {
+    inline_keyboard: [
       [
         { text: status.backend ? "Backend: [ON]" : "Backend: [OFF]", callback_data: "toggle_backend" },
         { text: status.tunnel ? "Tunnel: [ON]" : "Tunnel: [OFF]", callback_data: "toggle_tunnel" }
@@ -217,20 +273,248 @@ Tap any button below to manage services.`;
         { text: status.bridge ? "Bridge: [ON]" : "Bridge: [OFF]", callback_data: "toggle_bridge" }
       ],
       [
-        { text: "Database Stats", callback_data: "cmd_db_stats" },
-        { text: "Backup Database", callback_data: "cmd_db_backup" }
+        { text: "Start All Services", callback_data: "action_start_all" },
+        { text: "Stop All Services", callback_data: "action_stop_all" }
       ],
       [
-        { text: "Recent Searches", callback_data: "cmd_jobs" },
-        { text: "Settings", callback_data: "cmd_settings" }
-      ],
-      [
-        { text: "Refresh Status", callback_data: "cmd_refresh" }
+        { text: "<< Back to Main Menu", callback_data: "nav_main" },
+        { text: "Refresh", callback_data: "nav_services" }
       ]
     ]
   };
 
   return { text, replyMarkup };
+}
+
+async function renderDatabaseMenu() {
+  const db = getDbConnection();
+  let counts = { leads: 0, jobs: 0, users: 0, companies: 0 };
+  let dbSizeStr = 'Unknown';
+
+  try {
+    counts = (await queryAll(
+      db,
+      `SELECT 
+        (SELECT count(*) FROM users) as users,
+        (SELECT count(DISTINCT company) FROM users WHERE company IS NOT NULL AND company != '') as companies,
+        (SELECT count(*) FROM jobs) as jobs,
+        (SELECT count(*) FROM results) as leads`
+    ))[0] || counts;
+
+    if (fs.existsSync(DB_PATH)) {
+      const stat = fs.statSync(DB_PATH);
+      dbSizeStr = formatBytes(stat.size);
+    }
+  } catch (_) {}
+  finally {
+    try { db.close(); } catch (_) {}
+  }
+
+  const text = `Database & Backups
+------------------------------------
+Database File: dashmin.sqlite (${dbSizeStr})
+Total Leads  : ${counts.leads.toLocaleString()}
+Total Searches: ${counts.jobs}
+Users / Teams: ${counts.users} users, ${counts.companies} companies
+------------------------------------
+Features:
+* Tap "Download Database" to receive dashmin.sqlite here in chat.
+* Tap "Create Backup" to save a snapshot on server.
+* To RESTORE: Simply send any .sqlite or .db file to this bot.`;
+
+  const replyMarkup = {
+    inline_keyboard: [
+      [
+        { text: "Download Database File", callback_data: "action_download_db" },
+        { text: "Create Backup", callback_data: "action_backup_db" }
+      ],
+      [
+        { text: "Database Stats", callback_data: "action_db_stats" },
+        { text: "Download Config", callback_data: "action_download_config" }
+      ],
+      [
+        { text: "<< Back to Main Menu", callback_data: "nav_main" },
+        { text: "Refresh", callback_data: "nav_database" }
+      ]
+    ]
+  };
+
+  return { text, replyMarkup };
+}
+
+async function renderSearchesMenu() {
+  const db = getDbConnection();
+  let jobs = [];
+
+  try {
+    jobs = await queryAll(
+      db,
+      `SELECT id, engine, target, status, total_saved, cap, created_at 
+       FROM jobs 
+       ORDER BY created_at DESC 
+       LIMIT 5`
+    );
+  } catch (_) {}
+  finally {
+    try { db.close(); } catch (_) {}
+  }
+
+  let text = `Lead Searches & Exports\n------------------------------------\n`;
+  const inlineButtons = [];
+
+  if (jobs.length === 0) {
+    text += `No search jobs found yet.\nType /search dentist dubai 50 to start.`;
+  } else {
+    text += `Recent Searches (Tap button to download CSV):\n\n`;
+    jobs.forEach((j, i) => {
+      const shortId = j.id ? j.id.slice(0, 8) : 'unknown';
+      text += `#${i + 1} [${j.status.toUpperCase()}] ${j.target}\n`;
+      text += `Leads: ${j.total_saved} / ${j.cap || 'no limit'} | ID: ${shortId}\n\n`;
+
+      inlineButtons.push([
+        {
+          text: `Download CSV: #${i + 1} (${j.total_saved} leads)`,
+          callback_data: `export_job_${shortId}`
+        }
+      ]);
+    });
+  }
+
+  inlineButtons.push([
+    { text: "<< Back to Main Menu", callback_data: "nav_main" },
+    { text: "Refresh", callback_data: "nav_searches" }
+  ]);
+
+  return { text, replyMarkup: { inline_keyboard: inlineButtons } };
+}
+
+function renderSettingsMenu() {
+  const cfg = loadConfig();
+
+  const text = `Settings & Users
+------------------------------------
+Backend Port : ${cfg.backendPort || 4000}
+Tunnel Type  : ${cfg.tunnel?.type || 'ngrok'}
+Ngrok Token  : ${cfg.tunnel?.authtoken ? 'Configured' : 'Not Set'}
+Ngrok Domain : ${cfg.tunnel?.domain || 'Random (Default)'}
+Allowed Users: ${cfg.telegram?.allowedChatIds?.join(', ') || 'None'}
+------------------------------------
+How to update settings:
+/set_port <number> - Change backend port
+/set_ngrok <token> - Set ngrok authtoken
+/set_domain <domain> - Set custom domain
+/set_tunnel <ngrok|cloudflared> - Change tunnel
+/add_chat <id> - Add an allowed user ID
+/remove_chat <id> - Remove an allowed user ID`;
+
+  const replyMarkup = {
+    inline_keyboard: [
+      [
+        {
+          text: `Tunnel: [${(cfg.tunnel?.type || 'ngrok').toUpperCase()}]`,
+          callback_data: "toggle_tunnel_type"
+        },
+        {
+          text: "Download Config File",
+          callback_data: "action_download_config"
+        }
+      ],
+      [
+        { text: "<< Back to Main Menu", callback_data: "nav_main" }
+      ]
+    ]
+  };
+
+  return { text, replyMarkup };
+}
+
+async function exportAndSendJobCsv(bot, chatId, searchId) {
+  const db = getDbConnection();
+  try {
+    let job = null;
+    if (/^\d+$/.test(searchId) && parseInt(searchId, 10) <= 20) {
+      const index = parseInt(searchId, 10) - 1;
+      const recentJobs = await queryAll(db, 'SELECT id, target, engine, total_saved FROM jobs ORDER BY created_at DESC LIMIT 20');
+      job = recentJobs[index];
+    }
+
+    if (!job) {
+      job = (
+        await queryAll(db, 'SELECT id, target, engine, total_saved FROM jobs WHERE id LIKE ? LIMIT 1', [
+          `%${searchId}%`
+        ])
+      )[0];
+    }
+
+    if (!job) {
+      await bot.sendMessage(chatId, `No search job found matching "${searchId}".`);
+      return;
+    }
+
+    const leads = await queryAll(
+      db,
+      'SELECT title, category, phone_1, phone_2, email, website, street, city, state, country, postal_code, address, rating, reviews, place_id FROM results WHERE job_id = ?',
+      [job.id]
+    );
+
+    if (leads.length === 0) {
+      await bot.sendMessage(chatId, `No leads saved for search "${job.target}" yet.`);
+      return;
+    }
+
+    const headers = [
+      'Business Name',
+      'Category',
+      'Primary Phone',
+      'Secondary Phone',
+      'Email',
+      'Website',
+      'Street',
+      'City',
+      'State',
+      'Country',
+      'Postal Code',
+      'Full Address',
+      'Rating',
+      'Reviews'
+    ];
+    const csvRows = [headers.join(',')];
+
+    leads.forEach((row) => {
+      const escapeCsv = (val) => {
+        if (val === null || val === undefined) return '""';
+        return `"${String(val).replace(/"/g, '""')}"`;
+      };
+      csvRows.push([
+        escapeCsv(row.title),
+        escapeCsv(row.category),
+        escapeCsv(row.phone_1),
+        escapeCsv(row.phone_2),
+        escapeCsv(row.email),
+        escapeCsv(row.website),
+        escapeCsv(row.street),
+        escapeCsv(row.city),
+        escapeCsv(row.state),
+        escapeCsv(row.country),
+        escapeCsv(row.postal_code),
+        escapeCsv(row.address),
+        escapeCsv(row.rating),
+        escapeCsv(row.reviews)
+      ].join(','));
+    });
+
+    const csvBuffer = Buffer.from(csvRows.join('\r\n'), 'utf8');
+    const filename = `leads_${job.id.slice(0, 8)}.csv`;
+
+    await bot.sendDocument(
+      chatId,
+      filename,
+      csvBuffer,
+      `7strokes Leads Export\nTarget: ${job.target}\nTotal: ${leads.length} leads`
+    );
+  } finally {
+    try { db.close(); } catch (_) {}
+  }
 }
 
 async function handleCallbackQuery(bot, query, allowedChatIds) {
@@ -245,183 +529,285 @@ async function handleCallbackQuery(bot, query, allowedChatIds) {
   }
 
   try {
-    switch (data) {
-      case 'cmd_start_all': {
-        await bot.answerCallbackQuery(query.id, 'Starting all services...');
-        await startAllServices();
-        const panel = await getControlPanelData();
-        await bot.editMessageText(chatId, messageId, panel.text, { reply_markup: panel.replyMarkup });
-        break;
+    if (data === 'nav_main') {
+      await bot.answerCallbackQuery(query.id);
+      const panel = await renderMainMenu();
+      await bot.editMessageText(chatId, messageId, panel.text, { reply_markup: panel.replyMarkup });
+      return;
+    }
+
+    if (data === 'nav_services') {
+      await bot.answerCallbackQuery(query.id);
+      const panel = await renderServicesMenu();
+      await bot.editMessageText(chatId, messageId, panel.text, { reply_markup: panel.replyMarkup });
+      return;
+    }
+
+    if (data === 'nav_database') {
+      await bot.answerCallbackQuery(query.id);
+      const panel = await renderDatabaseMenu();
+      await bot.editMessageText(chatId, messageId, panel.text, { reply_markup: panel.replyMarkup });
+      return;
+    }
+
+    if (data === 'nav_searches') {
+      await bot.answerCallbackQuery(query.id);
+      const panel = await renderSearchesMenu();
+      await bot.editMessageText(chatId, messageId, panel.text, { reply_markup: panel.replyMarkup });
+      return;
+    }
+
+    if (data === 'nav_settings') {
+      await bot.answerCallbackQuery(query.id);
+      const panel = renderSettingsMenu();
+      await bot.editMessageText(chatId, messageId, panel.text, { reply_markup: panel.replyMarkup });
+      return;
+    }
+
+    if (data === 'action_start_all') {
+      await bot.answerCallbackQuery(query.id, 'Starting all services...');
+      await startAllServices();
+      const panel = await renderServicesMenu();
+      await bot.editMessageText(chatId, messageId, panel.text, { reply_markup: panel.replyMarkup });
+      return;
+    }
+
+    if (data === 'action_stop_all') {
+      await bot.answerCallbackQuery(query.id, 'Stopping all services...');
+      stopAllServices();
+      const panel = await renderServicesMenu();
+      await bot.editMessageText(chatId, messageId, panel.text, { reply_markup: panel.replyMarkup });
+      return;
+    }
+
+    if (data === 'toggle_backend') {
+      const isRunning = await isBackendRunning();
+      if (isRunning) {
+        await bot.answerCallbackQuery(query.id, 'Stopping backend...');
+        stopBackendService();
+      } else {
+        await bot.answerCallbackQuery(query.id, 'Starting backend...');
+        await startBackendService();
       }
+      const panel = await renderServicesMenu();
+      await bot.editMessageText(chatId, messageId, panel.text, { reply_markup: panel.replyMarkup });
+      return;
+    }
 
-      case 'cmd_stop_all': {
-        await bot.answerCallbackQuery(query.id, 'Stopping all services...');
-        stopAllServices();
-        const panel = await getControlPanelData();
-        await bot.editMessageText(chatId, messageId, panel.text, { reply_markup: panel.replyMarkup });
-        break;
+    if (data === 'toggle_tunnel') {
+      const isRunning = isTunnelRunning();
+      if (isRunning) {
+        await bot.answerCallbackQuery(query.id, 'Stopping tunnel...');
+        stopTunnelService();
+      } else {
+        await bot.answerCallbackQuery(query.id, 'Starting tunnel...');
+        await startTunnelService();
       }
+      const panel = await renderServicesMenu();
+      await bot.editMessageText(chatId, messageId, panel.text, { reply_markup: panel.replyMarkup });
+      return;
+    }
 
-      case 'toggle_backend': {
-        const isRunning = await isBackendRunning();
-        if (isRunning) {
-          await bot.answerCallbackQuery(query.id, 'Stopping backend...');
-          stopBackendService();
-        } else {
-          await bot.answerCallbackQuery(query.id, 'Starting backend...');
-          await startBackendService();
-        }
-        const panel = await getControlPanelData();
-        await bot.editMessageText(chatId, messageId, panel.text, { reply_markup: panel.replyMarkup });
-        break;
+    if (data === 'toggle_frontend') {
+      const isRunning = await isFrontendRunning();
+      if (isRunning) {
+        await bot.answerCallbackQuery(query.id, 'Stopping frontend...');
+        stopFrontendService();
+      } else {
+        await bot.answerCallbackQuery(query.id, 'Starting frontend...');
+        await startFrontendService();
       }
+      const panel = await renderServicesMenu();
+      await bot.editMessageText(chatId, messageId, panel.text, { reply_markup: panel.replyMarkup });
+      return;
+    }
 
-      case 'toggle_tunnel': {
-        const isRunning = isTunnelRunning();
-        if (isRunning) {
-          await bot.answerCallbackQuery(query.id, 'Stopping tunnel...');
-          stopTunnelService();
-        } else {
-          await bot.answerCallbackQuery(query.id, 'Starting tunnel...');
-          await startTunnelService();
-        }
-        const panel = await getControlPanelData();
-        await bot.editMessageText(chatId, messageId, panel.text, { reply_markup: panel.replyMarkup });
-        break;
+    if (data === 'toggle_bridge') {
+      const isRunning = isBridgeRunning();
+      if (isRunning) {
+        await bot.answerCallbackQuery(query.id, 'Stopping bridge...');
+        stopBridgeService();
+      } else {
+        await bot.answerCallbackQuery(query.id, 'Starting bridge...');
+        await startBridgeService();
       }
+      const panel = await renderServicesMenu();
+      await bot.editMessageText(chatId, messageId, panel.text, { reply_markup: panel.replyMarkup });
+      return;
+    }
 
-      case 'toggle_frontend': {
-        const isRunning = await isFrontendRunning();
-        if (isRunning) {
-          await bot.answerCallbackQuery(query.id, 'Stopping frontend...');
-          stopFrontendService();
-        } else {
-          await bot.answerCallbackQuery(query.id, 'Starting frontend...');
-          await startFrontendService();
-        }
-        const panel = await getControlPanelData();
-        await bot.editMessageText(chatId, messageId, panel.text, { reply_markup: panel.replyMarkup });
-        break;
+    if (data === 'action_download_db') {
+      await bot.answerCallbackQuery(query.id, 'Preparing database file...');
+      if (!fs.existsSync(DB_PATH)) {
+        await bot.sendMessage(chatId, 'Database file not found on server.');
+        return;
       }
+      const buffer = fs.readFileSync(DB_PATH);
+      const stat = fs.statSync(DB_PATH);
+      await bot.sendDocument(
+        chatId,
+        'dashmin.sqlite',
+        buffer,
+        `7strokes SQLite Database\nSize: ${formatBytes(stat.size)}\nTo restore, send this file back to this bot.`
+      );
+      return;
+    }
 
-      case 'toggle_bridge': {
-        const isRunning = isBridgeRunning();
-        if (isRunning) {
-          await bot.answerCallbackQuery(query.id, 'Stopping bridge...');
-          stopBridgeService();
-        } else {
-          await bot.answerCallbackQuery(query.id, 'Starting bridge...');
-          await startBridgeService();
-        }
-        const panel = await getControlPanelData();
-        await bot.editMessageText(chatId, messageId, panel.text, { reply_markup: panel.replyMarkup });
-        break;
+    if (data === 'action_backup_db') {
+      await bot.answerCallbackQuery(query.id, 'Creating backup...');
+      try {
+        const backupPath = await backupDatabase();
+        const baseName = path.basename(backupPath);
+        const stat = fs.statSync(backupPath);
+        await bot.sendMessage(
+          chatId,
+          `Backup created successfully!\nFile: ${baseName}\nSize: ${formatBytes(stat.size)}\nPath: backups/${baseName}`
+        );
+      } catch (err) {
+        await bot.sendMessage(chatId, `Backup failed: ${err.message}`);
       }
+      return;
+    }
 
-      case 'cmd_db_stats': {
-        await bot.answerCallbackQuery(query.id);
-        const db = getDbConnection();
-        try {
-          const counts = (await queryAll(
-            db,
-            `SELECT 
-              (SELECT count(*) FROM users) as users,
-              (SELECT count(DISTINCT company) FROM users WHERE company IS NOT NULL AND company != '') as companies,
-              (SELECT count(*) FROM jobs) as jobs,
-              (SELECT count(*) FROM results) as leads`
-          ))[0] || { users: 0, companies: 0, jobs: 0, leads: 0 };
+    if (data === 'action_download_config') {
+      await bot.answerCallbackQuery(query.id, 'Sending config file...');
+      if (!fs.existsSync(CONFIG_PATH)) {
+        await bot.sendMessage(chatId, 'Configuration file not found.');
+        return;
+      }
+      const buffer = fs.readFileSync(CONFIG_PATH);
+      await bot.sendDocument(chatId, '.7strokes-config.json', buffer, '7strokes Configuration');
+      return;
+    }
 
-          const statText = `Database Overview
+    if (data === 'action_db_stats') {
+      await bot.answerCallbackQuery(query.id);
+      const db = getDbConnection();
+      try {
+        const counts = (await queryAll(
+          db,
+          `SELECT 
+            (SELECT count(*) FROM users) as users,
+            (SELECT count(DISTINCT company) FROM users WHERE company IS NOT NULL AND company != '') as companies,
+            (SELECT count(*) FROM jobs) as jobs,
+            (SELECT count(*) FROM results) as leads`
+        ))[0] || { users: 0, companies: 0, jobs: 0, leads: 0 };
+
+        const statText = `Database Overview
 ------------------------------------
 Total Leads Saved: ${counts.leads.toLocaleString()}
 Total Searches   : ${counts.jobs}
 Users            : ${counts.users}
 Companies        : ${counts.companies}
 ------------------------------------`;
-          await bot.sendMessage(chatId, statText);
-        } finally {
-          try { db.close(); } catch (_) {}
-        }
-        break;
+        await bot.sendMessage(chatId, statText);
+      } finally {
+        try { db.close(); } catch (_) {}
       }
-
-      case 'cmd_db_backup': {
-        await bot.answerCallbackQuery(query.id, 'Creating backup...');
-        try {
-          const backupPath = await backupDatabase();
-          const baseName = path.basename(backupPath);
-          await bot.sendMessage(chatId, `Backup created successfully!\nFile: ${baseName}\nSaved to: backups/${baseName}`);
-        } catch (err) {
-          await bot.sendMessage(chatId, `Backup failed: ${err.message}`);
-        }
-        break;
-      }
-
-      case 'cmd_jobs': {
-        await bot.answerCallbackQuery(query.id);
-        const db = getDbConnection();
-        try {
-          const jobs = await queryAll(
-            db,
-            `SELECT id, engine, target, status, total_saved, cap FROM jobs ORDER BY created_at DESC LIMIT 5`
-          );
-          if (jobs.length === 0) {
-            await bot.sendMessage(chatId, 'No search jobs found yet.');
-          } else {
-            let jobsText = `Recent Searches:\n------------------------------------\n`;
-            jobs.forEach((j, i) => {
-              const shortId = j.id ? j.id.slice(0, 8) : 'unknown';
-              jobsText += `#${i + 1} | [${j.status.toUpperCase()}] ${j.target}\n`;
-              jobsText += `Leads: ${j.total_saved} / ${j.cap || 'no limit'} | ID: ${shortId}\n`;
-              jobsText += `Export: /export ${shortId}\n\n`;
-            });
-            await bot.sendMessage(chatId, jobsText);
-          }
-        } finally {
-          try { db.close(); } catch (_) {}
-        }
-        break;
-      }
-
-      case 'cmd_settings': {
-        await bot.answerCallbackQuery(query.id);
-        const cfg = loadConfig();
-        const settingsText = `Current Settings
-------------------------------------
-Backend Port : ${cfg.backendPort || 4000}
-Tunnel Type  : ${cfg.tunnel?.type || 'ngrok'}
-Ngrok Token  : ${cfg.tunnel?.authtoken ? 'Configured' : 'Not Set'}
-Ngrok Domain : ${cfg.tunnel?.domain || 'Random (Default)'}
-Allowed Users: ${cfg.telegram?.allowedChatIds?.join(', ') || 'None'}
-------------------------------------
-How to update settings from Telegram:
-/set_port <number> - Change backend port
-/set_ngrok <token> - Set ngrok authtoken
-/set_domain <domain> - Set custom domain
-/set_tunnel <ngrok|cloudflared> - Change tunnel
-/add_chat <id> - Add an allowed user ID
-/remove_chat <id> - Remove an allowed user ID`;
-        await bot.sendMessage(chatId, settingsText);
-        break;
-      }
-
-      case 'cmd_refresh': {
-        await bot.answerCallbackQuery(query.id, 'Refreshed');
-        const panel = await getControlPanelData();
-        await bot.editMessageText(chatId, messageId, panel.text, { reply_markup: panel.replyMarkup });
-        break;
-      }
-
-      default:
-        await bot.answerCallbackQuery(query.id);
-        break;
+      return;
     }
+
+    if (data.startsWith('export_job_')) {
+      const jobId = data.replace('export_job_', '');
+      await bot.answerCallbackQuery(query.id, 'Exporting leads to CSV...');
+      await exportAndSendJobCsv(bot, chatId, jobId);
+      return;
+    }
+
+    if (data === 'toggle_tunnel_type') {
+      const cfg = loadConfig();
+      const current = cfg.tunnel?.type || 'ngrok';
+      const nextType = current === 'ngrok' ? 'cloudflared' : 'ngrok';
+      cfg.tunnel = cfg.tunnel || {};
+      cfg.tunnel.type = nextType;
+      saveConfig(cfg);
+      await bot.answerCallbackQuery(query.id, `Tunnel changed to ${nextType}`);
+      const panel = renderSettingsMenu();
+      await bot.editMessageText(chatId, messageId, panel.text, { reply_markup: panel.replyMarkup });
+      return;
+    }
+
+    await bot.answerCallbackQuery(query.id);
   } catch (err) {
-    console.error('[!] Callback query handling error:', err.message);
+    console.error('[!] Callback error:', err.message);
     try {
       await bot.sendMessage(chatId, `Action error: ${err.message}`);
     } catch (_) {}
   }
+}
+
+async function handleFileUpload(bot, msg, allowedChatIds) {
+  const chatId = String(msg.chat.id);
+  const doc = msg.document;
+  if (!doc) return;
+
+  const isAllowed = allowedChatIds.some((id) => String(id).trim() === chatId);
+  if (!isAllowed) {
+    await bot.sendMessage(chatId, 'Access denied. Your Chat ID is not authorized.');
+    return;
+  }
+
+  const fileName = (doc.file_name || '').toLowerCase();
+
+  if (fileName.endsWith('.sqlite') || fileName.endsWith('.db')) {
+    await bot.sendMessage(chatId, `Receiving database file "${doc.file_name}" (${formatBytes(doc.file_size)})...\nCreating safety backup of current database first...`);
+    try {
+      const fileInfo = await bot.getFile(doc.file_id);
+      if (!fileInfo || !fileInfo.ok || !fileInfo.result?.file_path) {
+        throw new Error('Could not retrieve file download link from Telegram.');
+      }
+
+      const fileBuffer = await bot.downloadFile(fileInfo.result.file_path);
+
+      let safetyBackupName = 'None';
+      try {
+        const safetyBackupPath = await backupDatabase();
+        safetyBackupName = path.basename(safetyBackupPath);
+      } catch (_) {}
+
+      fs.writeFileSync(DB_PATH, fileBuffer);
+
+      try {
+        if (fs.existsSync(DB_PATH + '-wal')) fs.unlinkSync(DB_PATH + '-wal');
+        if (fs.existsSync(DB_PATH + '-shm')) fs.unlinkSync(DB_PATH + '-shm');
+      } catch (_) {}
+
+      const newStat = fs.statSync(DB_PATH);
+      await bot.sendMessage(
+        chatId,
+        `Database Restored Successfully!\n------------------------------------\nActive File : dashmin.sqlite\nSize        : ${formatBytes(newStat.size)}\nSafety Backup: backups/${safetyBackupName}\n\nAll services and scrapers are now using the restored database.`
+      );
+    } catch (err) {
+      console.error('[!] Database restore error:', err.message);
+      await bot.sendMessage(chatId, `Database restore failed: ${err.message}`);
+    }
+    return;
+  }
+
+  if (fileName.endsWith('.json') && (fileName.includes('config') || fileName.includes('7strokes'))) {
+    await bot.sendMessage(chatId, `Receiving configuration file "${doc.file_name}"...`);
+    try {
+      const fileInfo = await bot.getFile(doc.file_id);
+      if (!fileInfo || !fileInfo.ok || !fileInfo.result?.file_path) {
+        throw new Error('Could not retrieve file download link from Telegram.');
+      }
+
+      const fileBuffer = await bot.downloadFile(fileInfo.result.file_path);
+      const parsed = JSON.parse(fileBuffer.toString('utf8'));
+      saveConfig(parsed);
+
+      await bot.sendMessage(
+        chatId,
+        `Configuration Restored Successfully!\nUpdated settings have been applied to .7strokes-config.json.`
+      );
+    } catch (err) {
+      console.error('[!] Config restore error:', err.message);
+      await bot.sendMessage(chatId, `Configuration restore failed: ${err.message}`);
+    }
+    return;
+  }
+
+  await bot.sendMessage(chatId, `File received: ${doc.file_name}\nTo restore a database, send a .sqlite or .db file.`);
 }
 
 async function handleCommand(bot, msg, allowedChatIds) {
@@ -448,15 +834,54 @@ async function handleCommand(bot, msg, allowedChatIds) {
     switch (command) {
       case '/start':
       case '/menu': {
-        const panel = await getControlPanelData();
+        const panel = await renderMainMenu();
         await bot.sendMessage(chatId, panel.text, { reply_markup: panel.replyMarkup });
+        break;
+      }
+
+      case '/services': {
+        const panel = await renderServicesMenu();
+        await bot.sendMessage(chatId, panel.text, { reply_markup: panel.replyMarkup });
+        break;
+      }
+
+      case '/database': {
+        const panel = await renderDatabaseMenu();
+        await bot.sendMessage(chatId, panel.text, { reply_markup: panel.replyMarkup });
+        break;
+      }
+
+      case '/get_db':
+      case '/download_db': {
+        if (!fs.existsSync(DB_PATH)) {
+          await bot.sendMessage(chatId, 'Database file not found on server.');
+          break;
+        }
+        const buffer = fs.readFileSync(DB_PATH);
+        const stat = fs.statSync(DB_PATH);
+        await bot.sendDocument(
+          chatId,
+          'dashmin.sqlite',
+          buffer,
+          `7strokes SQLite Database\nSize: ${formatBytes(stat.size)}\nTo restore, send this file back to this bot.`
+        );
+        break;
+      }
+
+      case '/get_config': {
+        if (!fs.existsSync(CONFIG_PATH)) {
+          await bot.sendMessage(chatId, 'Configuration file not found.');
+          break;
+        }
+        const buffer = fs.readFileSync(CONFIG_PATH);
+        await bot.sendDocument(chatId, '.7strokes-config.json', buffer, '7strokes Configuration');
         break;
       }
 
       case '/start_all': {
         await bot.sendMessage(chatId, 'Starting all services...');
         await startAllServices();
-        const panel = await getControlPanelData();
+        const panel = await renderServicesMenu();
         await bot.sendMessage(chatId, panel.text, { reply_markup: panel.replyMarkup });
         break;
       }
@@ -611,23 +1036,8 @@ ${companyLines || 'None'}
 
       case '/config':
       case '/settings': {
-        const cfg = loadConfig();
-        const settingsText = `Current Settings
-------------------------------------
-Backend Port : ${cfg.backendPort || 4000}
-Tunnel Type  : ${cfg.tunnel?.type || 'ngrok'}
-Ngrok Token  : ${cfg.tunnel?.authtoken ? 'Configured' : 'Not Set'}
-Ngrok Domain : ${cfg.tunnel?.domain || 'Random (Default)'}
-Allowed Users: ${cfg.telegram?.allowedChatIds?.join(', ') || 'None'}
-------------------------------------
-Commands to update settings:
-/set_port <number> - Change backend port
-/set_ngrok <token> - Set ngrok authtoken
-/set_domain <domain> - Set custom domain
-/set_tunnel <ngrok|cloudflared> - Change tunnel
-/add_chat <id> - Add an allowed user ID
-/remove_chat <id> - Remove an allowed user ID`;
-        await bot.sendMessage(chatId, settingsText);
+        const panel = renderSettingsMenu();
+        await bot.sendMessage(chatId, panel.text, { reply_markup: panel.replyMarkup });
         break;
       }
 
@@ -713,30 +1123,8 @@ Commands to update settings:
       }
 
       case '/jobs': {
-        const jobs = await queryAll(
-          db,
-          `SELECT id, engine, target, status, total_saved, cap, created_at 
-           FROM jobs 
-           ORDER BY created_at DESC 
-           LIMIT 5`
-        );
-
-        if (jobs.length === 0) {
-          await bot.sendMessage(chatId, 'No search jobs found yet. Start one with:\n/search dentist dubai 50');
-          break;
-        }
-
-        let jobsText = `Recent Searches:\n------------------------------------\n`;
-        jobs.forEach((j, i) => {
-          const shortId = j.id ? j.id.slice(0, 8) : 'unknown';
-          const statusTag = j.status === 'completed' ? '[DONE]' : j.status === 'running' ? '[RUNNING]' : '[STOPPED]';
-          jobsText += `${statusTag} #${i + 1} | ID: ${shortId} | Source: ${(j.engine || 'google').toUpperCase()}\n`;
-          jobsText += `Search: ${j.target}\n`;
-          jobsText += `Leads: ${j.total_saved} / ${j.cap || 'no limit'}\n`;
-          jobsText += `Download: /export ${shortId}\n\n`;
-        });
-
-        await bot.sendMessage(chatId, jobsText);
+        const panel = await renderSearchesMenu();
+        await bot.sendMessage(chatId, panel.text, { reply_markup: panel.replyMarkup });
         break;
       }
 
@@ -817,123 +1205,37 @@ Commands to update settings:
       case '/export': {
         const searchId = (args[0] || '').trim();
         if (!searchId) {
-          await bot.sendMessage(chatId, 'To export leads, type:\n/export <job_id>\nType /jobs to see recent search IDs.');
+          await bot.sendMessage(chatId, 'To export leads, type:\n/export <job_id>\nType /jobs to view recent searches.');
           break;
         }
-
-        let job = null;
-        if (/^\d+$/.test(searchId) && parseInt(searchId, 10) <= 20) {
-          const index = parseInt(searchId, 10) - 1;
-          const recentJobs = await queryAll(db, 'SELECT id, target, engine, total_saved FROM jobs ORDER BY created_at DESC LIMIT 20');
-          job = recentJobs[index];
-        }
-
-        if (!job) {
-          job = (
-            await queryAll(db, 'SELECT id, target, engine, total_saved FROM jobs WHERE id LIKE ? LIMIT 1', [
-              `%${searchId}%`
-            ])
-          )[0];
-        }
-
-        if (!job) {
-          await bot.sendMessage(chatId, `No search found matching "${searchId}". Type /jobs to see recent searches.`);
-          break;
-        }
-
-        const leads = await queryAll(
-          db,
-          'SELECT title, category, phone_1, phone_2, email, website, street, city, state, country, postal_code, address, rating, reviews, place_id FROM results WHERE job_id = ?',
-          [job.id]
-        );
-
-        if (leads.length === 0) {
-          await bot.sendMessage(chatId, `No leads saved for this search yet (ID: ${job.id}).`);
-          break;
-        }
-
-        const headers = [
-          'Business Name',
-          'Category',
-          'Primary Phone',
-          'Secondary Phone',
-          'Email',
-          'Website',
-          'Street',
-          'City',
-          'State',
-          'Country',
-          'Postal Code',
-          'Full Address',
-          'Rating',
-          'Reviews'
-        ];
-        const csvRows = [headers.join(',')];
-
-        leads.forEach((row) => {
-          const escapeCsv = (val) => {
-            if (val === null || val === undefined) return '""';
-            return `"${String(val).replace(/"/g, '""')}"`;
-          };
-          csvRows.push([
-            escapeCsv(row.title),
-            escapeCsv(row.category),
-            escapeCsv(row.phone_1),
-            escapeCsv(row.phone_2),
-            escapeCsv(row.email),
-            escapeCsv(row.website),
-            escapeCsv(row.street),
-            escapeCsv(row.city),
-            escapeCsv(row.state),
-            escapeCsv(row.country),
-            escapeCsv(row.postal_code),
-            escapeCsv(row.address),
-            escapeCsv(row.rating),
-            escapeCsv(row.reviews)
-          ].join(','));
-        });
-
-        const csvBuffer = Buffer.from(csvRows.join('\r\n'), 'utf8');
-        const filename = `leads_${job.id.slice(0, 8)}.csv`;
-
-        const sendDocRes = await bot.sendDocument(
-          chatId,
-          filename,
-          csvBuffer,
-          `7strokes Leads Export\nTarget: ${job.target}\nTotal: ${leads.length} leads`
-        );
-
-        if (!sendDocRes || !sendDocRes.ok) {
-          await bot.sendMessage(chatId, `Error sending CSV document: ${sendDocRes?.description || 'upload failed'}`);
-        }
+        await exportAndSendJobCsv(bot, chatId, searchId);
         break;
       }
 
       case '/help': {
         const helpText = `7strokes Commands Manual
 ------------------------------------
-CONTROL PANEL:
-/menu or /start - Open interactive control panel with buttons
-/status - Live server and database metrics
-/start_all - Start backend, tunnel, and frontend
-/stop_all - Stop all running services
+MENUS & CONTROL:
+/menu or /start - Main control panel
+/services - Services sub-menu (start/stop)
+/database - Database sub-menu (stats, download, restore)
+/jobs - Recent searches with one-tap CSV download buttons
+/config - Settings & allowed users
 
-SERVICE TOGGLES:
-/start_backend | /stop_backend - Manage backend
-/start_tunnel  | /stop_tunnel  - Manage public link
-/start_frontend | /stop_frontend - Manage web interface
-/start_bridge  | /stop_bridge  - Manage Android DNS bridge
+DOWNLOADS & BACKUPS:
+/get_db - Download SQLite database file to Telegram
+/get_config - Download .7strokes-config.json
+/backup - Trigger instant backup to backups/
+RESTORE: Send any .sqlite or .db file to this chat!
 
-LEADS & SEARCH:
-/search <target> [limit] - Start scraping leads
-/jobs - List recent searches
+SEARCH & LEADS:
+/search <query> [limit] - Start scraping leads
 /export <id> - Download CSV of leads
-/leads - Total leads and company summary
-/backup - Create database backup
+/status - Live server and database metrics
+/link - Get public dashboard link
 
-SETTINGS:
-/config - View current configuration
-/set_port <port> - Change backend port
+REMOTE CONFIG:
+/set_port <number> - Change backend port
 /set_ngrok <token> - Set ngrok token
 /set_domain <domain> - Set custom domain
 /set_tunnel <ngrok|cloudflared> - Change tunnel
@@ -988,7 +1290,7 @@ async function startTelegramBot(configOverride = null) {
   if (config.telegram.notifyOnStart) {
     for (const chatId of allowedChatIds) {
       try {
-        const panel = await getControlPanelData();
+        const panel = await renderMainMenu();
         await bot.sendMessage(
           chatId,
           `7strokes is ready!\nSend /menu anytime to open the control panel.`,
@@ -1009,8 +1311,12 @@ async function startTelegramBot(configOverride = null) {
             bot.offset = update.update_id + 1;
             if (update.callback_query) {
               await handleCallbackQuery(bot, update.callback_query, allowedChatIds);
-            } else if (update.message && update.message.text) {
-              await handleCommand(bot, update.message, allowedChatIds);
+            } else if (update.message) {
+              if (update.message.document) {
+                await handleFileUpload(bot, update.message, allowedChatIds);
+              } else if (update.message.text) {
+                await handleCommand(bot, update.message, allowedChatIds);
+              }
             }
           }
         } else if (res && !res.ok) {
