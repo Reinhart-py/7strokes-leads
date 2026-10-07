@@ -2,18 +2,20 @@
   "name": "7strokes",
   "version": "1.0.0",
   "description": "7strokes — High-Performance B2B Lead Generation Tool",
-  "main": "fk.js",
+  "main": "kiki.js",
   "bin": {
-    "fk": "./fk.js"
+    "kiki": "./kiki.js",
+    "fk": "./kiki.js"
   },
   "scripts": {
-    "fk": "node fk.js",
-    "start": "node fk.js start",
-    "bot": "node fk.js bot",
-    "db:view": "node fk.js db view",
-    "db:backup": "node fk.js db backup",
-    "bridge": "node fk.js bridge",
-    "config": "node fk.js config"
+    "kiki": "node kiki.js",
+    "fk": "node kiki.js",
+    "start": "node kiki.js start",
+    "bot": "node kiki.js bot",
+    "db:view": "node kiki.js db view",
+    "db:backup": "node kiki.js db backup",
+    "bridge": "node kiki.js bridge",
+    "config": "node kiki.js config"
   },
   "keywords": [
     "lead-generation",

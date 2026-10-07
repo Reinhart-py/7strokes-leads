@@ -1,6 +1,7 @@
 import { ProxyAgent } from 'undici';
 import { chromium } from 'playwright-core';
 import { IScraperProvider, ScrapedLead, ScraperOptions, ScraperControl } from '../types';
+import { classifyPhones } from '../phoneClassifier';
 
 interface RegionMapping {
   domain: string;
@@ -202,27 +203,23 @@ export class TwoGisHttpProvider implements IScraperProvider {
             if (seenTitles.has(norm)) return;
             seenTitles.add(norm);
 
+            const rawCandidates: string[] = [];
             const telMatches = html.match(/href="tel:([^"]+)"/g) || [];
-            let phone1: string | null = null;
-            let phone2: string | null = null;
-            if (telMatches.length > 0) {
-              phone1 = telMatches[0].replace('href="tel:', '').replace('"', '').trim();
-              if (telMatches.length > 1) {
-                phone2 = telMatches[1].replace('href="tel:', '').replace('"', '').trim();
+            for (const tm of telMatches) {
+              const num = tm.replace('href="tel:', '').replace('"', '').trim();
+              if (num) rawCandidates.push(num);
+            }
+
+            const bdoMatches = html.match(/<bdo[^>]*>([^<]+)<\/bdo>/g) || [];
+            for (const b of bdoMatches) {
+              const text = b.replace(/<[^>]+>/g, '').trim();
+              const digits = text.replace(/[^\d+]/g, ' ').replace(/\s+/g, ' ').trim();
+              if (digits.length >= 6) {
+                rawCandidates.push(digits);
               }
             }
 
-            if (!phone1) {
-              const bdoMatches = html.match(/<bdo[^>]*>([^<]+)<\/bdo>/g) || [];
-              for (const b of bdoMatches) {
-                const text = b.replace(/<[^>]+>/g, '').trim();
-                const digits = text.replace(/[^\d+]/g, ' ').replace(/\s+/g, ' ').trim();
-                if (digits.length >= 6) {
-                  phone1 = digits;
-                  break;
-                }
-              }
-            }
+            const { primary: phone1, secondary: phone2 } = classifyPhones(rawCandidates);
 
             let website: string | null = null;
             const webMatches = html.match(/href="(https?:\/\/[^"]+)"[^>]*target="_blank"/g) || [];
@@ -234,6 +231,16 @@ export class TwoGisHttpProvider implements IScraperProvider {
               }
             }
 
+            let street: string | null = null;
+            let fullAddress = region.city;
+            const addressMatch = html.match(/itemprop="streetAddress"[^>]*content="([^"]+)"/i) ||
+                                 html.match(/itemprop="streetAddress">([^<]+)<\//i) ||
+                                 html.match(/class="_[a-zA-Z0-9]+">([^<]+)<\/span>[^<]*<span[^>]*class="_[a-zA-Z0-9]+">.*?district/i);
+            if (addressMatch && addressMatch[1]) {
+              street = addressMatch[1].trim();
+              fullAddress = `${street}, ${region.city}, ${region.country}`;
+            }
+
             const lead: ScrapedLead = {
               query,
               title: rawTitle,
@@ -241,7 +248,8 @@ export class TwoGisHttpProvider implements IScraperProvider {
               phone_1: phone1,
               phone_2: phone2,
               website,
-              address: region.city,
+              address: fullAddress,
+              street: street || null,
               city: region.city,
               country: region.country
             };

@@ -9,6 +9,7 @@ export interface ScrapedLead {
   email?: string | null;
   website?: string | null;
   address?: string | null;
+  street?: string | null;
   city?: string | null;
   state?: string | null;
   country?: string | null;

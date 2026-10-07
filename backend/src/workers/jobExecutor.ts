@@ -39,18 +39,18 @@ export async function executeJob(data: { jobId: string; engine: string; target: 
         await query(
           `INSERT INTO results (
             job_id, query, place_id, title, category, categories,
-            phone_1, phone_2, email, website, address,
+            phone_1, phone_2, email, website, address, street,
             city, state, country, postal_code,
             rating, reviews, price_level, status,
             latitude, longitude, plus_code, timezone,
             opening_hours, social_links, extra_data
           ) VALUES (
             $1, $2, $3, $4, $5, $6,
-            $7, $8, $9, $10, $11,
-            $12, $13, $14, $15,
-            $16, $17, $18, $19,
-            $20, $21, $22, $23,
-            $24, $25, $26
+            $7, $8, $9, $10, $11, $12,
+            $13, $14, $15, $16,
+            $17, $18, $19, $20,
+            $21, $22, $23, $24,
+            $25, $26, $27
           )
           ON CONFLICT (job_id, place_id) WHERE place_id IS NOT NULL DO NOTHING`,
           [
@@ -65,6 +65,7 @@ export async function executeJob(data: { jobId: string; engine: string; target: 
             lead.email || null,
             lead.website || null,
             lead.address || null,
+            lead.street || null,
             lead.city || null,
             lead.state || null,
             lead.country || null,
@@ -89,18 +90,18 @@ export async function executeJob(data: { jobId: string; engine: string; target: 
         await query(
           `INSERT INTO results (
             job_id, query, place_id, title, category, categories,
-            phone_1, phone_2, email, website, address,
+            phone_1, phone_2, email, website, address, street,
             city, state, country, postal_code,
             rating, reviews, price_level, status,
             latitude, longitude, plus_code, timezone,
             opening_hours, social_links, extra_data
           ) VALUES (
             $1, $2, $3, $4, $5, $6,
-            $7, $8, $9, $10, $11,
-            $12, $13, $14, $15,
-            $16, $17, $18, $19,
-            $20, $21, $22, $23,
-            $24, $25, $26
+            $7, $8, $9, $10, $11, $12,
+            $13, $14, $15, $16,
+            $17, $18, $19, $20,
+            $21, $22, $23, $24,
+            $25, $26, $27
           )`,
           [
             jobId,
@@ -114,6 +115,7 @@ export async function executeJob(data: { jobId: string; engine: string; target: 
             lead.email || null,
             lead.website || null,
             lead.address || null,
+            lead.street || null,
             lead.city || null,
             lead.state || null,
             lead.country || null,

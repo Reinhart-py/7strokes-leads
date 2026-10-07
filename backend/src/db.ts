@@ -72,6 +72,7 @@ function initSqlite() {
         email TEXT,
         website TEXT,
         address TEXT,
+        street TEXT,
         city TEXT,
         state TEXT,
         country TEXT,
@@ -93,6 +94,7 @@ function initSqlite() {
     sqliteDb?.run(`
       CREATE UNIQUE INDEX IF NOT EXISTS idx_results_job_place ON results(job_id, place_id) WHERE place_id IS NOT NULL
     `);
+    sqliteDb?.run('ALTER TABLE results ADD COLUMN street TEXT', () => {});
     sqliteDb?.run('ALTER TABLE users ADD COLUMN can_use_proxy INTEGER DEFAULT 0', () => {});
     sqliteDb?.run('ALTER TABLE users ADD COLUMN custom_proxy TEXT', () => {});
     sqliteDb?.run('ALTER TABLE users ADD COLUMN username TEXT', () => {});

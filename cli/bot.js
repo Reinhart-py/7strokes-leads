@@ -321,7 +321,7 @@ ${companyLines || '  (None)'}
 
         const leads = await queryAll(
           db,
-          'SELECT title, category, phone_1, phone_2, email, website, address, city, rating, reviews, place_id FROM results WHERE job_id = ?',
+          'SELECT title, category, phone_1, phone_2, email, website, street, city, state, country, postal_code, address, rating, reviews, place_id FROM results WHERE job_id = ?',
           [job.id]
         );
 
@@ -330,7 +330,22 @@ ${companyLines || '  (None)'}
           break;
         }
 
-        const headers = ['Business Name', 'Category', 'Phone 1', 'Phone 2', 'Email', 'Website', 'Address', 'City', 'Rating', 'Reviews'];
+        const headers = [
+          'Business Name',
+          'Category',
+          'Primary Phone',
+          'Secondary Phone',
+          'Email',
+          'Website',
+          'Street',
+          'City',
+          'State',
+          'Country',
+          'Postal Code',
+          'Full Address',
+          'Rating',
+          'Reviews'
+        ];
         const csvRows = [headers.join(',')];
 
         leads.forEach((row) => {
@@ -345,8 +360,12 @@ ${companyLines || '  (None)'}
             escapeCsv(row.phone_2),
             escapeCsv(row.email),
             escapeCsv(row.website),
-            escapeCsv(row.address),
+            escapeCsv(row.street),
             escapeCsv(row.city),
+            escapeCsv(row.state),
+            escapeCsv(row.country),
+            escapeCsv(row.postal_code),
+            escapeCsv(row.address),
             escapeCsv(row.rating),
             escapeCsv(row.reviews)
           ].join(','));

@@ -1,4 +1,5 @@
 import { ScrapedLead } from '../types';
+import { classifyPhones } from '../phoneClassifier';
 
 export class GmapsParser {
   private static readonly FTID_REGEX = /0x[0-9a-f]{10,}:0x[0-9a-f]{10,}/i;
@@ -153,6 +154,7 @@ export class GmapsParser {
       const primaryCategory = categories[0] || null;
 
       let address: string | null = null;
+      let street: string | null = null;
       let city: string | null = null;
       let state: string | null = null;
       let country: string | null = null;
@@ -162,11 +164,24 @@ export class GmapsParser {
       if (Array.isArray(addrNode)) {
         const parts = addrNode.filter((a: any) => typeof a === 'string');
         address = parts.join(', ');
+        if (parts.length > 0) {
+          street = parts[0];
+        }
         if (parts.length > 1) {
           country = parts[parts.length - 1];
         }
         if (parts.length > 2) {
           city = parts[parts.length - 2];
+        }
+        if (parts.length > 3) {
+          state = parts[parts.length - 3];
+        }
+      }
+
+      if (address) {
+        const postalMatch = address.match(/\b([A-Z]{1,2}\d{1,2}[A-Z]?\s?\d[A-Z]{2}|\d{5,6})\b/i);
+        if (postalMatch) {
+          postalCode = postalMatch[1].trim();
         }
       }
 
@@ -207,28 +222,24 @@ export class GmapsParser {
         lon = typeof coordNode[3] === 'number' ? coordNode[3] : null;
       }
 
-      let phone1: string | null = null;
-      let phone2: string | null = null;
+      const rawCandidates: string[] = [];
       const phoneNode = this.safeGet(record, 178);
       if (Array.isArray(phoneNode)) {
         const p1 = this.safeGet(phoneNode, 0, 0);
-        if (typeof p1 === 'string' && p1.length >= 7) {
-          phone1 = p1.trim();
-        }
+        if (typeof p1 === 'string') rawCandidates.push(p1);
         const p2 = this.safeGet(phoneNode, 0, 1);
-        if (typeof p2 === 'string' && p2.length >= 7 && !p2.toLowerCase().includes('fax')) {
-          phone2 = p2.trim();
-        }
+        if (typeof p2 === 'string') rawCandidates.push(p2);
+        const p3 = this.safeGet(phoneNode, 0, 3);
+        if (typeof p3 === 'string') rawCandidates.push(p3);
       }
 
       const recordJson = JSON.stringify(record);
-
-      if (!phone1) {
-        const allPhones = recordJson.match(this.PHONE_REGEX) || [];
-        const validPhones = allPhones.filter(p => p.replace(/\D/g, '').length >= 7);
-        if (validPhones[0]) phone1 = validPhones[0].trim();
-        if (validPhones[1]) phone2 = validPhones[1].trim();
+      const allPhones = recordJson.match(this.PHONE_REGEX) || [];
+      for (const ph of allPhones) {
+        rawCandidates.push(ph);
       }
+
+      const { primary: phone1, secondary: phone2 } = classifyPhones(rawCandidates);
 
       const emails = this.extractEmails(recordJson);
       const socials = this.extractSocials(recordJson);
@@ -280,6 +291,7 @@ export class GmapsParser {
         email: emails[0] || null,
         website: website || null,
         address: address || null,
+        street: street || null,
         city: city || null,
         state: state || null,
         country: country || null,

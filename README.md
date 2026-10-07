@@ -12,7 +12,7 @@
 
 7strokes lets you easily search and collect local business leads, phone numbers, emails, websites, addresses, and customer reviews from Google Maps and 2GIS at scale.
 
-It works on Windows, Linux, macOS, and Android phones (Termux). You can control it from a web browser, a command-line tool (`fk`), or an interactive Telegram bot (`fk bot`).
+It works on Windows, Linux, macOS, and Android phones (Termux). You can control it from a web browser, a command-line tool (`kiki`), or an interactive Telegram bot (`kiki bot`).
 
 # Contents
 
@@ -28,7 +28,8 @@ It works on Windows, Linux, macOS, and Android phones (Termux). You can control 
   - [Direct Command Mode](#direct-command-mode)
 - [CLI Options](#cli-options)
 - [What Can 7strokes Extract?](#what-can-7strokes-extract)
-- [Telegram Bot (fk bot)](#telegram-bot-fk-bot)
+- [Phone Classification and Address Separation](#phone-classification-and-address-separation)
+- [Telegram Bot (kiki bot)](#telegram-bot-kiki-bot)
 - [User Roles and Company Isolation](#user-roles-and-company-isolation)
 - [Database Management](#database-management)
 - [Production 24/7 VPS Hosting](#production-247-vps-hosting)
@@ -44,6 +45,8 @@ Most lead generation tools are complicated to set up, require heavy browser soft
 
 - **No heavy browser required**: Uses direct high-speed HTTP network requests instead of running slow browser windows on every query.
 - **Bypasses the 120-result limit**: Automatically splits large cities into coordinate grids to search district by district, extracting thousands of leads per search.
+- **Smart phone separation**: Automatically detects and separates Primary Numbers (mobile / personal) from Secondary Numbers (landline / office / alt).
+- **Clean address columns**: Splits addresses into separate columns for Street, City, State, Country, and Postal Code in all CSV, Excel, and JSON exports.
 - **Dual search sources**: Google Maps and 2GIS Directory (covering Dubai, Abu Dhabi, and all GCC countries).
 - **Zero-setup database**: Runs immediately with built-in SQLite (`dashmin.sqlite`). You do not need to install or configure PostgreSQL or Redis to get started.
 - **Runs on your phone**: Works inside Termux on Android without needing root permissions.
@@ -56,7 +59,7 @@ Most lead generation tools are complicated to set up, require heavy browser soft
 
 #### Method 1: Global PowerShell Setup on Windows (Recommended)
 
-This lets you type `fk` or `fk start` from any folder in PowerShell or Command Prompt.
+This lets you type `kiki` from any folder in PowerShell or Command Prompt.
 
 1. Open PowerShell and clone the repository:
    ```powershell
@@ -76,12 +79,12 @@ This lets you type `fk` or `fk start` from any folder in PowerShell or Command P
    cd ..
    ```
 
-3. Link the `fk` command globally:
+3. Link the `kiki` command globally:
    ```powershell
    npm link
    ```
 
-You can now type `fk` from any folder on your computer.
+You can now type `kiki` from any folder on your computer.
 
 ---
 
@@ -110,7 +113,7 @@ You can run 7strokes directly on an Android phone using the Termux app:
 
 4. Start 7strokes:
    ```bash
-   ./fk start
+   ./kiki start
    ```
 
 On Android, 7strokes automatically runs a built-in Node.js DNS bridge on port 8888. This bypasses Android's missing `/etc/resolv.conf` file, allowing Ngrok tunnels to connect without errors.
@@ -125,7 +128,7 @@ cd 7strokes
 cd backend && npm install && npm run build
 cd ../frontend && npm install
 cd ..
-./fk start
+./kiki start
 ```
 
 ### PowerShell First-Time Setup Note
@@ -141,7 +144,7 @@ This is a default Windows security setting. You can enable scripts for your user
 Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned
 ```
 
-Press `Y` to confirm. After that, `fk` and all PowerShell commands will run without restriction.
+Press `Y` to confirm. After that, `kiki` and all PowerShell commands will run without restriction.
 
 ### Dependencies
 
@@ -158,17 +161,17 @@ If you do not have PostgreSQL or Redis installed, 7strokes automatically uses it
 
 #### Interactive Menu Mode (Easiest for Beginners)
 
-If you do not want to remember commands, simply type `fk` in your terminal:
+If you do not want to remember commands, simply type `kiki` in your terminal:
 
 ```powershell
-fk
+kiki
 ```
 
 An interactive control panel will open:
 
 ```text
 ======================================================
-             7STROKES CONTROL PANEL               
+             7STROKES CONTROL PANEL (KIKI)        
 ======================================================
  [1] Start Engine (Backend + Public Tunnel)
  [2] Start Telegram Bot
@@ -188,34 +191,36 @@ Type a number from `0` to `7` and press Enter.
 
 #### Direct Command Mode
 
-You can also run any action directly by adding arguments to `fk`:
+You can also run any action directly by adding arguments to `kiki`:
 
 ```powershell
 # Start the backend server and public tunnel together
-fk start
+kiki start
 
 # Launch the interactive Telegram bot
-fk bot
+kiki bot
 
 # View database metrics (auto-detects mobile or desktop screen)
-fk db view
+kiki db view
 
 # Make a backup of the SQLite database
-fk db backup
+kiki db backup
 
 # Restore a database from a backup file
-fk db restore backups/7strokes-backup-2026-10-07.sqlite
+kiki db restore backups/7strokes-backup-2026-10-07.sqlite
 
 # Reconfigure your Ngrok token, custom domain, or Telegram bot credentials
-fk config
+kiki config
 ```
+
+*(Note: `fk` is also supported as a short alias for `kiki`).*
 
 ### CLI Options
 
 ---
 
 ```text
-Usage: fk [command] [options]
+Usage: kiki [command] [options]
 
 Commands:
   (no args)           Open the interactive numbered control menu
@@ -238,17 +243,36 @@ Commands:
 | **Business Name** | Official business or company name |
 | **Category** | Primary industry classification |
 | **All Categories** | Secondary tags and industry classifications |
-| **Phone 1 & Phone 2** | Direct business telephone and mobile numbers |
+| **Primary Phone** | Personal or direct mobile number |
+| **Secondary Phone** | Office landline, toll-free, or alternate number |
 | **Email** | Public business email address |
 | **Website** | Official website link |
-| **Address** | Street, building, and district address |
-| **City, State, Country** | Geographic location details |
+| **Street** | Street name, road, and building address |
+| **City** | City or municipality |
+| **State** | State, province, or emirate |
+| **Country** | Country name |
+| **Postal Code** | Postal or ZIP code |
+| **Full Address** | Complete combined address |
 | **Rating & Reviews** | Average star rating and total review count |
 | **Opening Hours** | Operating schedule across the week |
 | **Social Links** | Instagram, Facebook, LinkedIn, Twitter/X, YouTube |
 | **Place ID & Coordinates** | Latitude, Longitude, and unique place identifier |
 
-### Telegram Bot (fk bot)
+### Phone Classification and Address Separation
+
+---
+
+7strokes includes built-in intelligence for contact details:
+
+1. **Phone Numbers**:
+   - **Primary Phone**: Mobile and direct personal numbers are automatically detected and placed in the Primary Phone column.
+   - **Secondary Phone**: Office numbers, landlines (such as Dubai `04`, Abu Dhabi `02`, toll-free `800`), and secondary lines are placed in the Secondary Phone column.
+   - Numbers are deduplicated so the two columns never repeat the same number.
+
+2. **Address Fields**:
+   - Instead of combining everything into one messy line, exports provide separate columns for **Street**, **City**, **State**, **Country**, and **Postal Code**, alongside the full address.
+
+### Telegram Bot (kiki bot)
 
 ---
 
@@ -257,7 +281,7 @@ You can control 7strokes directly from your Telegram app.
 #### First-Time Setup:
 Run:
 ```powershell
-fk bot
+kiki bot
 ```
 
 The setup wizard will ask you for:
@@ -272,7 +296,7 @@ The setup wizard will ask you for:
   - Example: `/search gmaps Real Estate Dubai 100`
   - Example: `/search 2gis Dental Clinic Abu Dhabi 50`
 - `/jobs` — List recent scraping jobs and their progress.
-- `/export <job_id>` — Creates a CSV file and sends it directly into your Telegram chat.
+- `/export <job_id>` — Creates a CSV file with separate phone and address columns and sends it directly into your Telegram chat.
 - `/help` — Show command guide.
 
 ### User Roles and Company Isolation
@@ -300,22 +324,22 @@ The setup wizard will ask you for:
 
 ---
 
-#### 1. View Database Stats (`fk db view`)
+#### 1. View Database Stats (`kiki db view`)
 ```powershell
-fk db view
+kiki db view
 ```
 - **On Android / Termux**: Outputs a clean vertical list designed for mobile screens that will not wrap or break.
 - **On Desktop**: Outputs wide tables with company breakdowns, manager counts, and recent searches.
 
-#### 2. Backup Database (`fk db backup`)
+#### 2. Backup Database (`kiki db backup`)
 ```powershell
-fk db backup
+kiki db backup
 ```
 Saves a snapshot of your database in the `backups/` directory.
 
-#### 3. Restore Database (`fk db restore <file>`)
+#### 3. Restore Database (`kiki db restore <file>`)
 ```powershell
-fk db restore backups/7strokes-backup-2026-10-07.sqlite
+kiki db restore backups/7strokes-backup-2026-10-07.sqlite
 ```
 Safely restores your database with an automatic rollback backup.
 
