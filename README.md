@@ -288,16 +288,39 @@ The setup wizard will ask you for:
 1. **Bot Token**: Get a free token from [@BotFather](https://t.me/BotFather) on Telegram.
 2. **Allowed Chat IDs**: Your Telegram account ID from [@userinfobot](https://t.me/userinfobot). Multiple IDs can be added separated by commas.
 
-#### Telegram Commands:
-- `/status` — Live server stats, memory, uptime, and total leads in database.
-- `/tunnel` — Returns the current live web link so you can open the dashboard on your phone.
-- `/db` — Summary of leads, jobs, users, and companies in the database.
-- `/search <engine> <target> [limit]` — Start a search from chat.
-  - Example: `/search gmaps Real Estate Dubai 100`
-  - Example: `/search 2gis Dental Clinic Abu Dhabi 50`
-- `/jobs` — List recent scraping jobs and their progress.
-- `/export <job_id>` — Creates a CSV file with separate phone and address columns and sends it directly into your Telegram chat.
-- `/help` — Show command guide.
+#### Telegram Remote Control Panel:
+Send `/menu` or `/start` to your bot in Telegram to open the interactive control panel with tap-to-click inline buttons:
+- **[Start All]** / **[Stop All]** — Turn all services (backend, public link, frontend) on or off with a single tap.
+- **[Backend: ON/OFF]** — Toggle backend API server.
+- **[Tunnel: ON/OFF]** — Toggle public Ngrok / Cloudflare link.
+- **[Frontend: ON/OFF]** — Toggle Next.js web application.
+- **[Bridge: ON/OFF]** — Toggle Android DNS bridge.
+- **[Database Stats]** — View total leads and searches.
+- **[Backup Database]** — Trigger an instant database backup directly from your phone.
+- **[Recent Searches]** — View your latest search jobs.
+- **[Settings]** — View and change settings.
+- **[Refresh Status]** — Update metrics and live service indicators.
+
+#### Telegram Text Commands:
+- `/menu` or `/start` — Open the interactive control panel with buttons.
+- `/status` — Live server metrics, memory, uptime, and total leads.
+- `/start_all` | `/stop_all` — Start or stop all services remotely.
+- `/start_backend` | `/stop_backend` — Start or stop backend.
+- `/start_tunnel` | `/stop_tunnel` — Start or stop public link.
+- `/start_frontend` | `/stop_frontend` — Start or stop frontend.
+- `/link` — Get current live web dashboard link.
+- `/leads` — Summary of leads, jobs, users, and companies.
+- `/backup` — Create a database backup.
+- `/search <target> [limit]` — Start lead search (e.g. `/search cafes in london 50`).
+- `/jobs` — View recent scraping jobs.
+- `/export <job_id>` — Download CSV file of leads directly to Telegram.
+- `/config` — View current configuration.
+- `/set_port <number>` — Change backend port.
+- `/set_ngrok <token>` — Change ngrok authtoken.
+- `/set_domain <domain>` — Change custom ngrok domain.
+- `/set_tunnel <ngrok|cloudflared>` — Change tunnel provider.
+- `/add_chat <id>` | `/remove_chat <id>` — Add or remove allowed Telegram users.
+- `/help` — Show full command manual.
 
 ### User Roles and Company Isolation
 

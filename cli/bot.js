@@ -2,7 +2,24 @@ const fs = require('fs');
 const path = require('path');
 const sqlite3 = require('../backend/node_modules/sqlite3');
 const { loadConfig, saveConfig, promptConfig } = require('./config');
-const { getPublicUrl } = require('./tunnel');
+const { backupDatabase } = require('./db');
+const {
+  isBackendRunning,
+  isFrontendRunning,
+  isTunnelRunning,
+  isBridgeRunning,
+  startBackendService,
+  stopBackendService,
+  startFrontendService,
+  stopFrontendService,
+  startTunnelService,
+  stopTunnelService,
+  startBridgeService,
+  stopBridgeService,
+  startAllServices,
+  stopAllServices,
+  getServicesStatus
+} = require('./services');
 
 const DB_PATH = path.join(__dirname, '../dashmin.sqlite');
 
@@ -75,6 +92,36 @@ class TelegramBotClient {
     return res;
   }
 
+  async editMessageText(chatId, messageId, text, extra = {}) {
+    let res = await this.callApi('editMessageText', {
+      chat_id: chatId,
+      message_id: messageId,
+      text,
+      parse_mode: 'Markdown',
+      disable_web_page_preview: false,
+      ...extra
+    });
+
+    if (!res || !res.ok) {
+      res = await this.callApi('editMessageText', {
+        chat_id: chatId,
+        message_id: messageId,
+        text,
+        disable_web_page_preview: false,
+        ...extra
+      });
+    }
+
+    return res;
+  }
+
+  async answerCallbackQuery(callbackQueryId, text = '') {
+    return this.callApi('answerCallbackQuery', {
+      callback_query_id: callbackQueryId,
+      text: text || undefined
+    });
+  }
+
   async sendDocument(chatId, filename, buffer, caption = '') {
     const boundary = '----TelegramBotBoundary' + Math.random().toString(36).substring(2);
     let postData = [];
@@ -118,6 +165,265 @@ class TelegramBotClient {
   }
 }
 
+async function getControlPanelData() {
+  const status = await getServicesStatus();
+  const db = getDbConnection();
+  let leadCount = 0;
+  let runningJobs = 0;
+
+  try {
+    const counts = (await queryAll(
+      db,
+      `SELECT 
+        (SELECT count(*) FROM results) as leads, 
+        (SELECT count(*) FROM jobs WHERE status = 'running') as running_jobs`
+    ))[0];
+    leadCount = counts?.leads || 0;
+    runningJobs = counts?.running_jobs || 0;
+  } catch (_) {}
+  finally {
+    try { db.close(); } catch (_) {}
+  }
+
+  const backendLabel = status.backend ? `ONLINE (port ${status.backendPort})` : 'OFFLINE';
+  const tunnelLabel = status.tunnel ? (status.tunnelUrl ? `ONLINE (${status.tunnelUrl})` : 'ONLINE') : 'OFFLINE';
+  const frontendLabel = status.frontend ? `ONLINE (port ${status.frontendPort})` : 'OFFLINE';
+  const bridgeLabel = status.bridge ? 'ACTIVE' : 'INACTIVE';
+
+  const text = `7strokes Control Panel
+------------------------------------
+Backend   : ${backendLabel}
+Tunnel    : ${tunnelLabel}
+Frontend  : ${frontendLabel}
+DNS Bridge: ${bridgeLabel}
+------------------------------------
+Total Leads Saved: ${leadCount.toLocaleString()}
+Active Searches  : ${runningJobs}
+------------------------------------
+Tap any button below to manage services.`;
+
+  const replyMarkup = {
+    inline_keyboard: [
+      [
+        { text: "Start All", callback_data: "cmd_start_all" },
+        { text: "Stop All", callback_data: "cmd_stop_all" }
+      ],
+      [
+        { text: status.backend ? "Backend: [ON]" : "Backend: [OFF]", callback_data: "toggle_backend" },
+        { text: status.tunnel ? "Tunnel: [ON]" : "Tunnel: [OFF]", callback_data: "toggle_tunnel" }
+      ],
+      [
+        { text: status.frontend ? "Frontend: [ON]" : "Frontend: [OFF]", callback_data: "toggle_frontend" },
+        { text: status.bridge ? "Bridge: [ON]" : "Bridge: [OFF]", callback_data: "toggle_bridge" }
+      ],
+      [
+        { text: "Database Stats", callback_data: "cmd_db_stats" },
+        { text: "Backup Database", callback_data: "cmd_db_backup" }
+      ],
+      [
+        { text: "Recent Searches", callback_data: "cmd_jobs" },
+        { text: "Settings", callback_data: "cmd_settings" }
+      ],
+      [
+        { text: "Refresh Status", callback_data: "cmd_refresh" }
+      ]
+    ]
+  };
+
+  return { text, replyMarkup };
+}
+
+async function handleCallbackQuery(bot, query, allowedChatIds) {
+  const chatId = String(query.message?.chat?.id || query.from?.id);
+  const data = query.data || '';
+  const messageId = query.message?.message_id;
+
+  const isAllowed = allowedChatIds.some((id) => String(id).trim() === chatId);
+  if (!isAllowed) {
+    await bot.answerCallbackQuery(query.id, 'Unauthorized user.');
+    return;
+  }
+
+  try {
+    switch (data) {
+      case 'cmd_start_all': {
+        await bot.answerCallbackQuery(query.id, 'Starting all services...');
+        await startAllServices();
+        const panel = await getControlPanelData();
+        await bot.editMessageText(chatId, messageId, panel.text, { reply_markup: panel.replyMarkup });
+        break;
+      }
+
+      case 'cmd_stop_all': {
+        await bot.answerCallbackQuery(query.id, 'Stopping all services...');
+        stopAllServices();
+        const panel = await getControlPanelData();
+        await bot.editMessageText(chatId, messageId, panel.text, { reply_markup: panel.replyMarkup });
+        break;
+      }
+
+      case 'toggle_backend': {
+        const isRunning = await isBackendRunning();
+        if (isRunning) {
+          await bot.answerCallbackQuery(query.id, 'Stopping backend...');
+          stopBackendService();
+        } else {
+          await bot.answerCallbackQuery(query.id, 'Starting backend...');
+          await startBackendService();
+        }
+        const panel = await getControlPanelData();
+        await bot.editMessageText(chatId, messageId, panel.text, { reply_markup: panel.replyMarkup });
+        break;
+      }
+
+      case 'toggle_tunnel': {
+        const isRunning = isTunnelRunning();
+        if (isRunning) {
+          await bot.answerCallbackQuery(query.id, 'Stopping tunnel...');
+          stopTunnelService();
+        } else {
+          await bot.answerCallbackQuery(query.id, 'Starting tunnel...');
+          await startTunnelService();
+        }
+        const panel = await getControlPanelData();
+        await bot.editMessageText(chatId, messageId, panel.text, { reply_markup: panel.replyMarkup });
+        break;
+      }
+
+      case 'toggle_frontend': {
+        const isRunning = await isFrontendRunning();
+        if (isRunning) {
+          await bot.answerCallbackQuery(query.id, 'Stopping frontend...');
+          stopFrontendService();
+        } else {
+          await bot.answerCallbackQuery(query.id, 'Starting frontend...');
+          await startFrontendService();
+        }
+        const panel = await getControlPanelData();
+        await bot.editMessageText(chatId, messageId, panel.text, { reply_markup: panel.replyMarkup });
+        break;
+      }
+
+      case 'toggle_bridge': {
+        const isRunning = isBridgeRunning();
+        if (isRunning) {
+          await bot.answerCallbackQuery(query.id, 'Stopping bridge...');
+          stopBridgeService();
+        } else {
+          await bot.answerCallbackQuery(query.id, 'Starting bridge...');
+          await startBridgeService();
+        }
+        const panel = await getControlPanelData();
+        await bot.editMessageText(chatId, messageId, panel.text, { reply_markup: panel.replyMarkup });
+        break;
+      }
+
+      case 'cmd_db_stats': {
+        await bot.answerCallbackQuery(query.id);
+        const db = getDbConnection();
+        try {
+          const counts = (await queryAll(
+            db,
+            `SELECT 
+              (SELECT count(*) FROM users) as users,
+              (SELECT count(DISTINCT company) FROM users WHERE company IS NOT NULL AND company != '') as companies,
+              (SELECT count(*) FROM jobs) as jobs,
+              (SELECT count(*) FROM results) as leads`
+          ))[0] || { users: 0, companies: 0, jobs: 0, leads: 0 };
+
+          const statText = `Database Overview
+------------------------------------
+Total Leads Saved: ${counts.leads.toLocaleString()}
+Total Searches   : ${counts.jobs}
+Users            : ${counts.users}
+Companies        : ${counts.companies}
+------------------------------------`;
+          await bot.sendMessage(chatId, statText);
+        } finally {
+          try { db.close(); } catch (_) {}
+        }
+        break;
+      }
+
+      case 'cmd_db_backup': {
+        await bot.answerCallbackQuery(query.id, 'Creating backup...');
+        try {
+          const backupPath = await backupDatabase();
+          const baseName = path.basename(backupPath);
+          await bot.sendMessage(chatId, `Backup created successfully!\nFile: ${baseName}\nSaved to: backups/${baseName}`);
+        } catch (err) {
+          await bot.sendMessage(chatId, `Backup failed: ${err.message}`);
+        }
+        break;
+      }
+
+      case 'cmd_jobs': {
+        await bot.answerCallbackQuery(query.id);
+        const db = getDbConnection();
+        try {
+          const jobs = await queryAll(
+            db,
+            `SELECT id, engine, target, status, total_saved, cap FROM jobs ORDER BY created_at DESC LIMIT 5`
+          );
+          if (jobs.length === 0) {
+            await bot.sendMessage(chatId, 'No search jobs found yet.');
+          } else {
+            let jobsText = `Recent Searches:\n------------------------------------\n`;
+            jobs.forEach((j, i) => {
+              const shortId = j.id ? j.id.slice(0, 8) : 'unknown';
+              jobsText += `#${i + 1} | [${j.status.toUpperCase()}] ${j.target}\n`;
+              jobsText += `Leads: ${j.total_saved} / ${j.cap || 'no limit'} | ID: ${shortId}\n`;
+              jobsText += `Export: /export ${shortId}\n\n`;
+            });
+            await bot.sendMessage(chatId, jobsText);
+          }
+        } finally {
+          try { db.close(); } catch (_) {}
+        }
+        break;
+      }
+
+      case 'cmd_settings': {
+        await bot.answerCallbackQuery(query.id);
+        const cfg = loadConfig();
+        const settingsText = `Current Settings
+------------------------------------
+Backend Port : ${cfg.backendPort || 4000}
+Tunnel Type  : ${cfg.tunnel?.type || 'ngrok'}
+Ngrok Token  : ${cfg.tunnel?.authtoken ? 'Configured' : 'Not Set'}
+Ngrok Domain : ${cfg.tunnel?.domain || 'Random (Default)'}
+Allowed Users: ${cfg.telegram?.allowedChatIds?.join(', ') || 'None'}
+------------------------------------
+How to update settings from Telegram:
+/set_port <number> - Change backend port
+/set_ngrok <token> - Set ngrok authtoken
+/set_domain <domain> - Set custom domain
+/set_tunnel <ngrok|cloudflared> - Change tunnel
+/add_chat <id> - Add an allowed user ID
+/remove_chat <id> - Remove an allowed user ID`;
+        await bot.sendMessage(chatId, settingsText);
+        break;
+      }
+
+      case 'cmd_refresh': {
+        await bot.answerCallbackQuery(query.id, 'Refreshed');
+        const panel = await getControlPanelData();
+        await bot.editMessageText(chatId, messageId, panel.text, { reply_markup: panel.replyMarkup });
+        break;
+      }
+
+      default:
+        await bot.answerCallbackQuery(query.id);
+        break;
+    }
+  } catch (err) {
+    console.error('[!] Callback query handling error:', err.message);
+    try {
+      await bot.sendMessage(chatId, `Action error: ${err.message}`);
+    } catch (_) {}
+  }
+}
+
 async function handleCommand(bot, msg, allowedChatIds) {
   const chatId = String(msg.chat.id);
   const text = (msg.text || '').trim();
@@ -141,26 +447,77 @@ async function handleCommand(bot, msg, allowedChatIds) {
   try {
     switch (command) {
       case '/start':
-      case '/help': {
-        const welcomeText = `7strokes Bot
-------------------------------------
-Control your lead search directly from Telegram.
+      case '/menu': {
+        const panel = await getControlPanelData();
+        await bot.sendMessage(chatId, panel.text, { reply_markup: panel.replyMarkup });
+        break;
+      }
 
-Commands:
-/status - Check app status and leads
-/link - Get your web dashboard link
-/leads - View total saved leads
-/jobs - View recent search jobs
-/search <query> - Start lead search (e.g. /search dentist dubai 50)
-/export <job_id> - Download CSV file of leads
-/help - Show this command list
-------------------------------------`;
-        await bot.sendMessage(chatId, welcomeText);
+      case '/start_all': {
+        await bot.sendMessage(chatId, 'Starting all services...');
+        await startAllServices();
+        const panel = await getControlPanelData();
+        await bot.sendMessage(chatId, panel.text, { reply_markup: panel.replyMarkup });
+        break;
+      }
+
+      case '/stop_all': {
+        stopAllServices();
+        await bot.sendMessage(chatId, 'All services stopped.');
+        break;
+      }
+
+      case '/start_backend': {
+        const res = await startBackendService();
+        await bot.sendMessage(chatId, res.message);
+        break;
+      }
+
+      case '/stop_backend': {
+        const res = stopBackendService();
+        await bot.sendMessage(chatId, res.message);
+        break;
+      }
+
+      case '/start_tunnel': {
+        await bot.sendMessage(chatId, 'Connecting tunnel...');
+        const res = await startTunnelService();
+        await bot.sendMessage(chatId, res.message);
+        break;
+      }
+
+      case '/stop_tunnel': {
+        const res = stopTunnelService();
+        await bot.sendMessage(chatId, res.message);
+        break;
+      }
+
+      case '/start_frontend': {
+        const res = await startFrontendService();
+        await bot.sendMessage(chatId, res.message);
+        break;
+      }
+
+      case '/stop_frontend': {
+        const res = stopFrontendService();
+        await bot.sendMessage(chatId, res.message);
+        break;
+      }
+
+      case '/start_bridge': {
+        const res = await startBridgeService();
+        await bot.sendMessage(chatId, res.message);
+        break;
+      }
+
+      case '/stop_bridge': {
+        const res = stopBridgeService();
+        await bot.sendMessage(chatId, res.message);
         break;
       }
 
       case '/status': {
-        const platform = process.platform === 'android' ? 'Android (Termux)' : `${process.platform} (${process.arch})`;
+        const status = await getServicesStatus();
         const uptimeMins = Math.floor(process.uptime() / 60);
         const memMb = Math.round(process.memoryUsage().rss / 1024 / 1024);
 
@@ -172,17 +529,18 @@ Commands:
             (SELECT count(*) FROM jobs WHERE status = 'running') as running_jobs`
         ))[0] || { total_leads: 0, total_jobs: 0, running_jobs: 0 };
 
-        const tunnelUrl = getPublicUrl() || 'http://localhost:4000';
-
         const statusMsg = `7strokes Status
 ------------------------------------
-Platform: ${platform}
+Backend   : ${status.backend ? `Running on port ${status.backendPort}` : 'Stopped'}
+Tunnel    : ${status.tunnel ? (status.tunnelUrl || 'Active') : 'Stopped'}
+Frontend  : ${status.frontend ? `Running on port ${status.frontendPort}` : 'Stopped'}
+DNS Bridge: ${status.bridge ? 'Active' : 'Stopped'}
+------------------------------------
 Total Leads Saved: ${counts.total_leads.toLocaleString()}
-Total Searches: ${counts.total_jobs}
-Running Searches: ${counts.running_jobs}
-Uptime: ${uptimeMins} minutes
-Memory: ${memMb} MB
-Dashboard: ${tunnelUrl}
+Total Searches   : ${counts.total_jobs}
+Running Searches : ${counts.running_jobs}
+Uptime           : ${uptimeMins} minutes
+Memory Usage     : ${memMb} MB
 ------------------------------------`;
         await bot.sendMessage(chatId, statusMsg);
         break;
@@ -190,16 +548,16 @@ Dashboard: ${tunnelUrl}
 
       case '/link':
       case '/tunnel': {
-        const tunnelUrl = getPublicUrl();
-        if (tunnelUrl) {
+        const status = await getServicesStatus();
+        if (status.tunnelUrl) {
           await bot.sendMessage(
             chatId,
-            `Web Dashboard Link:\n${tunnelUrl}\n\nOpen this link in your browser to view and manage leads.`
+            `Web Dashboard Link:\n${status.tunnelUrl}\n\nOpen this link in your browser to view and manage leads.`
           );
         } else {
           await bot.sendMessage(
             chatId,
-            `No public link active right now.\nThe app is running locally at: http://localhost:4000\nTo create a public link, run: kiki start`
+            `No public link active right now.\nTap "Tunnel" on /menu or run /start_tunnel to connect.`
           );
         }
         break;
@@ -236,6 +594,121 @@ User Companies:
 ${companyLines || 'None'}
 ------------------------------------`;
         await bot.sendMessage(chatId, dbMsg);
+        break;
+      }
+
+      case '/backup': {
+        await bot.sendMessage(chatId, 'Creating database backup...');
+        try {
+          const backupPath = await backupDatabase();
+          const baseName = path.basename(backupPath);
+          await bot.sendMessage(chatId, `Backup created successfully!\nFile: ${baseName}\nPath: backups/${baseName}`);
+        } catch (err) {
+          await bot.sendMessage(chatId, `Backup error: ${err.message}`);
+        }
+        break;
+      }
+
+      case '/config':
+      case '/settings': {
+        const cfg = loadConfig();
+        const settingsText = `Current Settings
+------------------------------------
+Backend Port : ${cfg.backendPort || 4000}
+Tunnel Type  : ${cfg.tunnel?.type || 'ngrok'}
+Ngrok Token  : ${cfg.tunnel?.authtoken ? 'Configured' : 'Not Set'}
+Ngrok Domain : ${cfg.tunnel?.domain || 'Random (Default)'}
+Allowed Users: ${cfg.telegram?.allowedChatIds?.join(', ') || 'None'}
+------------------------------------
+Commands to update settings:
+/set_port <number> - Change backend port
+/set_ngrok <token> - Set ngrok authtoken
+/set_domain <domain> - Set custom domain
+/set_tunnel <ngrok|cloudflared> - Change tunnel
+/add_chat <id> - Add an allowed user ID
+/remove_chat <id> - Remove an allowed user ID`;
+        await bot.sendMessage(chatId, settingsText);
+        break;
+      }
+
+      case '/set_port': {
+        const newPort = parseInt(args[0], 10);
+        if (isNaN(newPort) || newPort < 1000 || newPort > 65535) {
+          await bot.sendMessage(chatId, 'Please enter a valid port number (e.g. /set_port 4000).');
+          break;
+        }
+        const cfg = loadConfig();
+        cfg.backendPort = newPort;
+        saveConfig(cfg);
+        await bot.sendMessage(chatId, `Backend port updated to ${newPort}.`);
+        break;
+      }
+
+      case '/set_ngrok': {
+        const token = (args[0] || '').trim();
+        if (!token) {
+          await bot.sendMessage(chatId, 'Usage: /set_ngrok <token>\nExample: /set_ngrok 2Nxxx_abcdef123');
+          break;
+        }
+        const cfg = loadConfig();
+        cfg.tunnel = { ...cfg.tunnel, authtoken: token, type: 'ngrok' };
+        saveConfig(cfg);
+        await bot.sendMessage(chatId, 'Ngrok authtoken saved successfully.');
+        break;
+      }
+
+      case '/set_domain': {
+        const domain = (args[0] || '').trim();
+        const cfg = loadConfig();
+        cfg.tunnel = { ...cfg.tunnel, domain: domain };
+        saveConfig(cfg);
+        await bot.sendMessage(chatId, `Ngrok domain updated to: ${domain || 'Random'}.`);
+        break;
+      }
+
+      case '/set_tunnel': {
+        const tType = (args[0] || '').toLowerCase().trim();
+        if (tType !== 'ngrok' && tType !== 'cloudflared') {
+          await bot.sendMessage(chatId, 'Usage: /set_tunnel ngrok OR /set_tunnel cloudflared');
+          break;
+        }
+        const cfg = loadConfig();
+        cfg.tunnel = { ...cfg.tunnel, type: tType };
+        saveConfig(cfg);
+        await bot.sendMessage(chatId, `Tunnel type set to: ${tType}.`);
+        break;
+      }
+
+      case '/add_chat': {
+        const newChat = (args[0] || '').trim();
+        if (!newChat) {
+          await bot.sendMessage(chatId, 'Usage: /add_chat <user_id>');
+          break;
+        }
+        const cfg = loadConfig();
+        cfg.telegram = cfg.telegram || {};
+        cfg.telegram.allowedChatIds = cfg.telegram.allowedChatIds || [];
+        if (!cfg.telegram.allowedChatIds.includes(newChat)) {
+          cfg.telegram.allowedChatIds.push(newChat);
+          saveConfig(cfg);
+          await bot.sendMessage(chatId, `Added Chat ID ${newChat} to allowed list.`);
+        } else {
+          await bot.sendMessage(chatId, `Chat ID ${newChat} is already in the allowed list.`);
+        }
+        break;
+      }
+
+      case '/remove_chat': {
+        const removeId = (args[0] || '').trim();
+        if (!removeId) {
+          await bot.sendMessage(chatId, 'Usage: /remove_chat <user_id>');
+          break;
+        }
+        const cfg = loadConfig();
+        cfg.telegram = cfg.telegram || {};
+        cfg.telegram.allowedChatIds = (cfg.telegram.allowedChatIds || []).filter((id) => id !== removeId);
+        saveConfig(cfg);
+        await bot.sendMessage(chatId, `Removed Chat ID ${removeId} from allowed list.`);
         break;
       }
 
@@ -436,8 +909,43 @@ ${companyLines || 'None'}
         break;
       }
 
+      case '/help': {
+        const helpText = `7strokes Commands Manual
+------------------------------------
+CONTROL PANEL:
+/menu or /start - Open interactive control panel with buttons
+/status - Live server and database metrics
+/start_all - Start backend, tunnel, and frontend
+/stop_all - Stop all running services
+
+SERVICE TOGGLES:
+/start_backend | /stop_backend - Manage backend
+/start_tunnel  | /stop_tunnel  - Manage public link
+/start_frontend | /stop_frontend - Manage web interface
+/start_bridge  | /stop_bridge  - Manage Android DNS bridge
+
+LEADS & SEARCH:
+/search <target> [limit] - Start scraping leads
+/jobs - List recent searches
+/export <id> - Download CSV of leads
+/leads - Total leads and company summary
+/backup - Create database backup
+
+SETTINGS:
+/config - View current configuration
+/set_port <port> - Change backend port
+/set_ngrok <token> - Set ngrok token
+/set_domain <domain> - Set custom domain
+/set_tunnel <ngrok|cloudflared> - Change tunnel
+/add_chat <id> - Add allowed user
+/remove_chat <id> - Remove allowed user
+------------------------------------`;
+        await bot.sendMessage(chatId, helpText);
+        break;
+      }
+
       default:
-        await bot.sendMessage(chatId, `Unknown command: ${command}\nType /help to see all available commands.`);
+        await bot.sendMessage(chatId, `Unknown command: ${command}\nType /menu to open the control panel or /help for commands.`);
         break;
     }
   } catch (err) {
@@ -472,18 +980,19 @@ async function startTelegramBot(configOverride = null) {
   console.log('='.repeat(54));
   console.log(`- Allowed Chat IDs : ${allowedChatIds.join(', ')}`);
   console.log(`- Status           : Active`);
-  console.log('Send /start or /help to your bot in Telegram.');
+  console.log('Send /menu or /start to your bot in Telegram.');
   console.log('Press Ctrl+C to stop.\n');
 
   bot.isRunning = true;
 
   if (config.telegram.notifyOnStart) {
-    const tunnelUrl = getPublicUrl() || 'http://localhost:4000';
     for (const chatId of allowedChatIds) {
       try {
+        const panel = await getControlPanelData();
         await bot.sendMessage(
           chatId,
-          `7strokes is ready!\nPlatform: ${process.platform === 'android' ? 'Android (Termux)' : process.platform}\nDashboard: ${tunnelUrl}\n\nType /help to see commands.`
+          `7strokes is ready!\nSend /menu anytime to open the control panel.`,
+          { reply_markup: panel.replyMarkup }
         );
       } catch (err) {
         console.warn(`[!] Could not send startup notification to ${chatId}:`, err.message);
@@ -498,7 +1007,9 @@ async function startTelegramBot(configOverride = null) {
         if (res && res.ok && Array.isArray(res.result)) {
           for (const update of res.result) {
             bot.offset = update.update_id + 1;
-            if (update.message && update.message.text) {
+            if (update.callback_query) {
+              await handleCallbackQuery(bot, update.callback_query, allowedChatIds);
+            } else if (update.message && update.message.text) {
               await handleCommand(bot, update.message, allowedChatIds);
             }
           }

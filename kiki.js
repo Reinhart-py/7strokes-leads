@@ -1,16 +1,25 @@
 #!/usr/bin/env node
 
-const { spawn, execSync } = require('child_process');
 const path = require('path');
 const fs = require('fs');
-const http = require('http');
 const readline = require('readline');
 
 const { loadConfig, saveConfig, promptConfig, CONFIG_PATH } = require('./cli/config');
-const { startTunnel, stopTunnel, getPublicUrl, isAndroidOrTermux } = require('./cli/tunnel');
+const { isAndroidOrTermux, getPublicUrl } = require('./cli/tunnel');
 const { startTelegramBot } = require('./cli/bot');
 const { viewDatabase, backupDatabase, restoreDatabase } = require('./cli/db');
 const { startDnsBridge } = require('./cli/bridge');
+const {
+  startAllServices,
+  stopAllServices,
+  startBackendService,
+  stopBackendService,
+  startFrontendService,
+  stopFrontendService,
+  startTunnelService,
+  stopTunnelService,
+  getServicesStatus
+} = require('./cli/services');
 
 const args = process.argv.slice(2);
 const command = (args[0] || '').toLowerCase();
@@ -25,13 +34,16 @@ function printBanner(info = {}) {
   console.log('                 7STROKES IS READY');
   console.log('='.repeat(54));
   console.log(`- Platform    : ${platformLabel}`);
-  console.log(`- Local App   : http://localhost:${info.port || 4000}`);
+  console.log(`- Backend     : http://localhost:${info.port || 4000}`);
+  if (info.frontend) {
+    console.log(`- Frontend    : http://localhost:3000`);
+  }
   if (info.publicUrl) {
     console.log(`- Public Link : ${info.publicUrl}`);
   }
   console.log(`- Database    : SQLite (dashmin.sqlite - connected)`);
   if (info.botActive) {
-    console.log(`- Telegram Bot: Active (type /help in chat)`);
+    console.log(`- Telegram Bot: Active (type /menu in chat)`);
   }
   console.log('-'.repeat(54));
   console.log('Quick commands:');
@@ -41,58 +53,16 @@ function printBanner(info = {}) {
   console.log('='.repeat(54) + '\n');
 }
 
-function checkBackendBuilt() {
-  const distIndexPath = path.join(__dirname, 'backend/dist/index.js');
-  if (!fs.existsSync(distIndexPath)) {
-    console.log('[*] Compiling backend code...');
-    execSync('npm run build', { cwd: path.join(__dirname, 'backend'), stdio: 'inherit' });
-  }
-}
-
-function waitForServer(port = 4000, maxRetries = 20) {
-  return new Promise((resolve) => {
-    let retries = 0;
-    const interval = setInterval(() => {
-      retries++;
-      const req = http.get(`http://127.0.0.1:${port}/health`, () => {
-        clearInterval(interval);
-        resolve(true);
-      });
-      req.on('error', () => {
-        if (retries >= maxRetries) {
-          clearInterval(interval);
-          resolve(false);
-        }
-      });
-    }, 500);
-  });
-}
-
 async function startAll() {
   const config = await promptConfig(false, false);
 
-  checkBackendBuilt();
+  console.log('\n[*] Starting 7strokes services...');
+  const res = await startAllServices();
 
-  console.log('\n[*] Starting 7strokes backend server...');
-  const backendProc = spawn('node', ['dist/index.js'], {
-    cwd: path.join(__dirname, 'backend'),
-    stdio: 'inherit'
-  });
-
-  backendProc.on('error', (err) => {
-    console.error('[!] Failed to start backend:', err.message);
-  });
-
-  await waitForServer(config.backendPort || 4000);
-  console.log('[+] Backend server is running on port ' + (config.backendPort || 4000));
-
-  console.log('[*] Initializing public link...');
-  let publicUrl = null;
-  try {
-    const tunnelResult = await startTunnel(config.backendPort || 4000, config);
-    publicUrl = tunnelResult.url;
-  } catch (err) {
-    console.warn('[!] Public link note:', err.message);
+  console.log(`[+] Backend : ${res.backend.ok ? 'Running on port ' + (res.backend.port || config.backendPort || 4000) : 'Failed'}`);
+  console.log(`[+] Frontend: ${res.frontend.ok ? 'Running on http://localhost:3000' : 'Offline'}`);
+  if (res.tunnel && res.tunnel.url) {
+    console.log(`[+] Tunnel  : ${res.tunnel.url}`);
   }
 
   let botActive = false;
@@ -107,14 +77,14 @@ async function startAll() {
 
   printBanner({
     port: config.backendPort || 4000,
-    publicUrl,
+    frontend: res.frontend.ok,
+    publicUrl: res.tunnel?.url,
     botActive
   });
 
   const handleExit = () => {
     console.log('\n[*] Stopping 7strokes...');
-    stopTunnel();
-    try { backendProc.kill(); } catch (_) {}
+    stopAllServices();
     process.exit(0);
   };
 
@@ -131,17 +101,18 @@ function showInteractiveMenu() {
   console.log('\n' + '='.repeat(54));
   console.log('             7STROKES CONTROL PANEL (KIKI)');
   console.log('='.repeat(54));
-  console.log(' [1] Start 7strokes (Backend + Public Link)');
+  console.log(' [1] Start All Services (Backend, Tunnel, Frontend)');
   console.log(' [2] Start Telegram Bot');
   console.log(' [3] View Database Stats');
   console.log(' [4] Create Database Backup');
   console.log(' [5] Restore Database From Backup');
   console.log(' [6] Change Settings (Tokens, Links, Bot)');
   console.log(' [7] Android DNS Bridge (Port 8888)');
+  console.log(' [8] Stop All Services');
   console.log(' [0] Exit');
   console.log('='.repeat(54));
 
-  rl.question('Select an option [0-7]: ', async (choice) => {
+  rl.question('Select an option [0-8]: ', async (choice) => {
     rl.close();
     const sel = choice.trim();
 
@@ -188,6 +159,10 @@ function showInteractiveMenu() {
         console.log('[*] Use with: ngrok http 4000 --proxy-url=http://127.0.0.1:' + bridge.port);
         break;
       }
+      case '8':
+        stopAllServices();
+        console.log('[+] All services stopped.');
+        break;
       case '0':
         process.exit(0);
         break;
@@ -212,6 +187,12 @@ async function main() {
       await startAll();
       break;
 
+    case 'stop':
+    case 'down':
+      stopAllServices();
+      console.log('[+] All services stopped.');
+      break;
+
     case 'bot': {
       const bot = await startTelegramBot();
       if (bot) {
@@ -220,6 +201,36 @@ async function main() {
       }
       break;
     }
+
+    case 'backend':
+      if (subCommand === 'stop') {
+        const res = stopBackendService();
+        console.log(res.message);
+      } else {
+        const res = await startBackendService();
+        console.log(res.message);
+      }
+      break;
+
+    case 'frontend':
+      if (subCommand === 'stop') {
+        const res = stopFrontendService();
+        console.log(res.message);
+      } else {
+        const res = await startFrontendService();
+        console.log(res.message);
+      }
+      break;
+
+    case 'tunnel':
+      if (subCommand === 'stop') {
+        const res = stopTunnelService();
+        console.log(res.message);
+      } else {
+        const res = await startTunnelService();
+        console.log(res.message);
+      }
+      break;
 
     case 'db':
       if (subCommand === 'view' || subCommand === 'stats' || subCommand === 'list' || !subCommand) {
@@ -250,6 +261,16 @@ async function main() {
       await promptConfig(true, false);
       break;
 
+    case 'status': {
+      const status = await getServicesStatus();
+      console.log('\n7strokes Services Status:');
+      console.log(`  Backend  : ${status.backend ? `Running (port ${status.backendPort})` : 'Stopped'}`);
+      console.log(`  Frontend : ${status.frontend ? `Running (port ${status.frontendPort})` : 'Stopped'}`);
+      console.log(`  Tunnel   : ${status.tunnel ? (status.tunnelUrl || 'Active') : 'Stopped'}`);
+      console.log(`  Bridge   : ${status.bridge ? 'Active' : 'Stopped'}\n`);
+      break;
+    }
+
     case 'help':
     case '--help':
     case '-h':
@@ -262,8 +283,13 @@ USAGE:
 
 COMMANDS:
   (no args)           Open interactive numbered menu
-  start               Start backend and public link together
+  start               Start backend, tunnel, and frontend together
+  stop                Stop all running services
+  status              Check running status of all services
   bot                 Start the 7strokes Telegram Bot
+  backend [stop]      Start or stop backend service
+  frontend [stop]     Start or stop frontend web interface
+  tunnel [stop]       Start or stop public link
   db view             Display database statistics
   db backup           Create database backup in backups/
   db restore <file>   Restore database from a backup file

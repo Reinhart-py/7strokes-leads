@@ -17,10 +17,13 @@ All notable changes, version upgrades, and development milestones for 7strokes a
 - **Dedicated Address Columns**:
   - Exports in CSV, Excel, and JSON now feature separate columns for `Street`, `City`, `State`, `Country`, `Postal Code`, and `Full Address`.
   - Added database migration to persist the `street` column.
-- **Telegram Bot Reliability**:
-  - Added automatic fallback to plain text if Telegram rejects markdown formatting.
-  - Bot now sends error details directly back into Telegram chat if any command or scraping task fails.
-  - Natural commands supported: `/search <query>`, `/jobs`, `/export <job_id>`, `/link`, `/leads`, and `/status`.
+- **Telegram Bot Remote Service Management & Inline Buttons**:
+  - Full remote management parity: start and stop the backend, frontend (Next.js), public tunnel, and Android DNS bridge directly from Telegram.
+  - Interactive Inline Keyboard: one-tap buttons to start/stop all services, toggle individual services, view DB stats, trigger backups, and refresh status.
+  - Remote Configuration: update port, ngrok authtoken, custom domain, tunnel provider, or add/remove allowed users directly from chat.
+  - Automatic fallback to plain text if Telegram rejects markdown formatting.
+  - Error details sent directly to Telegram chat if any command or scraping task fails.
+  - Startup optimization: existing configuration is used immediately without prompting unless explicitly reconfigured.
   - Removed robot/engine terminology across all bot and CLI messages.
 
 ---

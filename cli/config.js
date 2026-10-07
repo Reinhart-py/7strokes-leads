@@ -51,9 +51,8 @@ async function promptConfig(forcePrompt = false, onlyBot = false) {
   const hasTunnelConfig = Boolean(config.tunnel?.authtoken || config.tunnel?.domain);
   const hasBotConfig = Boolean(config.telegram?.botToken && config.telegram?.allowedChatIds?.length);
 
-  if (!forcePrompt) {
-    if (onlyBot && hasBotConfig) return config;
-    if (!onlyBot && (hasTunnelConfig || fs.existsSync(CONFIG_PATH))) return config;
+  if (!forcePrompt && fs.existsSync(CONFIG_PATH)) {
+    return config;
   }
 
   const rl = readline.createInterface({
