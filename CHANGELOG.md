@@ -28,7 +28,12 @@ All notable changes, version upgrades, and development milestones for 7strokes a
   - Automatic fallback to plain text if Telegram rejects markdown formatting.
   - Error details sent directly to Telegram chat if any command or scraping task fails.
   - Startup optimization: existing configuration is used immediately without prompting unless explicitly reconfigured.
-  - Removed robot/engine terminology across all bot and CLI messages.
+- **Native Android Ngrok DNS Resolver**:
+  - Automatically writes `~/.config/ngrok/ngrok.yml` with `dns_resolver_ips: [8.8.8.8, 1.1.1.1]` and `crl_noverify: true`.
+  - Completely fixes the Go resolver failure on Android (`read: connection refused` on `[::1]:53`) natively without requiring PRoot, root access, or local proxy loops.
+- **Automatic Global `kiki` Registration on Android (Termux)**:
+  - Added `setup-termux.sh` for one-command installation, build, and global PATH registration.
+  - Automatically places executable wrapper scripts into Termux `$PREFIX/bin/kiki` and `$PREFIX/bin/fk` on initial run, making `kiki` immediately available globally across any directory without manual PATH configuration.
 
 ---
 

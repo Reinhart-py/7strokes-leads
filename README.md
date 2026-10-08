@@ -104,19 +104,19 @@ You can run 7strokes directly on an Android phone using the Termux app:
    cd 7strokes
    ```
 
-3. Install packages:
+3. One-step install and global command setup:
    ```bash
-   cd backend && npm install && npm run build
-   cd ../frontend && npm install
-   cd ..
+   bash setup-termux.sh
    ```
+   *(Or simply run `./kiki start` — 7strokes will automatically install `kiki` and `fk` into your Termux `$PREFIX/bin` directory so you can type `kiki` from any folder).*
 
-4. Start 7strokes:
+4. Native Ngrok DNS on Android:
+   7strokes automatically writes `~/.config/ngrok/ngrok.yml` configured with `dns_resolver_ips: [8.8.8.8, 1.1.1.1]` and `crl_noverify: true`. This instructs Ngrok v3 to query public DNS directly, solving Android's missing `/etc/resolv.conf` without needing root permissions, PRoot, or local proxy loops.
+
+5. Start 7strokes from anywhere:
    ```bash
-   ./kiki start
+   kiki start
    ```
-
-On Android, 7strokes automatically runs a built-in Node.js DNS bridge on port 8888. This bypasses Android's missing `/etc/resolv.conf` file, allowing Ngrok tunnels to connect without errors.
 
 ---
 

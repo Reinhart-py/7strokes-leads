@@ -13,6 +13,28 @@ function isAndroidOrTermux() {
   return isAndroid || isTermux;
 }
 
+function ensureNgrokConfig(token = '') {
+  try {
+    const homeDir = process.env.HOME || process.env.USERPROFILE || '';
+    if (!homeDir) return;
+
+    let ymlDir = path.join(homeDir, '.config/ngrok');
+    if (process.platform === 'win32' && process.env.LOCALAPPDATA) {
+      ymlDir = path.join(process.env.LOCALAPPDATA, 'ngrok');
+    }
+    fs.mkdirSync(ymlDir, { recursive: true });
+    const ymlPath = path.join(ymlDir, 'ngrok.yml');
+
+    let yml = 'version: "3"\nagent:\n  crl_noverify: true\n  dns_resolver_ips:\n    - 8.8.8.8\n    - 1.1.1.1\n';
+    if (token) {
+      yml += `  authtoken: ${token}\n`;
+    }
+    fs.writeFileSync(ymlPath, yml, 'utf8');
+  } catch (err) {
+    console.warn('[!] Note writing ngrok.yml:', err.message);
+  }
+}
+
 function findCloudflaredBinary() {
   const localToolsPath = path.join(__dirname, '../tools/cloudflared.exe');
   if (fs.existsSync(localToolsPath)) return localToolsPath;
@@ -81,13 +103,7 @@ async function startTunnel(port = 4000, config = {}) {
   const domain = config.tunnel?.domain;
   const onAndroid = isAndroidOrTermux();
 
-  let dnsBridgePort = 8888;
-  if (onAndroid) {
-    console.log('[*] Android environment detected. Starting DNS Bridge on 127.0.0.1:8888...');
-    const bridge = await startDnsBridge(8888);
-    dnsBridgePort = bridge.port;
-    console.log(`[+] DNS Bridge active on 127.0.0.1:${dnsBridgePort}`);
-  }
+  ensureNgrokConfig(authtoken);
 
   const ngrokBin = findNgrokBinary();
   const cfBin = findCloudflaredBinary();
@@ -102,14 +118,10 @@ async function startTunnel(port = 4000, config = {}) {
         } catch (_) {}
       }
 
-      const args = ['http', String(port)];
+      const args = ['http', String(port), '--log=stdout'];
 
       if (domain) {
         args.push(`--url=${domain}`);
-      }
-
-      if (onAndroid) {
-        args.push(`--proxy-url=http://127.0.0.1:${dnsBridgePort}`);
       }
 
       console.log(`[*] Launching ngrok: ${ngrokBin} ${args.join(' ')}`);
@@ -117,6 +129,12 @@ async function startTunnel(port = 4000, config = {}) {
       activeTunnelProcess = proc;
 
       let lastError = '';
+      proc.stdout.on('data', (d) => {
+        const text = d.toString();
+        if (text.includes('ERR_') || text.includes('error')) {
+          lastError += text;
+        }
+      });
       proc.stderr.on('data', (d) => {
         lastError += d.toString();
       });
@@ -187,5 +205,6 @@ module.exports = {
   startTunnel,
   stopTunnel,
   getPublicUrl,
-  isAndroidOrTermux
+  isAndroidOrTermux,
+  ensureNgrokConfig
 };

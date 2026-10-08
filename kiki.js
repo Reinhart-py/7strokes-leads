@@ -26,6 +26,27 @@ const command = (args[0] || '').toLowerCase();
 const subCommand = (args[1] || '').toLowerCase();
 const param = args[2] || '';
 
+function ensureGlobalTermuxLink() {
+  if (process.env.PREFIX && process.env.PREFIX.includes('com.termux')) {
+    try {
+      const termuxBin = path.join(process.env.PREFIX, 'bin');
+      if (fs.existsSync(termuxBin)) {
+        const kikiGlobal = path.join(termuxBin, 'kiki');
+        const fkGlobal = path.join(termuxBin, 'fk');
+        const scriptContent = `#!/usr/bin/env bash\nexec node "${path.join(__dirname, 'kiki.js')}" "$@"\n`;
+
+        if (!fs.existsSync(kikiGlobal)) {
+          fs.writeFileSync(kikiGlobal, scriptContent, { mode: 0o755 });
+        }
+        if (!fs.existsSync(fkGlobal)) {
+          fs.writeFileSync(fkGlobal, scriptContent, { mode: 0o755 });
+        }
+      }
+    } catch (_) {}
+  }
+}
+ensureGlobalTermuxLink();
+
 function printBanner(info = {}) {
   const isAndroid = isAndroidOrTermux();
   const platformLabel = isAndroid ? 'Android (Termux)' : `${process.platform} (${process.arch})`;
