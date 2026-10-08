@@ -4,7 +4,30 @@ All notable changes, version upgrades, and development milestones for 7strokes a
 
 ---
 
-## [v2.3.0] — Kiki CLI, Phone Classifier, Structured Address Columns & Bot Reliability (Current)
+## [v2.4.0] — ERPNext-Style Android Mobile UI & Universal Crisp Icon System (Current)
+
+### Added
+- **ERPNext-Style Persistent Bottom Navigation Bar**:
+  - Pinned bottom navigation bar for Android and mobile screens with touch-friendly 44px tap targets.
+  - Context-aware tabs: Search, Saved Leads with badge counter, Role Switcher (Admin / Company), Support, and Profile in App mode.
+  - Admin mode tabs: Stats Overview, Users with count badge, Leads Database with global count, Lead App switch, and Menu drawer.
+  - Safe area inset padding (`safe-bottom`) and bottom content clearance to prevent floating navigation overlays from hiding actions.
+- **ERPNext Mobile Card Views for Records**:
+  - Replaces wide desktop tables with clean touch cards on mobile screens for User Management, Global Leads Database, and Search Lead Inspector.
+  - Mobile User Cards: Avatar with initial, Name, username handle, role badges, company/manager details, proxy toggle, and one-tap action buttons (Reset Password, Edit, Delete).
+  - Mobile Lead Cards: Business title, category tags, star rating badges, direct click-to-call phone buttons (`tel:`), website links, and addresses.
+  - Touch-friendly action buttons with consistent 44px height for effortless mobile tapping.
+- **Universal SVG Icon System**:
+  - Added dedicated crisp SVG icons across sidebar navigation, top app bar, mobile bottom bar, and card actions.
+  - Replaced text-only navigation and buttons with consistent icons: Search, Leads, Users, Stats Overview, Settings, Shield, Phone, Globe, MapPin, Key, Edit, Trash, Plus, Check, Download, Filter, Sun, Moon, Help, and Menu.
+- **Mobile Touch Enhancements**:
+  - Disabled default tap highlight flicker on Android browsers.
+  - Added mobile "Back to Searches" button when inspecting saved searches on smaller screens.
+  - Responsive padding adjustments on Contact & Help page for small mobile viewports.
+
+---
+
+## [v2.3.0] — Kiki CLI, Phone Classifier, Structured Address Columns & Bot Reliability
 
 ### Added
 - **Universal CLI (`kiki` & `kiwi`)**:

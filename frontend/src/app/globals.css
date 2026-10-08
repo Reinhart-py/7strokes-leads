@@ -122,3 +122,19 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(120, 120, 120, 0.5);
 }
+
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}

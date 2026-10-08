@@ -59,16 +59,16 @@ export default function ContactHelpPage() {
     <div className="min-h-screen bg-black text-white selection:bg-white selection:text-black flex flex-col font-sans">
       {/* Top Bar */}
       <header className="border-b border-white/20 bg-black">
-        <div className="max-w-4xl mx-auto px-6 h-16 flex items-center justify-between">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
           <Link
             href="/"
-            className="flex items-center space-x-3 text-white hover:text-white/80 transition-colors"
+            className="flex items-center space-x-2 sm:space-x-3 text-white hover:text-white/80 transition-colors"
           >
-            <span className="font-mono font-bold tracking-widest text-lg uppercase">
+            <span className="font-mono font-bold tracking-widest text-base sm:text-lg uppercase">
               7STROKES
             </span>
             <span className="text-white/40 text-xs tracking-wider">/</span>
-            <span className="text-white/60 text-xs font-mono uppercase tracking-wider">
+            <span className="text-white/60 text-[11px] sm:text-xs font-mono uppercase tracking-wider">
               Help &amp; Contact
             </span>
           </Link>
@@ -83,14 +83,14 @@ export default function ContactHelpPage() {
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 max-w-4xl w-full mx-auto px-6 py-12 flex flex-col justify-center">
-        <div className="border border-white/20 bg-black p-8 md:p-12">
+      <main className="flex-1 max-w-4xl w-full mx-auto px-3 sm:px-6 py-6 sm:py-12 flex flex-col justify-center">
+        <div className="border border-white/20 bg-black p-4 sm:p-8 md:p-12">
           {/* Header */}
-          <div className="border-b border-white/20 pb-8 mb-8">
-            <h1 className="text-2xl md:text-3xl font-mono uppercase tracking-widest mb-3">
+          <div className="border-b border-white/20 pb-6 sm:pb-8 mb-6 sm:mb-8">
+            <h1 className="text-xl sm:text-2xl md:text-3xl font-mono uppercase tracking-widest mb-2 sm:mb-3">
               Support &amp; Account Inquiries
             </h1>
-            <p className="text-white/60 text-sm leading-relaxed max-w-2xl">
+            <p className="text-white/60 text-xs sm:text-sm leading-relaxed max-w-2xl">
               Select your inquiry topic and destination app below. Your pre-formatted request will be automatically prepared and dispatched to the administrator.
             </p>
           </div>

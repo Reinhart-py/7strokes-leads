@@ -49,7 +49,7 @@ Most lead generation tools are complicated to set up, require heavy browser soft
 - **Clean address columns**: Splits addresses into separate columns for Street, City, State, Country, and Postal Code in all CSV, Excel, and JSON exports.
 - **Dual search sources**: Google Maps and 2GIS Directory (covering Dubai, Abu Dhabi, and all GCC countries).
 - **Zero-setup database**: Runs immediately with built-in SQLite (`dashmin.sqlite`). You do not need to install or configure PostgreSQL or Redis to get started.
-- **Runs on your phone**: Works inside Termux on Android without needing root permissions.
+- **Runs on your phone with native ERPNext-style UI**: Works inside Termux on Android with a persistent mobile bottom navigation bar, card feeds for leads and user accounts, tap-to-call phone buttons, and responsive layouts across all views.
 - **Telegram bot control**: Trigger searches and receive CSV lead spreadsheets right in your Telegram chat.
 - **One-click data export**: Download results to Excel (.xlsx), CSV, JSON, or clean HTML reports.
 

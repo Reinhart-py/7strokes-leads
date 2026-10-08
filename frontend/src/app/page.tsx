@@ -160,6 +160,155 @@ const TWOGIS_SUPPORTED_REGIONS = [
   }
 ];
 
+const IconSearch = ({ className = "w-4 h-4" }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="11" cy="11" r="8" />
+    <path d="m21 21-4.35-4.35" />
+  </svg>
+);
+
+const IconLeads = ({ className = "w-4 h-4" }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <ellipse cx="12" cy="5" rx="9" ry="3" />
+    <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3" />
+    <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" />
+  </svg>
+);
+
+const IconUsers = ({ className = "w-4 h-4" }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+    <circle cx="9" cy="7" r="4" />
+    <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+  </svg>
+);
+
+const IconOverview = ({ className = "w-4 h-4" }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="18" y1="20" x2="18" y2="10" />
+    <line x1="12" y1="20" x2="12" y2="4" />
+    <line x1="6" y1="20" x2="6" y2="14" />
+  </svg>
+);
+
+const IconSettings = ({ className = "w-4 h-4" }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="3" />
+    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+  </svg>
+);
+
+const IconShield = ({ className = "w-4 h-4" }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+  </svg>
+);
+
+const IconUser = ({ className = "w-4 h-4" }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+    <circle cx="12" cy="7" r="4" />
+  </svg>
+);
+
+const IconPhone = ({ className = "w-4 h-4" }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
+  </svg>
+);
+
+const IconGlobe = ({ className = "w-4 h-4" }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="10" />
+    <line x1="2" y1="12" x2="22" y2="12" />
+    <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+  </svg>
+);
+
+const IconMapPin = ({ className = "w-4 h-4" }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+    <circle cx="12" cy="10" r="3" />
+  </svg>
+);
+
+const IconStar = ({ className = "w-4 h-4" }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+  </svg>
+);
+
+const IconKey = ({ className = "w-4 h-4" }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="m21 2-2 2m-1.5 1.5L16 4l-3 3-4-4-6 6a6.5 6.5 0 0 0 9 9l8-8 1.5 1.5 2-2z" />
+  </svg>
+);
+
+const IconEdit = ({ className = "w-4 h-4" }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
+  </svg>
+);
+
+const IconTrash = ({ className = "w-4 h-4" }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="3 6 5 6 21 6" />
+    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+  </svg>
+);
+
+const IconSun = ({ className = "w-4 h-4" }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="5" />
+    <line x1="12" y1="1" x2="12" y2="3" />
+    <line x1="12" y1="21" x2="12" y2="23" />
+    <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+    <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+    <line x1="1" y1="12" x2="3" y2="12" />
+    <line x1="21" y1="12" x2="23" y2="12" />
+    <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+    <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+  </svg>
+);
+
+const IconMoon = ({ className = "w-4 h-4" }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+  </svg>
+);
+
+const IconHelp = ({ className = "w-4 h-4" }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="10" />
+    <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+    <line x1="12" y1="17" x2="12.01" y2="17" />
+  </svg>
+);
+
+const IconMenu = ({ className = "w-4 h-4" }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="3" y1="12" x2="21" y2="12" />
+    <line x1="3" y1="6" x2="21" y2="6" />
+    <line x1="3" y1="18" x2="21" y2="18" />
+  </svg>
+);
+
+const IconArrowLeft = ({ className = "w-4 h-4" }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="19" y1="12" x2="5" y2="12" />
+    <polyline points="12 19 5 12 12 5" />
+  </svg>
+);
+
+const IconLogOut = ({ className = "w-4 h-4" }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+    <polyline points="16 17 21 12 16 7" />
+    <line x1="21" y1="12" x2="9" y2="12" />
+  </svg>
+);
+
 export default function Home() {
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -1286,15 +1435,19 @@ export default function Home() {
             <nav className="space-y-1">
               <button
                 onClick={() => { setActiveTab("search"); setSelectedJobId(null); setSidebarOpen(false); }}
-                className={`w-full flex items-center gap-2.5 px-3.5 py-2 rounded-xl text-xs font-semibold text-left transition-all duration-200 ${activeTab === "search" ? (isDark ? "bg-white/10 text-white font-bold shadow-sm" : "bg-black/[0.06] text-black font-bold shadow-sm") : "text-zinc-500 hover:text-black dark:hover:text-white"}`}
+                className={`w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-left transition-all duration-200 ${activeTab === "search" ? (isDark ? "bg-white/10 text-white font-bold shadow-sm" : "bg-black/[0.06] text-black font-bold shadow-sm") : "text-zinc-500 hover:text-black dark:hover:text-white"}`}
               >
-                Find Leads
+                <IconSearch className="w-4 h-4 shrink-0 text-green-500" />
+                <span>Find Leads</span>
               </button>
               <button
                 onClick={() => { setActiveTab("leads"); setSidebarOpen(false); }}
-                className={`w-full flex items-center justify-between px-3.5 py-2 rounded-xl text-xs font-semibold text-left transition-all duration-200 ${activeTab === "leads" ? (isDark ? "bg-white/10 text-white font-bold shadow-sm" : "bg-black/[0.06] text-black font-bold shadow-sm") : "text-zinc-500 hover:text-black dark:hover:text-white"}`}
+                className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold text-left transition-all duration-200 ${activeTab === "leads" ? (isDark ? "bg-white/10 text-white font-bold shadow-sm" : "bg-black/[0.06] text-black font-bold shadow-sm") : "text-zinc-500 hover:text-black dark:hover:text-white"}`}
               >
-                <span>Saved Leads</span>
+                <div className="flex items-center gap-2.5">
+                  <IconLeads className="w-4 h-4 shrink-0 text-blue-500" />
+                  <span>Saved Leads</span>
+                </div>
                 {jobs.length > 0 && (
                   <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${isDark ? "bg-white/10 text-zinc-300" : "bg-black/5 text-zinc-700"}`}>
                     {jobs.length}
@@ -1304,9 +1457,10 @@ export default function Home() {
               {userCanProxy && (
                 <button
                   onClick={() => { setActiveTab("settings"); setSidebarOpen(false); }}
-                  className={`w-full flex items-center gap-2.5 px-3.5 py-2 rounded-xl text-xs font-semibold text-left transition-all duration-200 ${activeTab === "settings" ? (isDark ? "bg-white/10 text-white font-bold shadow-sm" : "bg-black/[0.06] text-black font-bold shadow-sm") : "text-zinc-500 hover:text-black dark:hover:text-white"}`}
+                  className={`w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-left transition-all duration-200 ${activeTab === "settings" ? (isDark ? "bg-white/10 text-white font-bold shadow-sm" : "bg-black/[0.06] text-black font-bold shadow-sm") : "text-zinc-500 hover:text-black dark:hover:text-white"}`}
                 >
-                  Proxy Settings
+                  <IconShield className="w-4 h-4 shrink-0 text-amber-500" />
+                  <span>Proxy Settings</span>
                 </button>
               )}
               <button
@@ -1318,9 +1472,10 @@ export default function Home() {
                   setSidebarOpen(false);
                   setShowProfileModal(true);
                 }}
-                className="w-full flex items-center gap-2.5 px-3.5 py-2 rounded-xl text-xs font-semibold text-left transition-all duration-200 text-zinc-500 hover:text-black dark:hover:text-white"
+                className="w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-left transition-all duration-200 text-zinc-500 hover:text-black dark:hover:text-white"
               >
-                My Profile
+                <IconUser className="w-4 h-4 shrink-0 text-purple-500" />
+                <span>My Profile</span>
               </button>
             </nav>
           ) : (
@@ -1330,15 +1485,19 @@ export default function Home() {
               </div>
               <button
                 onClick={() => { setAdminTab("overview"); setSidebarOpen(false); }}
-                className={`w-full flex items-center gap-2.5 px-3.5 py-2 rounded-xl text-xs font-semibold text-left transition-all duration-200 ${adminTab === "overview" ? (isDark ? "bg-white/10 text-white font-bold shadow-sm" : "bg-black/[0.06] text-black font-bold shadow-sm") : "text-zinc-500 hover:text-black dark:hover:text-white"}`}
+                className={`w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-left transition-all duration-200 ${adminTab === "overview" ? (isDark ? "bg-white/10 text-white font-bold shadow-sm" : "bg-black/[0.06] text-black font-bold shadow-sm") : "text-zinc-500 hover:text-black dark:hover:text-white"}`}
               >
-                {user.role === "admin" ? "System & Stats" : "Team Overview"}
+                <IconOverview className="w-4 h-4 shrink-0 text-blue-500" />
+                <span>{user.role === "admin" ? "System & Stats" : "Team Overview"}</span>
               </button>
               <button
                 onClick={() => { setAdminTab("users"); setSidebarOpen(false); }}
-                className={`w-full flex items-center justify-between px-3.5 py-2 rounded-xl text-xs font-semibold text-left transition-all duration-200 ${adminTab === "users" ? (isDark ? "bg-white/10 text-white font-bold shadow-sm" : "bg-black/[0.06] text-black font-bold shadow-sm") : "text-zinc-500 hover:text-black dark:hover:text-white"}`}
+                className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold text-left transition-all duration-200 ${adminTab === "users" ? (isDark ? "bg-white/10 text-white font-bold shadow-sm" : "bg-black/[0.06] text-black font-bold shadow-sm") : "text-zinc-500 hover:text-black dark:hover:text-white"}`}
               >
-                <span>{user.role === "admin" ? "Users & Managers" : "Team Members"}</span>
+                <div className="flex items-center gap-2.5">
+                  <IconUsers className="w-4 h-4 shrink-0 text-purple-500" />
+                  <span>{user.role === "admin" ? "Users & Managers" : "Team Members"}</span>
+                </div>
                 {adminUsers.length > 0 && (
                   <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-green-600 text-white shadow-sm">
                     {adminUsers.length}
@@ -1347,9 +1506,12 @@ export default function Home() {
               </button>
               <button
                 onClick={() => { setAdminTab("leads"); fetchAdminGlobalLeads(); setSidebarOpen(false); }}
-                className={`w-full flex items-center justify-between px-3.5 py-2 rounded-xl text-xs font-semibold text-left transition-all duration-200 ${adminTab === "leads" ? (isDark ? "bg-white/10 text-white font-bold shadow-sm" : "bg-black/[0.06] text-black font-bold shadow-sm") : "text-zinc-500 hover:text-black dark:hover:text-white"}`}
+                className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold text-left transition-all duration-200 ${adminTab === "leads" ? (isDark ? "bg-white/10 text-white font-bold shadow-sm" : "bg-black/[0.06] text-black font-bold shadow-sm") : "text-zinc-500 hover:text-black dark:hover:text-white"}`}
               >
-                <span>{user.role === "admin" ? "All Users Leads" : "Team Leads"}</span>
+                <div className="flex items-center gap-2.5">
+                  <IconLeads className="w-4 h-4 shrink-0 text-green-500" />
+                  <span>{user.role === "admin" ? "All Users Leads" : "Team Leads"}</span>
+                </div>
                 {adminGlobalTotal > 0 && (
                   <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-green-600 text-white shadow-sm">
                     {adminGlobalTotal}
@@ -1359,9 +1521,10 @@ export default function Home() {
               {user.role === "admin" && (
                 <button
                   onClick={() => { setAdminTab("settings"); setSidebarOpen(false); }}
-                  className={`w-full flex items-center gap-2.5 px-3.5 py-2 rounded-xl text-xs font-semibold text-left transition-all duration-200 ${adminTab === "settings" ? (isDark ? "bg-white/10 text-white font-bold shadow-sm" : "bg-black/[0.06] text-black font-bold shadow-sm") : "text-zinc-500 hover:text-black dark:hover:text-white"}`}
+                  className={`w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-left transition-all duration-200 ${adminTab === "settings" ? (isDark ? "bg-white/10 text-white font-bold shadow-sm" : "bg-black/[0.06] text-black font-bold shadow-sm") : "text-zinc-500 hover:text-black dark:hover:text-white"}`}
                 >
-                  System Settings
+                  <IconSettings className="w-4 h-4 shrink-0 text-amber-500" />
+                  <span>System Settings</span>
                 </button>
               )}
             </nav>
@@ -1371,9 +1534,9 @@ export default function Home() {
             <Link
               href="/contact"
               onClick={() => setSidebarOpen(false)}
-              className="w-full flex items-center gap-2.5 px-3.5 py-2 rounded-xl text-xs font-semibold text-left transition-all duration-200 text-green-600 dark:text-green-400 hover:bg-green-500/10 btn-spring"
+              className="w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-left transition-all duration-200 text-green-600 dark:text-green-400 hover:bg-green-500/10 btn-spring"
             >
-              <svg className="w-4 h-4 text-green-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+              <IconHelp className="w-4 h-4 text-green-500 shrink-0" />
               <span>Help &amp; Support</span>
             </Link>
           </div>
@@ -1384,9 +1547,10 @@ export default function Home() {
             <span className="text-zinc-500">Theme</span>
             <button
               onClick={() => { toggleTheme(); setSidebarOpen(false); }}
-              className={`px-3 py-1 rounded-xl text-xs font-semibold btn-spring ${isDark ? "glass-icon-dark text-zinc-300" : "glass-icon-light text-zinc-700"}`}
+              className={`p-2 rounded-xl text-xs font-semibold btn-spring flex items-center gap-1.5 ${isDark ? "glass-icon-dark text-zinc-300" : "glass-icon-light text-zinc-700"}`}
             >
-              {isDark ? "Light" : "Dark"}
+              {isDark ? <IconSun className="w-4 h-4 text-amber-400" /> : <IconMoon className="w-4 h-4 text-zinc-600" />}
+              <span>{isDark ? "Light" : "Dark"}</span>
             </button>
           </div>
 
@@ -1403,9 +1567,14 @@ export default function Home() {
               className={`p-3 rounded-2xl border flex items-center justify-between text-xs cursor-pointer btn-spring ${isDark ? "glass-surface-dark border-white/5 hover:border-white/20" : "glass-surface-light border-zinc-200 hover:border-zinc-300"}`}
               title="Edit Profile & Security"
             >
-              <div className="truncate">
-                <div className="font-bold text-xs truncate">{user.name || user.username || user.email}</div>
-                <div className="text-[10px] text-zinc-500 truncate">@{user.username || user.email.split('@')[0]}</div>
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="w-8 h-8 rounded-full bg-green-500/20 text-green-500 border border-green-500/30 flex items-center justify-center font-bold text-xs shrink-0">
+                  {(user.username || user.name || user.email || "U")[0].toUpperCase()}
+                </div>
+                <div className="truncate">
+                  <div className="font-bold text-xs truncate">{user.name || user.username || user.email}</div>
+                  <div className="text-[10px] text-zinc-500 truncate">@{user.username || user.email.split('@')[0]}</div>
+                </div>
               </div>
               <span className="text-[10px] text-zinc-400 hover:text-white px-2 py-1 rounded-lg bg-white/5 shrink-0">Profile</span>
             </div>
@@ -1415,7 +1584,7 @@ export default function Home() {
               className="w-full py-2.5 px-4 rounded-2xl bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/20 hover:border-red-500/30 font-bold text-xs btn-spring flex items-center justify-center gap-2 shadow-sm"
               title="Logout of session"
             >
-              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+              <IconLogOut className="w-4 h-4" />
               <span>Logout</span>
             </button>
           </div>
@@ -1441,37 +1610,37 @@ export default function Home() {
             </button>
           </div>
         )}
-        <header className={`h-14 border-b px-4 sm:px-5 flex items-center justify-between shrink-0 transition-colors ${isDark ? "glass-surface-dark border-white/5" : "glass-surface-light border-zinc-200"}`}>
-          <div className="flex items-center gap-3 min-w-0">
+        <header className={`h-14 border-b px-3 sm:px-5 flex items-center justify-between shrink-0 transition-colors ${isDark ? "glass-surface-dark border-white/5" : "glass-surface-light border-zinc-200"}`}>
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             <button
               onClick={() => setSidebarOpen(!sidebarOpen)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold btn-spring flex items-center gap-1.5 shrink-0 ${isDark ? "glass-icon-dark text-white" : "glass-icon-light text-black"}`}
+              className={`p-2 sm:px-3 sm:py-1.5 rounded-xl text-xs font-bold btn-spring flex items-center gap-1.5 shrink-0 ${isDark ? "glass-icon-dark text-white" : "glass-icon-light text-black"}`}
               title="Toggle Menu"
             >
-              <span>☰</span>
+              <IconMenu className="w-4 h-4 shrink-0" />
               <span className="hidden sm:inline">Menu</span>
             </button>
-            <img src={currentLogo} alt="7strokes" className="h-8 sm:h-9 w-auto object-contain shrink-0" />
-            <h2 className="text-sm font-bold tracking-tight truncate">
+            <img src={currentLogo} alt="7strokes" className="h-7 sm:h-9 w-auto object-contain shrink-0" />
+            <h2 className="text-xs sm:text-sm font-bold tracking-tight truncate max-w-[130px] sm:max-w-md">
               {viewMode === "admin"
                 ? (adminTab === "overview"
-                    ? (user.role === "admin" ? "System & Stats" : `${user.company || "Company"} Team Stats`)
+                    ? (user.role === "admin" ? "System & Stats" : `${user.company || "Company"} Stats`)
                     : (adminTab === "users"
                         ? (user.role === "admin" ? "User Management" : "Team Accounts")
                         : (adminTab === "leads"
-                            ? (user.role === "admin" ? "All Users Leads (Global Database)" : "Team Leads Database")
+                            ? (user.role === "admin" ? "All Users Leads" : "Team Leads")
                             : "System Settings")))
                 : (activeTab === "search" ? "Find Leads" : (activeTab === "leads" ? "Saved Leads" : "Proxy Settings"))}
             </h2>
           </div>
 
-          <div className="flex items-center gap-2 sm:gap-2.5">
+          <div className="flex items-center gap-1.5 sm:gap-2.5">
             <Link
               href="/contact"
-              className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-semibold btn-spring ${isDark ? "glass-icon-dark text-white hover:border-white/30" : "glass-icon-light text-black hover:border-black/30"}`}
+              className={`flex items-center gap-1.5 p-2 sm:px-3 sm:py-1.5 rounded-xl text-xs font-semibold btn-spring ${isDark ? "glass-icon-dark text-white hover:border-white/30" : "glass-icon-light text-black hover:border-black/30"}`}
               title="Help & Support"
             >
-              <svg className="w-3.5 h-3.5 text-green-500 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+              <IconHelp className="w-4 h-4 text-green-500 shrink-0" />
               <span className="hidden sm:inline">Support</span>
             </Link>
             <button
@@ -1482,23 +1651,23 @@ export default function Home() {
                 setProfileMsg(null);
                 setShowProfileModal(true);
               }}
-              className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-semibold btn-spring ${isDark ? "glass-icon-dark text-white hover:border-white/30" : "glass-icon-light text-black hover:border-black/30"}`}
+              className={`flex items-center gap-1.5 p-2 sm:px-3 sm:py-1.5 rounded-xl text-xs font-semibold btn-spring ${isDark ? "glass-icon-dark text-white hover:border-white/30" : "glass-icon-light text-black hover:border-black/30"}`}
               title="My Profile & Security"
             >
-              <svg className="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
-              <span className="truncate max-w-[80px] sm:max-w-[120px]">{user?.name || user?.username || "Profile"}</span>
+              <IconUser className="w-4 h-4 shrink-0 text-purple-400" />
+              <span className="hidden sm:inline truncate max-w-[80px] sm:max-w-[120px]">{user?.name || user?.username || "Profile"}</span>
             </button>
             <button
               onClick={toggleTheme}
-              className={`p-2 rounded-xl text-xs font-semibold btn-spring ${isDark ? "glass-icon-dark text-zinc-300" : "glass-icon-light text-zinc-700"}`}
+              className={`p-2 rounded-xl text-xs font-semibold btn-spring flex items-center justify-center ${isDark ? "glass-icon-dark text-zinc-300" : "glass-icon-light text-zinc-700"}`}
               title="Toggle Theme"
             >
-              {isDark ? "Light" : "Dark"}
+              {isDark ? <IconSun className="w-4 h-4 text-amber-400" /> : <IconMoon className="w-4 h-4 text-zinc-600" />}
             </button>
           </div>
         </header>
 
-        <div className="flex-1 p-3.5 sm:p-5 md:p-8 overflow-y-auto overflow-x-hidden w-full max-w-full">
+        <div className="flex-1 p-3 sm:p-5 md:p-8 pb-24 md:pb-8 overflow-y-auto overflow-x-hidden w-full max-w-full">
           {viewMode === "app" && activeTab === "search" && (
             <div className="max-w-2xl mx-auto space-y-6">
               <div>
@@ -1985,6 +2154,13 @@ export default function Home() {
                     <div className={`rounded-3xl overflow-hidden transition-all duration-300 ${isDark ? "glass-surface-dark" : "glass-surface-light shadow-sm"}`}>
                       <div className="p-4 md:p-5 border-b border-zinc-500/15 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                         <div>
+                          <button
+                            onClick={() => setSelectedJobId(null)}
+                            className="lg:hidden flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-black/5 dark:bg-white/10 text-zinc-700 dark:text-zinc-200 mb-2 btn-spring"
+                          >
+                            <IconArrowLeft className="w-3.5 h-3.5" />
+                            <span>Back to Searches</span>
+                          </button>
                           <h3 className="text-sm font-bold capitalize">{selectedJob?.target}</h3>
                           <span className="text-[11px] text-zinc-500">{jobResults.length} leads saved</span>
                         </div>
@@ -2022,40 +2198,102 @@ export default function Home() {
                       ) : filteredResults.length === 0 ? (
                         <div className="p-12 text-center text-xs text-zinc-500">No records found.</div>
                       ) : (
-                        <div className="overflow-x-auto max-h-[500px] w-full">
-                          <table className="w-full min-w-[650px] text-left text-xs">
-                            <thead className={`text-[11px] font-bold uppercase tracking-wider border-b border-zinc-500/15 sticky top-0 backdrop-blur-md ${isDark ? "bg-black/60 text-zinc-400" : "bg-white/80 text-zinc-600"}`}>
-                              <tr>
-                                <th className="px-4 py-2.5">Business</th>
-                                <th className="px-4 py-2.5">Phone</th>
-                                <th className="px-4 py-2.5">Website</th>
-                                <th className="px-4 py-2.5">Category</th>
-                                <th className="px-4 py-2.5">Rating</th>
-                                <th className="px-4 py-2.5">Address</th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-zinc-500/10">
-                              {filteredResults.map((r, i) => (
-                                <tr key={i} className={`transition ${isDark ? "hover:bg-white/[0.03]" : "hover:bg-black/[0.02]"}`}>
-                                  <td className="px-4 py-2.5 font-bold max-w-[180px] truncate">{r.title}</td>
-                                  <td className="px-4 py-2.5 font-mono text-[11px] whitespace-nowrap">{r.phone_1 || "—"}</td>
-                                  <td className="px-4 py-2.5 max-w-[140px] truncate">
-                                    {r.website ? (
-                                      <a href={r.website} target="_blank" rel="noreferrer" className="text-green-600 hover:underline">
-                                        {r.website.replace(/^https?:\/\//, '')}
-                                      </a>
-                                    ) : "—"}
-                                  </td>
-                                  <td className="px-4 py-2.5 text-zinc-500 max-w-[120px] truncate">{r.category || "—"}</td>
-                                  <td className="px-4 py-2.5 whitespace-nowrap font-semibold">
-                                    {r.rating ? `${r.rating} (${r.reviews || 0})` : "—"}
-                                  </td>
-                                  <td className="px-4 py-2.5 text-zinc-500 max-w-[180px] truncate">{r.address || "—"}</td>
+                        <>
+                          {/* Desktop Table View */}
+                          <div className="hidden md:block overflow-x-auto max-h-[500px] w-full">
+                            <table className="w-full min-w-[650px] text-left text-xs">
+                              <thead className={`text-[11px] font-bold uppercase tracking-wider border-b border-zinc-500/15 sticky top-0 backdrop-blur-md ${isDark ? "bg-black/60 text-zinc-400" : "bg-white/80 text-zinc-600"}`}>
+                                <tr>
+                                  <th className="px-4 py-2.5">Business</th>
+                                  <th className="px-4 py-2.5">Phone</th>
+                                  <th className="px-4 py-2.5">Website</th>
+                                  <th className="px-4 py-2.5">Category</th>
+                                  <th className="px-4 py-2.5">Rating</th>
+                                  <th className="px-4 py-2.5">Address</th>
                                 </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
+                              </thead>
+                              <tbody className="divide-y divide-zinc-500/10">
+                                {filteredResults.map((r, i) => (
+                                  <tr key={i} className={`transition ${isDark ? "hover:bg-white/[0.03]" : "hover:bg-black/[0.02]"}`}>
+                                    <td className="px-4 py-2.5 font-bold max-w-[180px] truncate">{r.title}</td>
+                                    <td className="px-4 py-2.5 font-mono text-[11px] whitespace-nowrap">{r.phone_1 || "—"}</td>
+                                    <td className="px-4 py-2.5 max-w-[140px] truncate">
+                                      {r.website ? (
+                                        <a href={r.website} target="_blank" rel="noreferrer" className="text-green-600 hover:underline">
+                                          {r.website.replace(/^https?:\/\//, '')}
+                                        </a>
+                                      ) : "—"}
+                                    </td>
+                                    <td className="px-4 py-2.5 text-zinc-500 max-w-[120px] truncate">{r.category || "—"}</td>
+                                    <td className="px-4 py-2.5 whitespace-nowrap font-semibold">
+                                      {r.rating ? `${r.rating} (${r.reviews || 0})` : "—"}
+                                    </td>
+                                    <td className="px-4 py-2.5 text-zinc-500 max-w-[180px] truncate">{r.address || "—"}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+
+                          {/* Mobile Card View (ERPNext style for Android) */}
+                          <div className="block md:hidden space-y-3 p-3 max-h-[500px] overflow-y-auto">
+                            {filteredResults.map((r, i) => (
+                              <div key={i} className={`p-3.5 rounded-2xl border space-y-2 ${isDark ? "bg-white/[0.02] border-white/5" : "bg-black/[0.02] border-black/5"}`}>
+                                <div className="flex items-start justify-between gap-2">
+                                  <div className="min-w-0 flex-1">
+                                    <div className="font-bold text-xs text-zinc-900 dark:text-white break-words">{r.title}</div>
+                                    <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                                      {r.category && (
+                                        <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-black/5 dark:bg-white/10 text-zinc-600 dark:text-zinc-300">
+                                          {r.category}
+                                        </span>
+                                      )}
+                                      {r.city && (
+                                        <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-green-500/10 text-green-600 dark:text-green-400">
+                                          {r.city}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                  {r.rating && (
+                                    <span className="flex items-center gap-1 text-[11px] font-bold text-amber-500 bg-amber-500/10 px-2 py-0.5 rounded-lg shrink-0">
+                                      <IconStar className="w-3 h-3 fill-amber-500" />
+                                      <span>{r.rating}</span>
+                                    </span>
+                                  )}
+                                </div>
+
+                                <div className="space-y-1 pt-1 text-[11px]">
+                                  {r.phone_1 ? (
+                                    <a href={`tel:${r.phone_1}`} className="flex items-center gap-2 text-green-600 dark:text-green-400 font-mono font-bold hover:underline">
+                                      <IconPhone className="w-3.5 h-3.5 shrink-0" />
+                                      <span>{r.phone_1}</span>
+                                    </a>
+                                  ) : (
+                                    <div className="flex items-center gap-2 text-zinc-400 font-mono text-[11px]">
+                                      <IconPhone className="w-3.5 h-3.5 shrink-0 opacity-40" />
+                                      <span>No phone</span>
+                                    </div>
+                                  )}
+
+                                  {r.website && (
+                                    <a href={r.website} target="_blank" rel="noreferrer" className="flex items-center gap-2 text-blue-500 dark:text-blue-400 hover:underline truncate">
+                                      <IconGlobe className="w-3.5 h-3.5 shrink-0" />
+                                      <span className="truncate">{r.website.replace(/^https?:\/\//, '')}</span>
+                                    </a>
+                                  )}
+
+                                  {r.address && (
+                                    <div className="flex items-start gap-2 text-zinc-500 text-[11px]">
+                                      <IconMapPin className="w-3.5 h-3.5 shrink-0 mt-0.5 opacity-60" />
+                                      <span className="line-clamp-2">{r.address}</span>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </>
                       )}
                     </div>
                   )}
@@ -2303,7 +2541,8 @@ export default function Home() {
                   )}
 
                   <div className={`rounded-3xl overflow-hidden ${isDark ? "glass-surface-dark" : "glass-surface-light shadow-sm"}`}>
-                    <div className="overflow-x-auto">
+                    {/* Desktop Table View */}
+                    <div className="hidden md:block overflow-x-auto">
                       <table className="w-full min-w-[720px] text-left text-xs">
                       <thead className={`text-[11px] font-bold uppercase tracking-wider border-b border-zinc-500/15 ${isDark ? "bg-black/40 text-zinc-400" : "bg-black/[0.02] text-zinc-600"}`}>
                         <tr>
@@ -2414,6 +2653,136 @@ export default function Home() {
                         )}
                       </tbody>
                     </table>
+                    </div>
+
+                    {/* Mobile Cards View (ERPNext style for Android) */}
+                    <div className="block md:hidden space-y-3 p-3">
+                      {adminUsers.length === 0 ? (
+                        <div className="py-10 text-center text-xs text-zinc-500">
+                          No accounts match this filter.
+                        </div>
+                      ) : (
+                        adminUsers.map(u => (
+                          <div key={u.id} className={`p-4 rounded-2xl border space-y-3 ${isDark ? "bg-white/[0.02] border-white/5" : "bg-black/[0.02] border-black/5"}`}>
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="flex items-center gap-2.5 min-w-0">
+                                {u.avatar ? (
+                                  <img src={u.avatar} alt={u.name} className="w-10 h-10 rounded-full object-cover shrink-0 border border-zinc-500/20" />
+                                ) : (
+                                  <div className="w-10 h-10 rounded-full bg-green-500/10 text-green-500 border border-green-500/20 flex items-center justify-center font-bold text-xs shrink-0">
+                                    {(u.username || u.name || u.email || "U")[0].toUpperCase()}
+                                  </div>
+                                )}
+                                <div className="min-w-0">
+                                  <div className="font-bold text-xs truncate">{u.name || "Unnamed"}</div>
+                                  <div className="text-[11px] text-zinc-500 truncate">@{u.username || u.email.split('@')[0]}</div>
+                                  <div className="text-[10px] text-zinc-400 font-mono truncate">{u.email}</div>
+                                </div>
+                              </div>
+                              <div className="flex flex-col items-end gap-1 shrink-0">
+                                <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
+                                  u.role === "admin"
+                                    ? "bg-red-500/10 text-red-400 border border-red-500/20"
+                                    : u.role === "manager"
+                                    ? "bg-purple-500/10 text-purple-400 border border-purple-500/20"
+                                    : "bg-blue-500/10 text-blue-400 border border-blue-500/20"
+                                }`}>
+                                  {u.role}
+                                </span>
+                                <span className={`px-2 py-0.5 rounded text-[10px] font-bold capitalize ${
+                                  u.status === "active"
+                                    ? "bg-green-500/10 text-green-500"
+                                    : "bg-zinc-500/10 text-zinc-400"
+                                }`}>
+                                  {u.status}
+                                </span>
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-2 pt-2 border-t border-zinc-500/10 text-[11px]">
+                              <div>
+                                <span className="text-zinc-500 block text-[10px]">Company:</span>
+                                <span className="font-semibold truncate block">{u.company || "None"}</span>
+                              </div>
+                              <div>
+                                <span className="text-zinc-500 block text-[10px]">Proxy Access:</span>
+                                <div className="flex items-center gap-1.5 mt-0.5">
+                                  <button
+                                    onClick={() => handleToggleUserProxy(u.id)}
+                                    className={`w-7 h-4 flex items-center rounded-full p-0.5 cursor-pointer transition-colors ${u.can_use_proxy === 1 ? "bg-green-600 justify-end" : "bg-zinc-300 dark:bg-zinc-700 justify-start"}`}
+                                  >
+                                    <span className="bg-white w-3 h-3 rounded-full shadow-sm"></span>
+                                  </button>
+                                  <span className={`text-[10px] font-bold ${u.can_use_proxy === 1 ? "text-green-500" : "text-zinc-400"}`}>
+                                    {u.can_use_proxy === 1 ? "Allowed" : "Off"}
+                                  </span>
+                                </div>
+                              </div>
+                              {u.manager_id && (
+                                <div className="col-span-2">
+                                  <span className="text-zinc-500 text-[10px]">Manager: </span>
+                                  <span className="font-mono text-zinc-400">@{u.manager_username || u.manager_id.slice(0, 8)}</span>
+                                </div>
+                              )}
+                            </div>
+
+                            <div className="flex items-center gap-2 pt-2 border-t border-zinc-500/10">
+                              <button
+                                onClick={() => {
+                                  setEditingUser(u);
+                                  setEditUserName(u.name || "");
+                                  setEditUserEmail(u.email || "");
+                                  setEditUserRole(u.role || "user");
+                                  setEditUserCompany(u.company || "");
+                                  setEditUserManagerId(u.manager_id || "");
+                                  setEditUserStatus(u.status || "active");
+                                  setEditUserCanProxy(u.can_use_proxy === 1);
+                                  setEditUserPassword("");
+                                }}
+                                className="flex-1 py-2 px-2 rounded-xl text-[11px] font-bold flex items-center justify-center gap-1 bg-blue-500/10 hover:bg-blue-500/20 text-blue-500 border border-blue-500/20 btn-spring"
+                              >
+                                <IconEdit className="w-3.5 h-3.5" />
+                                <span>Edit</span>
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setResetModalUser(u);
+                                  setNewResetPassword("");
+                                  setResetResultData(null);
+                                }}
+                                className={`flex-1 py-2 px-2 rounded-xl text-[11px] font-bold flex items-center justify-center gap-1 btn-spring ${isDark ? "bg-white/5 hover:bg-white/10 text-zinc-300" : "bg-black/5 hover:bg-black/10 text-zinc-700"}`}
+                              >
+                                <IconKey className="w-3.5 h-3.5" />
+                                <span>Reset Pwd</span>
+                              </button>
+                              {u.status !== "active" && (
+                                <button
+                                  onClick={() => approveUser(u.id)}
+                                  className="py-2 px-3 rounded-xl text-[11px] font-bold bg-green-500/10 hover:bg-green-500/20 text-green-500 border border-green-500/20 btn-spring"
+                                >
+                                  Approve
+                                </button>
+                              )}
+                              {u.status === "active" && u.id !== user.id && (
+                                <button
+                                  onClick={() => suspendUser(u.id)}
+                                  className="py-2 px-3 rounded-xl text-[11px] font-bold bg-zinc-500/10 hover:bg-zinc-500/20 text-zinc-400 btn-spring"
+                                >
+                                  Disable
+                                </button>
+                              )}
+                              {u.id !== user.id && (
+                                <button
+                                  onClick={() => deleteUser(u.id)}
+                                  className="py-2 px-3 rounded-xl text-[11px] font-bold flex items-center justify-center bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/20 btn-spring"
+                                >
+                                  <IconTrash className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        ))
+                      )}
                     </div>
                   </div>
                 </div>
@@ -2546,7 +2915,8 @@ export default function Home() {
                   </div>
 
                   <div className={`rounded-3xl overflow-hidden ${isDark ? "glass-surface-dark" : "glass-surface-light shadow-sm"}`}>
-                    <div className="overflow-x-auto">
+                    {/* Desktop Table View */}
+                    <div className="hidden md:block overflow-x-auto">
                       <table className="w-full min-w-[850px] text-left text-xs">
                         <thead className={`text-[11px] font-bold uppercase tracking-wider border-b border-zinc-500/15 ${isDark ? "bg-black/40 text-zinc-400" : "bg-black/[0.02] text-zinc-600"}`}>
                           <tr>
@@ -2611,6 +2981,82 @@ export default function Home() {
                           )}
                         </tbody>
                       </table>
+                    </div>
+
+                    {/* Mobile Cards View (ERPNext style for Android) */}
+                    <div className="block md:hidden space-y-3 p-3">
+                      {loadingAdminLeads ? (
+                        <div className="py-10 text-center text-xs text-zinc-500">
+                          Loading leads database...
+                        </div>
+                      ) : adminGlobalLeads.length === 0 ? (
+                        <div className="py-10 text-center text-xs text-zinc-500">
+                          No leads found in this view.
+                        </div>
+                      ) : (
+                        adminGlobalLeads.map((r, i) => (
+                          <div key={r.id || i} className={`p-4 rounded-2xl border space-y-2.5 ${isDark ? "bg-white/[0.02] border-white/5" : "bg-black/[0.02] border-black/5"}`}>
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="min-w-0 flex-1">
+                                <h4 className="font-bold text-xs text-zinc-900 dark:text-white break-words">{r.title}</h4>
+                                <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                                  {r.category && (
+                                    <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-black/5 dark:bg-white/10 text-zinc-600 dark:text-zinc-300">
+                                      {r.category}
+                                    </span>
+                                  )}
+                                  {r.city && (
+                                    <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-green-500/10 text-green-600 dark:text-green-400">
+                                      {r.city}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                              {r.rating && (
+                                <span className="flex items-center gap-1 text-[11px] font-bold text-amber-500 bg-amber-500/10 px-2 py-0.5 rounded-lg shrink-0">
+                                  <IconStar className="w-3 h-3 fill-amber-500" />
+                                  <span>{r.rating} ({r.reviews || 0})</span>
+                                </span>
+                              )}
+                            </div>
+
+                            <div className="space-y-1.5 pt-1 text-[11px]">
+                              {r.phone_1 ? (
+                                <a href={`tel:${r.phone_1}`} className="flex items-center gap-2 text-green-600 dark:text-green-400 font-mono font-bold hover:underline">
+                                  <IconPhone className="w-3.5 h-3.5 shrink-0" />
+                                  <span>{r.phone_1}</span>
+                                </a>
+                              ) : (
+                                <div className="flex items-center gap-2 text-zinc-400 font-mono text-[11px]">
+                                  <IconPhone className="w-3.5 h-3.5 shrink-0 opacity-40" />
+                                  <span>No phone listed</span>
+                                </div>
+                              )}
+
+                              {r.website && (
+                                <a href={r.website} target="_blank" rel="noreferrer" className="flex items-center gap-2 text-blue-500 dark:text-blue-400 hover:underline truncate">
+                                  <IconGlobe className="w-3.5 h-3.5 shrink-0" />
+                                  <span className="truncate">{r.website.replace(/^https?:\/\//, '')}</span>
+                                </a>
+                              )}
+
+                              {r.address && (
+                                <div className="flex items-start gap-2 text-zinc-500 text-[11px]">
+                                  <IconMapPin className="w-3.5 h-3.5 shrink-0 mt-0.5 opacity-60" />
+                                  <span className="line-clamp-2">{r.address}</span>
+                                </div>
+                              )}
+                            </div>
+
+                            <div className="flex items-center justify-between pt-2 border-t border-zinc-500/10 text-[10px] text-zinc-500">
+                              <div className="flex items-center gap-1.5">
+                                <span>Owner: <strong>{r.user_name || r.user_email}</strong></span>
+                              </div>
+                              <span>Query: {r.job_target || r.query || "—"}</span>
+                            </div>
+                          </div>
+                        ))
+                      )}
                     </div>
                   </div>
                 </div>
@@ -3390,6 +3836,143 @@ export default function Home() {
             </div>
           )}
         </div>
+
+        {/* Android ERPNext-Style Bottom Navigation Bar */}
+        <nav className={`fixed bottom-0 inset-x-0 z-40 md:hidden border-t safe-bottom flex items-center justify-around px-1 h-16 shadow-[0_-4px_25px_rgba(0,0,0,0.12)] transition-colors ${isDark ? "bg-[#09090C]/95 border-white/10 text-white backdrop-blur-2xl" : "bg-white/95 border-zinc-200 text-black backdrop-blur-2xl"}`}>
+          {viewMode === "app" ? (
+            <>
+              <button
+                onClick={() => { setActiveTab("search"); setSelectedJobId(null); }}
+                className={`flex flex-col items-center justify-center flex-1 h-full py-1 text-[10px] font-bold transition btn-spring ${activeTab === "search" ? "text-green-600 dark:text-green-400" : "text-zinc-500 hover:text-black dark:hover:text-white"}`}
+              >
+                <div className={`p-1 rounded-xl transition ${activeTab === "search" ? "bg-green-500/10" : ""}`}>
+                  <IconSearch className="w-5 h-5" />
+                </div>
+                <span className="mt-0.5">Search</span>
+              </button>
+
+              <button
+                onClick={() => setActiveTab("leads")}
+                className={`relative flex flex-col items-center justify-center flex-1 h-full py-1 text-[10px] font-bold transition btn-spring ${activeTab === "leads" ? "text-green-600 dark:text-green-400" : "text-zinc-500 hover:text-black dark:hover:text-white"}`}
+              >
+                <div className={`relative p-1 rounded-xl transition ${activeTab === "leads" ? "bg-green-500/10" : ""}`}>
+                  <IconLeads className="w-5 h-5" />
+                  {jobs.length > 0 && (
+                    <span className="absolute -top-1 -right-2 px-1.5 py-0.2 rounded-full text-[9px] font-black bg-green-600 text-white">
+                      {jobs.length > 99 ? "99+" : jobs.length}
+                    </span>
+                  )}
+                </div>
+                <span className="mt-0.5">Saved</span>
+              </button>
+
+              {(user.role === "admin" || user.role === "manager") && (
+                <button
+                  onClick={() => {
+                    setViewMode("admin");
+                    fetchAdminStats();
+                    fetchTeamList();
+                    fetchAdminGlobalLeads();
+                  }}
+                  className="flex flex-col items-center justify-center flex-1 h-full py-1 text-[10px] font-bold text-purple-500 dark:text-purple-400 btn-spring"
+                >
+                  <div className="p-1 rounded-xl bg-purple-500/10">
+                    <IconShield className="w-5 h-5" />
+                  </div>
+                  <span className="mt-0.5">{user.role === "admin" ? "Admin" : "Company"}</span>
+                </button>
+              )}
+
+              <Link
+                href="/contact"
+                className="flex flex-col items-center justify-center flex-1 h-full py-1 text-[10px] font-bold text-zinc-500 hover:text-black dark:hover:text-white btn-spring"
+              >
+                <div className="p-1 rounded-xl">
+                  <IconHelp className="w-5 h-5 text-green-500" />
+                </div>
+                <span className="mt-0.5">Support</span>
+              </Link>
+
+              <button
+                onClick={() => {
+                  setProfileName(user?.name || "");
+                  setProfileUsername(user?.username || "");
+                  setProfileAvatar(user?.avatar || "");
+                  setProfileMsg(null);
+                  setShowProfileModal(true);
+                }}
+                className="flex flex-col items-center justify-center flex-1 h-full py-1 text-[10px] font-bold text-zinc-500 hover:text-black dark:hover:text-white btn-spring"
+              >
+                <div className="p-1 rounded-xl">
+                  <IconUser className="w-5 h-5" />
+                </div>
+                <span className="mt-0.5">Profile</span>
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                onClick={() => setAdminTab("overview")}
+                className={`flex flex-col items-center justify-center flex-1 h-full py-1 text-[10px] font-bold transition btn-spring ${adminTab === "overview" ? "text-green-600 dark:text-green-400" : "text-zinc-500 hover:text-black dark:hover:text-white"}`}
+              >
+                <div className={`p-1 rounded-xl transition ${adminTab === "overview" ? "bg-green-500/10" : ""}`}>
+                  <IconOverview className="w-5 h-5" />
+                </div>
+                <span className="mt-0.5">Stats</span>
+              </button>
+
+              <button
+                onClick={() => setAdminTab("users")}
+                className={`relative flex flex-col items-center justify-center flex-1 h-full py-1 text-[10px] font-bold transition btn-spring ${adminTab === "users" ? "text-purple-500 dark:text-purple-400" : "text-zinc-500 hover:text-black dark:hover:text-white"}`}
+              >
+                <div className={`relative p-1 rounded-xl transition ${adminTab === "users" ? "bg-purple-500/10" : ""}`}>
+                  <IconUsers className="w-5 h-5" />
+                  {adminUsers.length > 0 && (
+                    <span className="absolute -top-1 -right-2 px-1.5 py-0.2 rounded-full text-[9px] font-black bg-purple-600 text-white">
+                      {adminUsers.length}
+                    </span>
+                  )}
+                </div>
+                <span className="mt-0.5">Users</span>
+              </button>
+
+              <button
+                onClick={() => { setAdminTab("leads"); fetchAdminGlobalLeads(); }}
+                className={`relative flex flex-col items-center justify-center flex-1 h-full py-1 text-[10px] font-bold transition btn-spring ${adminTab === "leads" ? "text-green-600 dark:text-green-400" : "text-zinc-500 hover:text-black dark:hover:text-white"}`}
+              >
+                <div className={`relative p-1 rounded-xl transition ${adminTab === "leads" ? "bg-green-500/10" : ""}`}>
+                  <IconLeads className="w-5 h-5" />
+                  {adminGlobalTotal > 0 && (
+                    <span className="absolute -top-1 -right-2 px-1.5 py-0.2 rounded-full text-[9px] font-black bg-green-600 text-white">
+                      {adminGlobalTotal > 999 ? "999+" : adminGlobalTotal}
+                    </span>
+                  )}
+                </div>
+                <span className="mt-0.5">Leads DB</span>
+              </button>
+
+              <button
+                onClick={() => setViewMode("app")}
+                className="flex flex-col items-center justify-center flex-1 h-full py-1 text-[10px] font-bold text-zinc-500 hover:text-black dark:hover:text-white btn-spring"
+              >
+                <div className="p-1 rounded-xl">
+                  <IconSearch className="w-5 h-5" />
+                </div>
+                <span className="mt-0.5">Lead App</span>
+              </button>
+
+              <button
+                onClick={() => setSidebarOpen(true)}
+                className="flex flex-col items-center justify-center flex-1 h-full py-1 text-[10px] font-bold text-zinc-500 hover:text-black dark:hover:text-white btn-spring"
+              >
+                <div className="p-1 rounded-xl">
+                  <IconSettings className="w-5 h-5" />
+                </div>
+                <span className="mt-0.5">Menu</span>
+              </button>
+            </>
+          )}
+        </nav>
       </main>
     </div>
   );
