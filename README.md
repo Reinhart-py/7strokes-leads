@@ -108,7 +108,7 @@ You can run 7strokes directly on an Android phone using the Termux app:
    ```bash
    bash setup-termux.sh
    ```
-   *(Or simply run `./kiki start` — 7strokes will automatically install `kiki` and `fk` into your Termux `$PREFIX/bin` directory so you can type `kiki` from any folder).*
+   *(Or simply run `./kiki start` — 7strokes will automatically install `kiki` and `kiwi` into your Termux `$PREFIX/bin` directory so you can type `kiki` or `kiwi` from any folder).*
 
 4. Native Ngrok DNS on Android:
    7strokes automatically writes `~/.config/ngrok/ngrok.yml` configured with `dns_resolver_ips: [8.8.8.8, 1.1.1.1]` and `crl_noverify: true`. This instructs Ngrok v3 to query public DNS directly, solving Android's missing `/etc/resolv.conf` without needing root permissions, PRoot, or local proxy loops.
@@ -213,7 +213,7 @@ kiki db restore backups/7strokes-backup-2026-10-07.sqlite
 kiki config
 ```
 
-*(Note: `fk` is also supported as a short alias for `kiki`).*
+*(Note: `kiwi` is also supported as an alternate command name for `kiki`).*
 
 ### CLI Options
 
@@ -306,7 +306,7 @@ Send `/menu` or `/start` to your bot in Telegram to open the interactive control
 - `/jobs [page]` — Browse all search jobs with pagination and one-tap export buttons.
 - `/export <job_id>` — Download CSV file for a specific search job.
 - `/status` — Live server metrics, memory, uptime, and total leads.
-- `/start_all` | `/stop_all` — Start or stop all services remotely.
+- `/start_all` | `/stop_all` | `/restart` — Start, stop, or restart all services remotely.
 - `/start_backend` | `/stop_backend` — Start or stop backend.
 - `/start_tunnel` | `/stop_tunnel` — Start or stop public link.
 - `/start_frontend` | `/stop_frontend` — Start or stop frontend.

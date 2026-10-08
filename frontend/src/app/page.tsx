@@ -203,6 +203,9 @@ export default function Home() {
   const [adminGlobalTotal, setAdminGlobalTotal] = useState<number>(0);
   const [adminLeadUserFilter, setAdminLeadUserFilter] = useState<string>("all");
   const [adminLeadSearch, setAdminLeadSearch] = useState<string>("");
+  const [adminUniqueOnly, setAdminUniqueOnly] = useState<boolean>(true);
+  const [adminCategoryFilter, setAdminCategoryFilter] = useState<string>("all");
+  const [adminCityFilter, setAdminCityFilter] = useState<string>("all");
   const [loadingAdminLeads, setLoadingAdminLeads] = useState<boolean>(false);
 
   const [showProfileModal, setShowProfileModal] = useState<boolean>(false);
@@ -701,15 +704,21 @@ export default function Home() {
     uFilter = adminLeadUserFilter,
     q = adminLeadSearch,
     comp = adminCompanyFilter,
-    mgrId = adminManagerFilter
+    mgrId = adminManagerFilter,
+    uniq = adminUniqueOnly,
+    cat = adminCategoryFilter,
+    cty = adminCityFilter
   ) => {
     setLoadingAdminLeads(true);
     try {
       let url = `/api/admin/leads?limit=500`;
+      if (uniq) url += `&unique=true`;
       if (uFilter && uFilter !== "all") url += `&userId=${encodeURIComponent(uFilter)}`;
       if (q.trim()) url += `&search=${encodeURIComponent(q.trim())}`;
       if (comp && comp !== "all") url += `&company=${encodeURIComponent(comp)}`;
       if (mgrId && mgrId !== "all") url += `&managerId=${encodeURIComponent(mgrId)}`;
+      if (cat && cat !== "all") url += `&category=${encodeURIComponent(cat)}`;
+      if (cty && cty !== "all") url += `&city=${encodeURIComponent(cty)}`;
       const res = await apiFetch(url, {
         headers: { Authorization: `Bearer ${t}` }
       });
@@ -2294,7 +2303,8 @@ export default function Home() {
                   )}
 
                   <div className={`rounded-3xl overflow-hidden ${isDark ? "glass-surface-dark" : "glass-surface-light shadow-sm"}`}>
-                    <table className="w-full text-left text-xs">
+                    <div className="overflow-x-auto">
+                      <table className="w-full min-w-[720px] text-left text-xs">
                       <thead className={`text-[11px] font-bold uppercase tracking-wider border-b border-zinc-500/15 ${isDark ? "bg-black/40 text-zinc-400" : "bg-black/[0.02] text-zinc-600"}`}>
                         <tr>
                           <th className="px-5 py-3.5">User</th>
@@ -2404,6 +2414,7 @@ export default function Home() {
                         )}
                       </tbody>
                     </table>
+                    </div>
                   </div>
                 </div>
               )}
@@ -2421,14 +2432,26 @@ export default function Home() {
                       </p>
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-2.5">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const nextVal = !adminUniqueOnly;
+                          setAdminUniqueOnly(nextVal);
+                          fetchAdminGlobalLeads(token, adminLeadUserFilter, adminLeadSearch, adminCompanyFilter, adminManagerFilter, nextVal, adminCategoryFilter, adminCityFilter);
+                        }}
+                        className={`px-3 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${adminUniqueOnly ? "bg-green-600 text-white shadow-md shadow-green-600/20" : isDark ? "bg-white/5 text-zinc-400 hover:text-white" : "bg-black/5 text-zinc-600 hover:text-black"}`}
+                      >
+                        <span>{adminUniqueOnly ? "✓ Unique Leads Only" : "All Leads (Inc. Clones)"}</span>
+                      </button>
+
                       {user.role === "admin" && (
                         <>
                           <select
                             value={adminCompanyFilter}
                             onChange={e => {
                               setAdminCompanyFilter(e.target.value);
-                              fetchAdminGlobalLeads(token, adminLeadUserFilter, adminLeadSearch, e.target.value, adminManagerFilter);
+                              fetchAdminGlobalLeads(token, adminLeadUserFilter, adminLeadSearch, e.target.value, adminManagerFilter, adminUniqueOnly, adminCategoryFilter, adminCityFilter);
                             }}
                             className={`px-3 py-2 rounded-xl text-xs font-semibold outline-none transition ${isDark ? "glass-input-dark text-white" : "glass-input-light text-black"}`}
                           >
@@ -2442,7 +2465,7 @@ export default function Home() {
                             value={adminManagerFilter}
                             onChange={e => {
                               setAdminManagerFilter(e.target.value);
-                              fetchAdminGlobalLeads(token, adminLeadUserFilter, adminLeadSearch, adminCompanyFilter, e.target.value);
+                              fetchAdminGlobalLeads(token, adminLeadUserFilter, adminLeadSearch, adminCompanyFilter, e.target.value, adminUniqueOnly, adminCategoryFilter, adminCityFilter);
                             }}
                             className={`px-3 py-2 rounded-xl text-xs font-semibold outline-none transition ${isDark ? "glass-input-dark text-white" : "glass-input-light text-black"}`}
                           >
@@ -2455,10 +2478,38 @@ export default function Home() {
                       )}
 
                       <select
+                        value={adminCityFilter}
+                        onChange={e => {
+                          setAdminCityFilter(e.target.value);
+                          fetchAdminGlobalLeads(token, adminLeadUserFilter, adminLeadSearch, adminCompanyFilter, adminManagerFilter, adminUniqueOnly, adminCategoryFilter, e.target.value);
+                        }}
+                        className={`px-3 py-2 rounded-xl text-xs font-semibold outline-none transition ${isDark ? "glass-input-dark text-white" : "glass-input-light text-black"}`}
+                      >
+                        <option value="all">All Cities</option>
+                        {Array.from(new Set(adminGlobalLeads.map(l => l.city).filter(Boolean))).map((c: any) => (
+                          <option key={c} value={c}>{c}</option>
+                        ))}
+                      </select>
+
+                      <select
+                        value={adminCategoryFilter}
+                        onChange={e => {
+                          setAdminCategoryFilter(e.target.value);
+                          fetchAdminGlobalLeads(token, adminLeadUserFilter, adminLeadSearch, adminCompanyFilter, adminManagerFilter, adminUniqueOnly, e.target.value, adminCityFilter);
+                        }}
+                        className={`px-3 py-2 rounded-xl text-xs font-semibold outline-none transition max-w-[140px] truncate ${isDark ? "glass-input-dark text-white" : "glass-input-light text-black"}`}
+                      >
+                        <option value="all">All Categories</option>
+                        {Array.from(new Set(adminGlobalLeads.map(l => l.category).filter(Boolean))).map((cat: any) => (
+                          <option key={cat} value={cat}>{cat}</option>
+                        ))}
+                      </select>
+
+                      <select
                         value={adminLeadUserFilter}
                         onChange={e => {
                           setAdminLeadUserFilter(e.target.value);
-                          fetchAdminGlobalLeads(token, e.target.value, adminLeadSearch);
+                          fetchAdminGlobalLeads(token, e.target.value, adminLeadSearch, adminCompanyFilter, adminManagerFilter, adminUniqueOnly, adminCategoryFilter, adminCityFilter);
                         }}
                         className={`px-3 py-2 rounded-xl text-xs font-semibold outline-none transition ${isDark ? "glass-input-dark text-white" : "glass-input-light text-black"}`}
                       >
@@ -2478,14 +2529,14 @@ export default function Home() {
                           onChange={e => setAdminLeadSearch(e.target.value)}
                           onKeyDown={e => {
                             if (e.key === "Enter") {
-                              fetchAdminGlobalLeads(token, adminLeadUserFilter, adminLeadSearch);
+                              fetchAdminGlobalLeads(token, adminLeadUserFilter, adminLeadSearch, adminCompanyFilter, adminManagerFilter, adminUniqueOnly, adminCategoryFilter, adminCityFilter);
                             }
                           }}
-                          className={`w-40 sm:w-48 px-3.5 py-2 rounded-xl text-xs outline-none transition ${isDark ? "glass-input-dark text-white" : "glass-input-light text-black"}`}
+                          className={`w-36 sm:w-44 px-3.5 py-2 rounded-xl text-xs outline-none transition ${isDark ? "glass-input-dark text-white" : "glass-input-light text-black"}`}
                         />
                         <button
                           type="button"
-                          onClick={() => fetchAdminGlobalLeads(token, adminLeadUserFilter, adminLeadSearch)}
+                          onClick={() => fetchAdminGlobalLeads(token, adminLeadUserFilter, adminLeadSearch, adminCompanyFilter, adminManagerFilter, adminUniqueOnly, adminCategoryFilter, adminCityFilter)}
                           className="px-3 py-2 bg-green-600 hover:bg-green-700 text-white text-xs font-bold rounded-xl btn-spring shadow-md shadow-green-600/25"
                         >
                           Filter
@@ -2671,7 +2722,7 @@ export default function Home() {
 
           {showCreateUserModal && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xl p-4">
-              <div className={`rounded-3xl p-6 max-w-sm w-full space-y-4 ${isDark ? "glass-surface-dark text-white" : "glass-surface-light text-black shadow-2xl"}`}>
+              <div className={`rounded-3xl p-6 max-w-sm w-full space-y-4 max-h-[90vh] overflow-y-auto ${isDark ? "glass-surface-dark text-white" : "glass-surface-light text-black shadow-2xl"}`}>
                 <div className="flex items-center justify-between border-b pb-3 border-zinc-500/15">
                   <h3 className="text-sm font-bold">Add User</h3>
                   <button onClick={() => setShowCreateUserModal(false)} className="text-xs text-zinc-500 btn-spring">✕</button>

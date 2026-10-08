@@ -253,6 +253,12 @@ async function getServicesStatus() {
   };
 }
 
+async function restartAllServices() {
+  stopAllServices();
+  await new Promise((r) => setTimeout(r, 1200));
+  return await startAllServices();
+}
+
 module.exports = {
   isBackendRunning,
   isFrontendRunning,
@@ -268,5 +274,6 @@ module.exports = {
   stopBridgeService,
   startAllServices,
   stopAllServices,
+  restartAllServices,
   getServicesStatus
 };

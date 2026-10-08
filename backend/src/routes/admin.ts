@@ -282,11 +282,14 @@ router.get('/leads', async (req: AuthRequest, res: Response) => {
     const companyFilter = req.query.company as string | undefined;
     const managerFilter = req.query.managerId as string | undefined;
     const search = req.query.search as string | undefined;
+    const uniqueOnly = req.query.unique === 'true' || req.query.unique === '1';
+    const categoryFilter = req.query.category as string | undefined;
+    const cityFilter = req.query.city as string | undefined;
     const limit = Math.min(parseInt(req.query.limit as string) || 200, 1000);
     const offset = parseInt(req.query.offset as string) || 0;
 
     let sql = `
-      SELECT r.id, r.title, r.phone_1, r.email, r.website, r.address, r.city, r.category, r.rating, r.reviews, r.created_at,
+      SELECT r.id, r.title, r.phone_1, r.phone_2, r.email, r.website, r.address, r.street, r.city, r.state, r.country, r.postal_code, r.category, r.rating, r.reviews, r.created_at,
              j.id as job_id, j.target as job_target, j.engine as job_engine,
              u.id as user_id, u.email as user_email, u.name as user_name, u.username as user_username,
              u.company as user_company, u.manager_id as user_manager_id,
@@ -299,12 +302,14 @@ router.get('/leads', async (req: AuthRequest, res: Response) => {
     `;
     const params: any[] = [];
 
-    // Scope for Manager
+    if (uniqueOnly) {
+      sql += ` AND r.id IN (SELECT MIN(r2.id) FROM results r2 GROUP BY COALESCE(NULLIF(r2.phone_1, ''), LOWER(TRIM(r2.title))))`;
+    }
+
     if (isManager) {
       params.push(managerId, managerCompany);
       sql += ` AND (u.manager_id = $1 OR u.id = $1 OR (u.company = $2 AND u.role = 'user' AND u.company != ''))`;
     } else {
-      // Admin filters
       if (companyFilter && companyFilter !== 'all') {
         params.push(companyFilter);
         sql += ` AND u.company = $${params.length}`;
@@ -320,6 +325,16 @@ router.get('/leads', async (req: AuthRequest, res: Response) => {
       sql += ` AND j.user_id = $${params.length}`;
     }
 
+    if (categoryFilter && categoryFilter !== 'all') {
+      params.push(categoryFilter);
+      sql += ` AND r.category = $${params.length}`;
+    }
+
+    if (cityFilter && cityFilter !== 'all') {
+      params.push(cityFilter);
+      sql += ` AND r.city = $${params.length}`;
+    }
+
     if (search && search.trim().length > 0) {
       params.push(`%${search.trim().toLowerCase()}%`);
       sql += ` AND (LOWER(r.title) LIKE $${params.length} OR LOWER(r.phone_1) LIKE $${params.length} OR LOWER(r.address) LIKE $${params.length} OR LOWER(r.website) LIKE $${params.length} OR LOWER(r.category) LIKE $${params.length})`;
@@ -330,7 +345,6 @@ router.get('/leads', async (req: AuthRequest, res: Response) => {
 
     const result = await query(sql, params);
 
-    // Count SQL
     let countSql = `
       SELECT COUNT(*) as count
       FROM results r
@@ -339,6 +353,10 @@ router.get('/leads', async (req: AuthRequest, res: Response) => {
       WHERE 1=1
     `;
     const countParams: any[] = [];
+
+    if (uniqueOnly) {
+      countSql += ` AND r.id IN (SELECT MIN(r2.id) FROM results r2 GROUP BY COALESCE(NULLIF(r2.phone_1, ''), LOWER(TRIM(r2.title))))`;
+    }
 
     if (isManager) {
       countParams.push(managerId, managerCompany);
@@ -357,6 +375,21 @@ router.get('/leads', async (req: AuthRequest, res: Response) => {
     if (userId && userId !== 'all') {
       countParams.push(userId);
       countSql += ` AND j.user_id = $${countParams.length}`;
+    }
+
+    if (categoryFilter && categoryFilter !== 'all') {
+      countParams.push(categoryFilter);
+      countSql += ` AND r.category = $${countParams.length}`;
+    }
+
+    if (cityFilter && cityFilter !== 'all') {
+      countParams.push(cityFilter);
+      countSql += ` AND r.city = $${countParams.length}`;
+    }
+
+    if (search && search.trim().length > 0) {
+      countParams.push(`%${search.trim().toLowerCase()}%`);
+      countSql += ` AND (LOWER(r.title) LIKE $${countParams.length} OR LOWER(r.phone_1) LIKE $${countParams.length} OR LOWER(r.address) LIKE $${countParams.length} OR LOWER(r.website) LIKE $${countParams.length} OR LOWER(r.category) LIKE $${countParams.length})`;
     }
 
     const countRes = await query(countSql, countParams);

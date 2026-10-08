@@ -7,33 +7,30 @@ All notable changes, version upgrades, and development milestones for 7strokes a
 ## [v2.3.0] — Kiki CLI, Phone Classifier, Structured Address Columns & Bot Reliability (Current)
 
 ### Added
-- **Universal CLI Renamed to `kiki`**:
-  - `kiki` is now the primary global command with an interactive numbered menu (`[0-7]`) when run without arguments.
-  - `fk` is preserved as a backward-compatible alias.
-  - Added native `kiki.ps1`, `kiki.bat`, and `kiki` bash launchers.
-- **Intelligent Phone Classification**:
-  - Automatically sorts extracted numbers into Primary Phone (mobile/personal lines) and Secondary Phone (landlines, office numbers, toll-free lines).
-  - Handles international prefix patterns across UAE, Saudi Arabia, UK, US, and India.
-- **Dedicated Address Columns**:
-  - Exports in CSV, Excel, and JSON now feature separate columns for `Street`, `City`, `State`, `Country`, `Postal Code`, and `Full Address`.
-  - Added database migration to persist the `street` column.
-- **Full Database Leads Browser & Complete CSV Export**:
-  - Interactive Lead Browser: browse through all saved leads directly in chat page by page with `[<< Prev]` and `[Next >>]` navigation buttons, displaying business names, categories, phones, and addresses.
-  - Paginated Search History: view and navigate through all historical search jobs rather than being limited to just 5.
-  - Complete Leads CSV Export: download every single lead across the entire database in a single CSV file with one tap (`[Download All Leads CSV]` or `/export_all`).
-- **Telegram Bot Remote Service Management & Inline Buttons**:
-  - Full remote management parity: start and stop the backend, frontend (Next.js), public tunnel, and Android DNS bridge directly from Telegram.
-  - Interactive Inline Keyboard: one-tap buttons to start/stop all services, toggle individual services, view DB stats, trigger backups, and refresh status.
-  - Remote Configuration: update port, ngrok authtoken, custom domain, tunnel provider, or add/remove allowed users directly from chat.
-  - Automatic fallback to plain text if Telegram rejects markdown formatting.
-  - Error details sent directly to Telegram chat if any command or scraping task fails.
-  - Startup optimization: existing configuration is used immediately without prompting unless explicitly reconfigured.
+- **Universal CLI (`kiki` & `kiwi`)**:
+  - `kiki` and `kiwi` are now the primary global commands with an interactive numbered menu (`[0-7]`) when run without arguments.
+  - Removed old `fk` launchers and replaced with native `kiki` and `kiwi` scripts.
+  - Added native `kiki.ps1`, `kiki.bat`, `kiwi.ps1`, `kiwi.bat`, and bash launchers.
+- **2GIS High-Speed HTTP Scraper & Sub-District Grid Partitioning**:
+  - Automatically breaks large cities into district grids (e.g. 25 major commercial districts for Dubai, Abu Dhabi, Sharjah, Riyadh, and GCC regions).
+  - Bypasses 2GIS's 5-page / 60-result catalog cap to harvest hundreds or thousands of leads per search.
+  - High concurrency (16 simultaneous HTTP workers) collecting 200+ leads in ~40 seconds with 89%+ phone numbers.
+  - Direct unmasked phone number extraction from embedded JSON values, tel links, and bdo elements.
+- **Unique Leads Only Filter & Clone Prevention**:
+  - Added "Unique Leads Only" toggle filter to Admin & Manager database views so clones are completely filtered out.
+  - Added Category and City dropdown filters in Admin and Manager leads table.
+  - Guaranteed deduplicated CSV export in Telegram bot (`/export_all` and `[Download All Leads CSV]`).
+- **Telegram Bot Remote Restart & Service Management**:
+  - Added `[Restart All]` inline button and `/restart` / `/restart_all` commands to restart backend, public link, and frontend with live status reporting.
+- **Android / Mobile Screen Optimization for Admin & Management**:
+  - Added horizontal scroll protection and minimum width constraints to Users table and Breakdown tables so they display cleanly on Android screens without clipping.
+  - Added scrollable modal constraints to user creation and profile dialogs so form inputs and buttons are never cut off by mobile on-screen keyboards.
 - **Native Android Ngrok DNS Resolver**:
   - Automatically writes `~/.config/ngrok/ngrok.yml` with `dns_resolver_ips: [8.8.8.8, 1.1.1.1]` and `crl_noverify: true`.
   - Completely fixes the Go resolver failure on Android (`read: connection refused` on `[::1]:53`) natively without requiring PRoot, root access, or local proxy loops.
-- **Automatic Global `kiki` Registration on Android (Termux)**:
+- **Automatic Global `kiki` & `kiwi` Registration on Android (Termux)**:
   - Added `setup-termux.sh` for one-command installation, build, and global PATH registration.
-  - Automatically places executable wrapper scripts into Termux `$PREFIX/bin/kiki` and `$PREFIX/bin/fk` on initial run, making `kiki` immediately available globally across any directory without manual PATH configuration.
+  - Automatically places executable wrapper scripts into Termux `$PREFIX/bin/kiki` and `$PREFIX/bin/kiwi` on initial run, making `kiki` and `kiwi` immediately available globally across any directory without manual PATH configuration.
 
 ---
 

@@ -7,7 +7,7 @@ if [ -n "$PREFIX" ] && [ -d "$PREFIX/bin" ] && [ ! -f "$PREFIX/bin/kiki" ]; then
 exec node "$DIR/kiki.js" "\$@"
 EOF
   chmod +x "$PREFIX/bin/kiki"
-  cp "$PREFIX/bin/kiki" "$PREFIX/bin/fk" 2>/dev/null || true
+  cp "$PREFIX/bin/kiki" "$PREFIX/bin/kiwi" 2>/dev/null || true
 fi
 
 exec node "$DIR/kiki.js" "$@"

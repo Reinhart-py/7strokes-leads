@@ -32,14 +32,14 @@ function ensureGlobalTermuxLink() {
       const termuxBin = path.join(process.env.PREFIX, 'bin');
       if (fs.existsSync(termuxBin)) {
         const kikiGlobal = path.join(termuxBin, 'kiki');
-        const fkGlobal = path.join(termuxBin, 'fk');
+        const kiwiGlobal = path.join(termuxBin, 'kiwi');
         const scriptContent = `#!/usr/bin/env bash\nexec node "${path.join(__dirname, 'kiki.js')}" "$@"\n`;
 
         if (!fs.existsSync(kikiGlobal)) {
           fs.writeFileSync(kikiGlobal, scriptContent, { mode: 0o755 });
         }
-        if (!fs.existsSync(fkGlobal)) {
-          fs.writeFileSync(fkGlobal, scriptContent, { mode: 0o755 });
+        if (!fs.existsSync(kiwiGlobal)) {
+          fs.writeFileSync(kiwiGlobal, scriptContent, { mode: 0o755 });
         }
       }
     } catch (_) {}

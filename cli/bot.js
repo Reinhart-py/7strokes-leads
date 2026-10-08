@@ -18,6 +18,7 @@ const {
   stopBridgeService,
   startAllServices,
   stopAllServices,
+  restartAllServices,
   getServicesStatus
 } = require('./services');
 
@@ -246,6 +247,7 @@ Select a menu below:`;
       ],
       [
         { text: "Start All", callback_data: "action_start_all" },
+        { text: "Restart All", callback_data: "action_restart_all" },
         { text: "Stop All", callback_data: "action_stop_all" }
       ]
     ]
@@ -277,8 +279,9 @@ Tap any service below to toggle on or off:`;
         { text: status.bridge ? "Bridge: [ON]" : "Bridge: [OFF]", callback_data: "toggle_bridge" }
       ],
       [
-        { text: "Start All Services", callback_data: "action_start_all" },
-        { text: "Stop All Services", callback_data: "action_stop_all" }
+        { text: "Start All", callback_data: "action_start_all" },
+        { text: "Restart All", callback_data: "action_restart_all" },
+        { text: "Stop All", callback_data: "action_stop_all" }
       ],
       [
         { text: "<< Back to Main Menu", callback_data: "nav_main" },
@@ -622,15 +625,34 @@ async function exportAndSendJobCsv(bot, chatId, searchId) {
 async function exportAllLeadsToCsv(bot, chatId) {
   const db = getDbConnection();
   try {
-    await bot.sendMessage(chatId, 'Generating complete CSV export for all saved leads...');
-    const leads = await queryAll(
+    await bot.sendMessage(chatId, 'Generating unique CSV export for all saved leads...');
+    const rawLeads = await queryAll(
       db,
       'SELECT title, category, phone_1, phone_2, email, website, street, city, state, country, postal_code, address, rating, reviews FROM results ORDER BY id DESC'
     );
 
-    if (leads.length === 0) {
+    if (rawLeads.length === 0) {
       await bot.sendMessage(chatId, 'No leads found in database.');
       return;
+    }
+
+    const seenPhones = new Set();
+    const seenTitles = new Set();
+    const leads = [];
+
+    for (const row of rawLeads) {
+      const cleanPhone = (row.phone_1 || '').replace(/[^\d]/g, '');
+      const cleanTitle = (row.title || '').trim().toLowerCase();
+
+      if (cleanPhone && cleanPhone.length >= 6) {
+        if (seenPhones.has(cleanPhone)) continue;
+        seenPhones.add(cleanPhone);
+      } else if (cleanTitle) {
+        const titleKey = `${cleanTitle}::${(row.city || '').toLowerCase()}`;
+        if (seenTitles.has(titleKey)) continue;
+        seenTitles.add(titleKey);
+      }
+      leads.push(row);
     }
 
     const headers = [
@@ -759,6 +781,15 @@ async function handleCallbackQuery(bot, query, allowedChatIds) {
       stopAllServices();
       const panel = await renderServicesMenu();
       await bot.editMessageText(chatId, messageId, panel.text, { reply_markup: panel.replyMarkup });
+      return;
+    }
+
+    if (data === 'action_restart_all') {
+      await bot.answerCallbackQuery(query.id, 'Restarting all services...');
+      await bot.sendMessage(chatId, 'Restarting all services (backend, tunnel, frontend)...');
+      await restartAllServices();
+      const panel = await renderServicesMenu();
+      await bot.sendMessage(chatId, 'All services restarted successfully.\n\n' + panel.text, { reply_markup: panel.replyMarkup });
       return;
     }
 
@@ -1092,6 +1123,15 @@ async function handleCommand(bot, msg, allowedChatIds) {
         break;
       }
 
+      case '/restart':
+      case '/restart_all': {
+        await bot.sendMessage(chatId, 'Restarting all services (backend, tunnel, frontend)...');
+        await restartAllServices();
+        const panel = await renderServicesMenu();
+        await bot.sendMessage(chatId, 'All services restarted successfully.\n\n' + panel.text, { reply_markup: panel.replyMarkup });
+        break;
+      }
+
       case '/start_backend': {
         const res = await startBackendService();
         await bot.sendMessage(chatId, res.message);
@@ -1385,6 +1425,7 @@ Memory Usage     : ${memMb} MB
 MENUS & CONTROL:
 /menu or /start - Main control panel
 /services - Services sub-menu (start/stop)
+/restart - Restart all services (backend, tunnel, frontend)
 /database - Database sub-menu (stats, download, restore)
 /leads [page] - Browse all leads page by page
 /jobs [page] - Browse searches with one-tap CSV download buttons

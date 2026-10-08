@@ -5,11 +5,11 @@
   "main": "kiki.js",
   "bin": {
     "kiki": "./kiki.js",
-    "fk": "./kiki.js"
+    "kiwi": "./kiki.js"
   },
   "scripts": {
     "kiki": "node kiki.js",
-    "fk": "node kiki.js",
+    "kiwi": "node kiki.js",
     "start": "node kiki.js start",
     "bot": "node kiki.js bot",
     "db:view": "node kiki.js db view",

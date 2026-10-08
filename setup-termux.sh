@@ -12,13 +12,13 @@ exec node "$DIR/kiki.js" "\$@"
 EOF
   chmod +x "$PREFIX/bin/kiki"
 
-  cat << EOF > "$PREFIX/bin/fk"
+  cat << EOF > "$PREFIX/bin/kiwi"
 #!/usr/bin/env bash
 exec node "$DIR/kiki.js" "\$@"
 EOF
-  chmod +x "$PREFIX/bin/fk"
+  chmod +x "$PREFIX/bin/kiwi"
 
-  echo "[+] Registered 'kiki' and 'fk' globally in $PREFIX/bin"
+  echo "[+] Registered 'kiki' and 'kiwi' globally in $PREFIX/bin"
 fi
 
 mkdir -p "$HOME/.config/ngrok"
@@ -33,4 +33,4 @@ EOF
 echo "[+] Configured native Android DNS resolver for Ngrok in ~/.config/ngrok/ngrok.yml"
 
 npm link 2>/dev/null || true
-echo "[+] Setup complete! You can now run 'kiki' or 'kiki start' from any directory."
+echo "[+] Setup complete! You can now run 'kiki' or 'kiwi' from any directory."

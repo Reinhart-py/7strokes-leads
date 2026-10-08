@@ -1,2 +1,2 @@
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-node "$scriptDir\fk.js" @args
+node "$scriptDir\kiki.js" @args
