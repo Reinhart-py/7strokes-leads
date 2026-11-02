@@ -328,7 +328,7 @@ export default function Home() {
   const fetchJobDetails = async (jobId: string, authToken: string, showLoading = true) => {
     if (showLoading) setLoadingResults(true);
     try {
-      const res = await apiFetch(`/api/jobs/${jobId}/leads`, {
+      const res = await apiFetch(`/api/jobs/${jobId}/results?limit=1000`, {
         headers: { Authorization: `Bearer ${authToken}` }
       });
       if (res.ok) {
@@ -489,7 +489,7 @@ export default function Home() {
 
   const stopSearch = async (jobId: string) => {
     try {
-      await apiFetch(`/api/jobs/${jobId}/cancel`, {
+      await apiFetch(`/api/jobs/${jobId}/stop`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` }
       });
