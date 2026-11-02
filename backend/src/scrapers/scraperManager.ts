@@ -19,20 +19,30 @@ export class ScraperManager {
     if (options.bbox) {
       return GeoGrid.generateCells(options.bbox, options.cellSizeKm || 3.0);
     }
-    if (options.city) {
-      const detectedBbox = await GeoGrid.resolveCityBoundingBox(options.city);
-      if (detectedBbox) {
-        return GeoGrid.generateCells(detectedBbox, options.cellSizeKm || 3.0);
+
+    let cityCandidate = options.city || '';
+    if (!cityCandidate) {
+      const inMatch = options.query.match(/\b(?:in|at|near|around)\s+([a-zA-Z\s,]+)$/i);
+      if (inMatch && inMatch[1]) {
+        cityCandidate = inMatch[1].trim();
+      } else {
+        const words = options.query.trim().split(/\s+/);
+        if (words.length >= 2) {
+          const lastWord = words[words.length - 1];
+          if (GeoGrid.getBoundingBoxForCity(lastWord)) {
+            cityCandidate = lastWord;
+          }
+        }
       }
     }
-    const inMatch = options.query.match(/\bin\s+([a-zA-Z\s,]+)$/i);
-    if (inMatch && inMatch[1]) {
-      const cityCandidate = inMatch[1].trim();
+
+    if (cityCandidate) {
       const detectedBbox = await GeoGrid.resolveCityBoundingBox(cityCandidate);
       if (detectedBbox) {
-        return GeoGrid.generateCells(detectedBbox, options.cellSizeKm || 3.0);
+        return GeoGrid.generateCells(detectedBbox, options.cellSizeKm || 3.2);
       }
     }
+
     return [];
   }
 
@@ -55,7 +65,7 @@ export class ScraperManager {
         await saveLead(lead);
         allLeads.push(lead);
         const now = Date.now();
-        if (now - lastProgressTime > 1500 || allLeads.length % 25 === 0) {
+        if (now - lastProgressTime > 1000 || allLeads.length % 20 === 0) {
           lastProgressTime = now;
           await updateProgress(allLeads.length, allLeads.length);
         }
@@ -64,42 +74,49 @@ export class ScraperManager {
 
     if (engine === 'gmaps') {
       const subQueries = GeographicPartitioner.getSubQueries(query);
-      await log(`[Partition Engine] Expanded target into ${subQueries.length} district search partitions`);
+      await log(`[Partition Engine] Expanded target into ${subQueries.length} locality search partitions`);
 
-      for (let idx = 0; idx < subQueries.length; idx++) {
+      const concurrency = options.concurrency && options.concurrency > 0 ? options.concurrency : 4;
+
+      for (let idx = 0; idx < subQueries.length; idx += concurrency) {
         if (await checkCancelled()) break;
         if (cap > 0 && allLeads.length >= cap) break;
 
-        const subQ = subQueries[idx];
-        let subLeads: ScrapedLead[] = [];
+        const batch = subQueries.slice(idx, idx + concurrency);
+        await Promise.all(
+          batch.map(async (subQ) => {
+            if (await checkCancelled()) return;
+            if (cap > 0 && allLeads.length >= cap) return;
 
-        try {
-          subLeads = await this.gmapsHttp.search(
-            { ...options, query: subQ, maxPagesPerCell: 5, seenKeys: seenTitles },
-            {
-              checkCancelled,
-              log,
-              updateProgress: async () => {},
-              saveLead: handleSave
-            }
-          );
-        } catch (err: any) {
-          await log(`[HTTP Error] ${err.message}`);
-        }
+            try {
+              const subLeads = await this.gmapsHttp.search(
+                { ...options, query: subQ, maxPagesPerCell: 5, seenKeys: seenTitles },
+                {
+                  checkCancelled,
+                  log: async () => {},
+                  updateProgress: async () => {},
+                  saveLead: handleSave
+                }
+              );
 
-        if (subLeads.length === 0 && !(await checkCancelled()) && this.gmapsExternal.isAvailable()) {
-          try {
-            subLeads = await this.gmapsExternal.search(
-              { ...options, query: subQ, seenKeys: seenTitles },
-              {
-                checkCancelled,
-                log,
-                updateProgress: async () => {},
-                saveLead: handleSave
+              if (subLeads.length === 0 && !(await checkCancelled()) && this.gmapsExternal.isAvailable()) {
+                try {
+                  await this.gmapsExternal.search(
+                    { ...options, query: subQ, seenKeys: seenTitles },
+                    {
+                      checkCancelled,
+                      log: async () => {},
+                      updateProgress: async () => {},
+                      saveLead: handleSave
+                    }
+                  );
+                } catch {}
               }
-            );
-          } catch {}
-        }
+            } catch (err: any) {
+              await log(`[HTTP Error] ${subQ}: ${err.message}`);
+            }
+          })
+        );
       }
 
       if (allLeads.length === 0 && !(await checkCancelled())) {
@@ -121,13 +138,13 @@ export class ScraperManager {
       if ((cap === 0 || allLeads.length < cap) && !(await checkCancelled())) {
         const cells = await this.getGridCells(options);
         if (cells.length > 0) {
-          await log(`[Geo Grid] Sweeping ${cells.length} geographic coordinate cells`);
-          const concurrency = options.concurrency && options.concurrency > 0 ? options.concurrency : 6;
-          for (let i = 0; i < cells.length; i += concurrency) {
+          await log(`[Geo Grid] Sweeping ${cells.length} geographic coordinate cells in parallel`);
+          const gridConcurrency = Math.min(concurrency + 2, 8);
+          for (let i = 0; i < cells.length; i += gridConcurrency) {
             if (await checkCancelled()) break;
             if (cap > 0 && allLeads.length >= cap) break;
 
-            const batch = cells.slice(i, i + concurrency);
+            const batch = cells.slice(i, i + gridConcurrency);
             await Promise.all(
               batch.map(async (cell) => {
                 if (await checkCancelled()) return;
@@ -140,7 +157,7 @@ export class ScraperManager {
                       lat: cell.lat,
                       lon: cell.lon,
                       zoom: 14,
-                      maxPagesPerCell: 2,
+                      maxPagesPerCell: 3,
                       seenKeys: seenTitles
                     },
                     {

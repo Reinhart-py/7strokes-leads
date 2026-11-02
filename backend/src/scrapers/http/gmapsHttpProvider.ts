@@ -74,6 +74,19 @@ export class GmapsHttpProvider implements IScraperProvider {
     }
   }
 
+  private extractCityCandidate(query: string): string {
+    const inMatch = query.match(/\b(?:in|at|near|around)\s+([a-zA-Z\s,]+)$/i);
+    if (inMatch && inMatch[1]) return inMatch[1].trim();
+
+    const parts = query.split(/[\s,]+/);
+    for (const part of parts) {
+      if (GeoGrid.getBoundingBoxForCity(part)) {
+        return part;
+      }
+    }
+    return '';
+  }
+
   public async search(options: ScraperOptions, control: ScraperControl): Promise<ScrapedLead[]> {
     const {
       query,
@@ -88,20 +101,15 @@ export class GmapsHttpProvider implements IScraperProvider {
     let targetZoom = options.zoom || 14;
 
     if (targetLat === undefined || targetLon === undefined) {
-      const cityCandidate = options.city || (query.match(/\bin\s+([a-zA-Z\s,]+)$/i)?.[1] ?? '');
+      const cityCandidate = options.city || this.extractCityCandidate(query);
       if (cityCandidate) {
-        const box = await GeoGrid.resolveCityBoundingBox(cityCandidate.trim());
+        const box = await GeoGrid.resolveCityBoundingBox(cityCandidate);
         if (box) {
           targetLat = (box.minLat + box.maxLat) / 2;
           targetLon = (box.minLon + box.maxLon) / 2;
-          targetZoom = 12;
+          targetZoom = 13;
         }
       }
-    }
-
-    if (targetLat === undefined || targetLon === undefined) {
-      targetLat = 25.2048;
-      targetLon = 55.2708;
     }
 
     const dispatcher = this.getDispatcher(options.proxy);
@@ -114,9 +122,15 @@ export class GmapsHttpProvider implements IScraperProvider {
       if (cap > 0 && results.length >= cap) break;
 
       const start = page * pageSize;
-      const pb = this.buildProtobufParam(targetLat, targetLon, targetZoom, pageSize, start);
       const psi = Math.random().toString(36).substring(2, 9) + `.${Date.now()}.1`;
-      const url = `https://www.google.com/search?tbm=map&authuser=0&hl=en&gl=us&pb=${pb}&q=${encodeURIComponent(query)}&tch=1&ech=1&psi=${psi}`;
+      let url: string;
+
+      if (targetLat !== undefined && targetLon !== undefined) {
+        const pb = this.buildProtobufParam(targetLat, targetLon, targetZoom, pageSize, start);
+        url = `https://www.google.com/search?tbm=map&authuser=0&hl=en&gl=us&pb=${pb}&q=${encodeURIComponent(query)}&tch=1&ech=1&psi=${psi}`;
+      } else {
+        url = `https://www.google.com/search?tbm=map&authuser=0&hl=en&gl=us&q=${encodeURIComponent(query)}&tch=1&ech=1&psi=${psi}`;
+      }
 
       let rawText = '';
       try {
@@ -174,7 +188,7 @@ export class GmapsHttpProvider implements IScraperProvider {
         break;
       }
 
-      await new Promise(r => setTimeout(r, 150));
+      await new Promise(r => setTimeout(r, 120));
     }
 
     return results;

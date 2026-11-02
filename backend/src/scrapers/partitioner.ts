@@ -46,7 +46,38 @@ export class GeographicPartitioner {
       'City Walk',
       'Bluewaters Island',
       'Al Satwa',
-      'Ras Al Khor'
+      'Ras Al Khor',
+      'Jebel Ali',
+      'Meydan',
+      'Al Warqa',
+      'Production City'
+    ],
+    jaipur: [
+      'Mansarovar',
+      'Malviya Nagar',
+      'Vaishali Nagar',
+      'C-Scheme',
+      'Raja Park',
+      'Tonk Road',
+      'Sitapura',
+      'Jagatpura',
+      'Bani Park',
+      'Ajmer Road',
+      'Vidhyadhar Nagar',
+      'Sodala',
+      'Sanganer',
+      'MI Road',
+      'Gopalpura',
+      'Civil Lines',
+      'VKI Area',
+      'Jhotwara',
+      'Jawahar Nagar',
+      'Shastri Nagar',
+      'Hawa Mahal',
+      'Nirman Nagar',
+      'Shyam Nagar',
+      'Durgapura',
+      'Bapu Nagar'
     ],
     abu_dhabi: [
       'Al Reem Island',
@@ -128,6 +159,69 @@ export class GeographicPartitioner {
       'Al Qibla',
       'Al Mirqab'
     ],
+    delhi: [
+      'Connaught Place',
+      'Nehru Place',
+      'Karol Bagh',
+      'Lajpat Nagar',
+      'Saket',
+      'Dwarka',
+      'Rohini',
+      'South Extension',
+      'Hauz Khas',
+      'Janakpuri',
+      'Okhla',
+      'Pitampura',
+      'Vasant Kunj',
+      'Netaji Subhash Place'
+    ],
+    mumbai: [
+      'Bandra West',
+      'Andheri West',
+      'Nariman Point',
+      'Lower Parel',
+      'BKC Bandra Kurla Complex',
+      'Juhu',
+      'Powai',
+      'Dadar',
+      'Malad West',
+      'Borivali West',
+      'Goregaon West'
+    ],
+    bengaluru: [
+      'Koramangala',
+      'Indiranagar',
+      'Whitefield',
+      'HSR Layout',
+      'Electronic City',
+      'Jayanagar',
+      'Marathahalli',
+      'BTM Layout',
+      'Malleshwaram',
+      'Bellandur',
+      'Hebbal'
+    ],
+    hyderabad: [
+      'Hitec City',
+      'Gachibowli',
+      'Madhapur',
+      'Banjara Hills',
+      'Jubilee Hills',
+      'Kondapur',
+      'Kukatpally',
+      'Secunderabad',
+      'Begumpet'
+    ],
+    pune: [
+      'Hinjewadi',
+      'Kothrud',
+      'Viman Nagar',
+      'Baner',
+      'Wakad',
+      'Shivaji Nagar',
+      'Hadapsar',
+      'Kalyani Nagar'
+    ],
     london: [
       'City of London',
       'Westminster',
@@ -163,14 +257,6 @@ export class GeographicPartitioner {
       'Century City',
       'Culver City'
     ],
-    chicago: [
-      'The Loop',
-      'River North',
-      'West Loop',
-      'Lincoln Park',
-      'Streeterville',
-      'Fulton Market'
-    ],
     toronto: [
       'Downtown Toronto',
       'North York',
@@ -179,31 +265,6 @@ export class GeographicPartitioner {
       'Yorkville',
       'Financial District'
     ],
-    paris: [
-      '1st Arrondissement Louvre',
-      '8th Arrondissement Champs-Elysees',
-      '9th Arrondissement Opera',
-      'La Defense',
-      'Le Marais',
-      'Montmartre',
-      'Saint-Germain-des-Pres'
-    ],
-    berlin: [
-      'Mitte',
-      'Charlottenburg',
-      'Kreuzberg',
-      'Prenzlauer Berg',
-      'Friedrichshain',
-      'Schoneberg'
-    ],
-    sydney: [
-      'Sydney CBD',
-      'Surry Hills',
-      'North Sydney',
-      'Parramatta',
-      'Bondi',
-      'Chatswood'
-    ],
     singapore: [
       'Downtown Core',
       'Marina Bay',
@@ -211,45 +272,70 @@ export class GeographicPartitioner {
       'Tanjong Pagar',
       'Raffles Place',
       'Jurong East'
-    ],
-    mumbai: [
-      'Bandra West',
-      'Andheri West',
-      'Nariman Point',
-      'Lower Parel',
-      'BKC Bandra Kurla Complex',
-      'Juhu',
-      'Powai'
     ]
   };
 
   public static getSubQueries(targetQuery: string): string[] {
-    const lower = targetQuery.toLowerCase();
+    const lower = targetQuery.toLowerCase().trim();
+
+    // 1. Direct match with preset partitions
     for (const [cityKey, subAreas] of Object.entries(this.PRESET_PARTITIONS)) {
-      const cityName = cityKey.replace('_', ' ');
-      if (lower.includes(cityName)) {
-        const baseQuery = targetQuery.replace(new RegExp(cityName, 'gi'), '').replace(/\bin\b/gi, '').trim();
-        return [targetQuery, ...subAreas.map(area => `${baseQuery} in ${area}, ${cityName}`.trim())];
+      const cityName = cityKey.replace(/_/g, ' ');
+      const regex = new RegExp(`\\b${cityName}\\b`, 'i');
+      if (regex.test(lower)) {
+        const baseQuery = targetQuery
+          .replace(new RegExp(`\\bin\\s+${cityName}\\b`, 'gi'), '')
+          .replace(new RegExp(`\\bat\\s+${cityName}\\b`, 'gi'), '')
+          .replace(new RegExp(`\\bnear\\s+${cityName}\\b`, 'gi'), '')
+          .replace(new RegExp(`\\b${cityName}\\b`, 'gi'), '')
+          .replace(/\s+/g, ' ')
+          .trim();
+
+        const cleanBase = baseQuery || targetQuery;
+        return [
+          targetQuery,
+          ...subAreas.map(area => `${cleanBase} in ${area}, ${cityName}`.trim())
+        ];
       }
     }
 
-    const inMatch = targetQuery.match(/\bin\s+([a-zA-Z\s,]+)$/i);
-    if (inMatch && inMatch[1]) {
-      const city = inMatch[1].trim();
-      const base = targetQuery.replace(/\bin\s+([a-zA-Z\s,]+)$/i, '').trim();
+    // 2. Preposition pattern match: "in [City]", "at [City]", "near [City]"
+    const prepMatch = targetQuery.match(/\b(?:in|at|near|around)\s+([a-zA-Z\s,]+)$/i);
+    if (prepMatch && prepMatch[1]) {
+      const city = prepMatch[1].trim();
+      const base = targetQuery.replace(/\b(?:in|at|near|around)\s+([a-zA-Z\s,]+)$/i, '').trim();
       return [
-        `${base} in Downtown ${city}`,
-        `${base} in Business District ${city}`,
-        `${base} in Financial District ${city}`,
+        targetQuery,
         `${base} in Central ${city}`,
         `${base} in North ${city}`,
         `${base} in South ${city}`,
         `${base} in East ${city}`,
         `${base} in West ${city}`,
-        `${base} in Industrial Area ${city}`,
+        `${base} in Downtown ${city}`,
+        `${base} in Business District ${city}`,
         `${base} in Commercial Center ${city}`,
-        targetQuery
+        `${base} in Industrial Area ${city}`,
+        `${base} in Main Market ${city}`
       ];
+    }
+
+    // 3. Trailing word pattern: "[Service] [City]" e.g. "clinics Jaipur"
+    const words = targetQuery.trim().split(/\s+/);
+    if (words.length >= 2) {
+      const potentialCity = words[words.length - 1];
+      const base = words.slice(0, -1).join(' ');
+      if (potentialCity.length >= 3 && !/^(services|center|company|agency|store|shop)$/i.test(potentialCity)) {
+        return [
+          targetQuery,
+          `${base} in Central ${potentialCity}`,
+          `${base} in North ${potentialCity}`,
+          `${base} in South ${potentialCity}`,
+          `${base} in East ${potentialCity}`,
+          `${base} in West ${potentialCity}`,
+          `${base} in Downtown ${potentialCity}`,
+          `${base} in Industrial Area ${potentialCity}`
+        ];
+      }
     }
 
     return [targetQuery];
@@ -276,8 +362,8 @@ export class GeographicPartitioner {
   public static async executeWithControlledConcurrency<T, R>(
     items: T[],
     taskFn: (item: T) => Promise<R>,
-    concurrency = 3,
-    delayBetweenBatchesMs = 1000
+    concurrency = 4,
+    delayBetweenBatchesMs = 150
   ): Promise<R[]> {
     const results: R[] = [];
     const queue = [...items];
@@ -287,18 +373,18 @@ export class GeographicPartitioner {
       const batchResults = await Promise.all(
         batch.map(async (item) => {
           let attempts = 0;
-          let delay = 1000;
-          while (attempts < 3) {
+          let delay = 500;
+          while (attempts < 2) {
             try {
               return await taskFn(item);
             } catch (err) {
               attempts++;
-              if (attempts >= 3) throw err;
+              if (attempts >= 2) throw err;
               await new Promise(res => setTimeout(res, delay));
               delay *= 2;
             }
           }
-          throw new Error('Task failed after max retries');
+          throw new Error('Task failed');
         })
       );
 

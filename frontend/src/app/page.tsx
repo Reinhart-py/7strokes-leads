@@ -1174,8 +1174,8 @@ export default function Home() {
   if (!token || !user) {
     return (
       <div className={`relative flex min-h-screen w-full items-center justify-center p-4 transition-colors duration-300 ${isDark ? "bg-[#09090C] text-white" : "bg-[#F9FAFB] text-black"}`}>
-        <div className="absolute top-1/4 -left-20 w-80 h-80 rounded-full bg-green-500/10 blur-[100px] pointer-events-none"></div>
-        <div className="absolute bottom-1/4 -right-20 w-80 h-80 rounded-full bg-green-500/10 blur-[100px] pointer-events-none"></div>
+        <div className="absolute top-1/4 -left-20 w-80 h-80 rounded-full bg-[#0072f0]/10 blur-[100px] pointer-events-none"></div>
+        <div className="absolute bottom-1/4 -right-20 w-80 h-80 rounded-full bg-[#0072f0]/10 blur-[100px] pointer-events-none"></div>
 
         <div className={`w-full max-w-[400px] rounded-3xl p-8 transition-all duration-300 ${isDark ? "glass-surface-dark text-white" : "glass-surface-light text-black shadow-lg"}`}>
           <div className="flex justify-between items-center mb-6">
@@ -1228,7 +1228,7 @@ export default function Home() {
             </div>
           )}
           {authSuccess && (
-            <div className="mb-4 p-3 rounded-xl text-xs font-semibold border border-green-500/20 bg-green-500/10 text-green-500">
+            <div className="mb-4 p-3 rounded-xl text-xs font-semibold border border-[#0072f0]/20 bg-[#0072f0]/10 text-[#0072f0]">
               {authSuccess}
             </div>
           )}
@@ -1248,7 +1248,7 @@ export default function Home() {
               <div className="pt-2 space-y-2.5">
                 <Link
                   href="/contact"
-                  className="w-full py-2.5 rounded-xl text-xs font-bold text-white bg-green-600 hover:bg-green-700 btn-spring shadow-lg shadow-green-600/25 flex items-center justify-center gap-2"
+                  className="w-full py-2.5 rounded-xl text-xs font-bold text-white bg-[#0072f0] hover:bg-[#005bb5] btn-spring shadow-lg shadow-[#0072f0]/25 flex items-center justify-center gap-2"
                 >
                   <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
                   <span>Contact Admin / Support</span>
@@ -1274,7 +1274,7 @@ export default function Home() {
                       placeholder="Your name"
                       value={name}
                       onChange={e => setName(e.target.value)}
-                      className={`w-full px-4 py-2.5 rounded-xl text-xs outline-none transition-all duration-200 ${isDark ? "glass-input-dark text-white focus:border-green-500" : "glass-input-light text-black focus:border-black"}`}
+                      className={`w-full px-4 py-2.5 rounded-xl text-xs outline-none transition-all duration-200 ${isDark ? "glass-input-dark text-white focus:border-[#0072f0]" : "glass-input-light text-black focus:border-black"}`}
                       required
                     />
                   </div>
@@ -1282,7 +1282,7 @@ export default function Home() {
                     <div className="flex items-center justify-between mb-1">
                       <label className="text-xs font-semibold">Username <span className="text-red-500">*</span></label>
                       {regUsername.trim().length >= 3 && regUsernameStatus.checked && (
-                        <span className={`text-[10px] font-bold ${regUsernameStatus.valid ? "text-green-500" : "text-red-500"}`}>
+                        <span className={`text-[10px] font-bold ${regUsernameStatus.valid ? "text-[#0072f0]" : "text-red-500"}`}>
                           {regUsernameStatus.valid ? "✓ Available" : "✗ Taken"}
                         </span>
                       )}
@@ -1298,7 +1298,7 @@ export default function Home() {
                           setRegUsername(val);
                           verifyUsernameAvailability(val, "reg");
                         }}
-                        className={`w-full pl-8 pr-4 py-2.5 rounded-xl text-xs outline-none transition-all duration-200 font-mono ${isDark ? "glass-input-dark text-white focus:border-green-500" : "glass-input-light text-black focus:border-black"}`}
+                        className={`w-full pl-8 pr-4 py-2.5 rounded-xl text-xs outline-none transition-all duration-200 font-mono ${isDark ? "glass-input-dark text-white focus:border-[#0072f0]" : "glass-input-light text-black focus:border-black"}`}
                         required
                       />
                     </div>
@@ -1317,7 +1317,7 @@ export default function Home() {
                   placeholder={authMode === "login" ? "e.g. admin or user@company.com" : "alex@company.com"}
                   value={email}
                   onChange={e => setEmail(e.target.value)}
-                  className={`w-full px-4 py-2.5 rounded-xl text-xs outline-none transition-all duration-200 ${isDark ? "glass-input-dark text-white focus:border-green-500" : "glass-input-light text-black focus:border-black"}`}
+                  className={`w-full px-4 py-2.5 rounded-xl text-xs outline-none transition-all duration-200 ${isDark ? "glass-input-dark text-white focus:border-[#0072f0]" : "glass-input-light text-black focus:border-black"}`}
                   required
                 />
                 {authMode === "register" && (
@@ -1342,7 +1342,7 @@ export default function Home() {
                   placeholder="••••••••"
                   value={password}
                   onChange={e => setPassword(e.target.value)}
-                  className={`w-full px-4 py-2.5 rounded-xl text-xs outline-none transition-all duration-200 ${isDark ? "glass-input-dark text-white focus:border-green-500" : "glass-input-light text-black focus:border-black"}`}
+                  className={`w-full px-4 py-2.5 rounded-xl text-xs outline-none transition-all duration-200 ${isDark ? "glass-input-dark text-white focus:border-[#0072f0]" : "glass-input-light text-black focus:border-black"}`}
                   required
                 />
               </div>
@@ -1350,7 +1350,7 @@ export default function Home() {
               <div className="pt-1">
                 <button
                   type="submit"
-                  className={`w-full py-2.5 rounded-xl text-xs font-bold text-white btn-spring ${isDark ? "bg-green-600 hover:bg-green-700 shadow-lg shadow-green-600/25" : "bg-black hover:bg-zinc-800 shadow-md shadow-black/10"}`}
+                  className={`w-full py-2.5 rounded-xl text-xs font-bold text-white btn-spring ${isDark ? "bg-[#0072f0] hover:bg-[#005bb5] shadow-lg shadow-[#0072f0]/25" : "bg-black hover:bg-zinc-800 shadow-md shadow-black/10"}`}
                 >
                   {authMode === "login" ? "Sign In" : "Create Account"}
                 </button>
@@ -1361,9 +1361,9 @@ export default function Home() {
           <div className="mt-5 pt-4 border-t border-zinc-500/15 text-center">
             <Link
               href="/contact"
-              className="text-xs font-medium text-zinc-500 hover:text-green-500 transition-colors inline-flex items-center gap-1.5"
+              className="text-xs font-medium text-zinc-500 hover:text-[#0072f0] transition-colors inline-flex items-center gap-1.5"
             >
-              <svg className="w-3.5 h-3.5 text-green-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+              <svg className="w-3.5 h-3.5 text-[#0072f0]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
               <span>Need Help? Contact Admin & Support</span>
             </Link>
           </div>
@@ -1374,8 +1374,8 @@ export default function Home() {
 
   return (
     <div className={`relative flex h-[100dvh] w-screen max-w-full overflow-hidden transition-colors duration-300 ${isDark ? "bg-[#09090C] text-white" : "bg-[#F9FAFB] text-black"}`}>
-      <div className="absolute top-10 -left-20 w-96 h-96 rounded-full bg-green-500/5 blur-[120px] pointer-events-none"></div>
-      <div className="absolute bottom-10 -right-20 w-96 h-96 rounded-full bg-green-500/5 blur-[120px] pointer-events-none"></div>
+      <div className="absolute top-10 -left-20 w-96 h-96 rounded-full bg-[#0072f0]/5 blur-[120px] pointer-events-none"></div>
+      <div className="absolute bottom-10 -right-20 w-96 h-96 rounded-full bg-[#0072f0]/5 blur-[120px] pointer-events-none"></div>
 
       {sidebarOpen && (
         <div
@@ -1424,7 +1424,7 @@ export default function Home() {
                   fetchAdminGlobalLeads();
                   setSidebarOpen(false);
                 }}
-                className={`flex-1 py-1.5 rounded-lg transition-all duration-200 ${viewMode === "admin" ? "bg-green-600 text-white font-bold shadow-sm" : "text-zinc-500"}`}
+                className={`flex-1 py-1.5 rounded-lg transition-all duration-200 ${viewMode === "admin" ? "bg-[#0072f0] text-white font-bold shadow-sm" : "text-zinc-500"}`}
               >
                 {user.role === "admin" ? "Admin" : "Company"}
               </button>
@@ -1437,7 +1437,7 @@ export default function Home() {
                 onClick={() => { setActiveTab("search"); setSelectedJobId(null); setSidebarOpen(false); }}
                 className={`w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-left transition-all duration-200 ${activeTab === "search" ? (isDark ? "bg-white/10 text-white font-bold shadow-sm" : "bg-black/[0.06] text-black font-bold shadow-sm") : "text-zinc-500 hover:text-black dark:hover:text-white"}`}
               >
-                <IconSearch className="w-4 h-4 shrink-0 text-green-500" />
+                <IconSearch className="w-4 h-4 shrink-0 text-[#0072f0]" />
                 <span>Find Leads</span>
               </button>
               <button
@@ -1499,7 +1499,7 @@ export default function Home() {
                   <span>{user.role === "admin" ? "Users & Managers" : "Team Members"}</span>
                 </div>
                 {adminUsers.length > 0 && (
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-green-600 text-white shadow-sm">
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#0072f0] text-white shadow-sm">
                     {adminUsers.length}
                   </span>
                 )}
@@ -1509,11 +1509,11 @@ export default function Home() {
                 className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold text-left transition-all duration-200 ${adminTab === "leads" ? (isDark ? "bg-white/10 text-white font-bold shadow-sm" : "bg-black/[0.06] text-black font-bold shadow-sm") : "text-zinc-500 hover:text-black dark:hover:text-white"}`}
               >
                 <div className="flex items-center gap-2.5">
-                  <IconLeads className="w-4 h-4 shrink-0 text-green-500" />
+                  <IconLeads className="w-4 h-4 shrink-0 text-[#0072f0]" />
                   <span>{user.role === "admin" ? "All Users Leads" : "Team Leads"}</span>
                 </div>
                 {adminGlobalTotal > 0 && (
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-green-600 text-white shadow-sm">
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#0072f0] text-white shadow-sm">
                     {adminGlobalTotal}
                   </span>
                 )}
@@ -1534,9 +1534,9 @@ export default function Home() {
             <Link
               href="/contact"
               onClick={() => setSidebarOpen(false)}
-              className="w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-left transition-all duration-200 text-green-600 dark:text-green-400 hover:bg-green-500/10 btn-spring"
+              className="w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-left transition-all duration-200 text-[#0072f0] dark:text-[#38bdf8] hover:bg-[#0072f0]/10 btn-spring"
             >
-              <IconHelp className="w-4 h-4 text-green-500 shrink-0" />
+              <IconHelp className="w-4 h-4 text-[#0072f0] shrink-0" />
               <span>Help &amp; Support</span>
             </Link>
           </div>
@@ -1568,7 +1568,7 @@ export default function Home() {
               title="Edit Profile & Security"
             >
               <div className="flex items-center gap-2.5 min-w-0">
-                <div className="w-8 h-8 rounded-full bg-green-500/20 text-green-500 border border-green-500/30 flex items-center justify-center font-bold text-xs shrink-0">
+                <div className="w-8 h-8 rounded-full bg-[#0072f0]/20 text-[#0072f0] border border-[#0072f0]/30 flex items-center justify-center font-bold text-xs shrink-0">
                   {(user.username || user.name || user.email || "U")[0].toUpperCase()}
                 </div>
                 <div className="truncate">
@@ -1640,7 +1640,7 @@ export default function Home() {
               className={`flex items-center gap-1.5 p-2 sm:px-3 sm:py-1.5 rounded-xl text-xs font-semibold btn-spring ${isDark ? "glass-icon-dark text-white hover:border-white/30" : "glass-icon-light text-black hover:border-black/30"}`}
               title="Help & Support"
             >
-              <IconHelp className="w-4 h-4 text-green-500 shrink-0" />
+              <IconHelp className="w-4 h-4 text-[#0072f0] shrink-0" />
               <span className="hidden sm:inline">Support</span>
             </Link>
             <button
@@ -1687,7 +1687,7 @@ export default function Home() {
                   <button
                     type="button"
                     onClick={() => setSearchMode("bulk")}
-                    className={`flex-1 py-2 rounded-xl transition-all duration-200 ${searchMode === "bulk" ? "bg-green-600 text-white font-bold shadow-sm" : "text-zinc-500"}`}
+                    className={`flex-1 py-2 rounded-xl transition-all duration-200 ${searchMode === "bulk" ? "bg-[#0072f0] text-white font-bold shadow-sm" : "text-zinc-500"}`}
                   >
                     File / Bulk Search
                   </button>
@@ -1703,7 +1703,7 @@ export default function Home() {
                         className={`py-2 px-3 rounded-xl text-xs font-bold transition-all duration-200 btn-spring flex items-center justify-center gap-2 ${searchEngine === "gmaps" ? (isDark ? "bg-white/10 text-white shadow-sm border border-white/15" : "bg-white text-black shadow-sm border border-zinc-200") : "text-zinc-500 hover:text-black dark:hover:text-white"}`}
                       >
                         <span>Google Maps</span>
-                        <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-green-600/20 text-green-500 font-semibold">Global</span>
+                        <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[#0072f0]/20 text-[#0072f0] font-semibold">Global</span>
                       </button>
                       <button
                         type="button"
@@ -1711,7 +1711,7 @@ export default function Home() {
                         className={`py-2 px-3 rounded-xl text-xs font-bold transition-all duration-200 btn-spring flex items-center justify-center gap-2 ${searchEngine === "2gis" ? (isDark ? "bg-white/10 text-white shadow-sm border border-white/15" : "bg-white text-black shadow-sm border border-zinc-200") : "text-zinc-500 hover:text-black dark:hover:text-white"}`}
                       >
                         <span>2GIS Directory</span>
-                        <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-green-600/20 text-green-500 font-semibold">UAE / GCC</span>
+                        <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[#0072f0]/20 text-[#0072f0] font-semibold">UAE / GCC</span>
                       </button>
                     </div>
                   </div>
@@ -1725,7 +1725,7 @@ export default function Home() {
                         <button
                           type="button"
                           onClick={() => setShowCategoryDropdown(!showCategoryDropdown)}
-                          className="text-[11px] text-green-600 hover:underline font-semibold flex items-center gap-1"
+                          className="text-[11px] text-[#0072f0] hover:underline font-semibold flex items-center gap-1"
                         >
                           <span>{showCategoryDropdown ? "Close List" : "Browse Categories"}</span>
                           <span className="text-[9px]">{showCategoryDropdown ? "▲" : "▼"}</span>
@@ -1742,7 +1742,7 @@ export default function Home() {
                           }}
                           onFocus={() => setShowCategoryDropdown(true)}
                           placeholder="Type or pick e.g. Real Estate, Dental Clinics, Restaurants"
-                          className={`w-full pl-4 pr-10 py-3 rounded-2xl text-xs outline-none transition-all duration-200 ${isDark ? "glass-input-dark text-white focus:border-green-500" : "glass-input-light text-black focus:border-black"}`}
+                          className={`w-full pl-4 pr-10 py-3 rounded-2xl text-xs outline-none transition-all duration-200 ${isDark ? "glass-input-dark text-white focus:border-[#0072f0]" : "glass-input-light text-black focus:border-black"}`}
                           required
                         />
                         <button
@@ -1770,7 +1770,7 @@ export default function Home() {
                                     setKeyword(cat);
                                     setShowCategoryDropdown(false);
                                   }}
-                                  className={`w-full text-left px-3 py-2 rounded-xl text-xs transition flex items-center justify-between ${keyword.toLowerCase() === cat.toLowerCase() ? "bg-green-600 text-white font-bold" : (isDark ? "hover:bg-white/[0.08]" : "hover:bg-black/[0.05]")}`}
+                                  className={`w-full text-left px-3 py-2 rounded-xl text-xs transition flex items-center justify-between ${keyword.toLowerCase() === cat.toLowerCase() ? "bg-[#0072f0] text-white font-bold" : (isDark ? "hover:bg-white/[0.08]" : "hover:bg-black/[0.05]")}`}
                                 >
                                   <span>{cat}</span>
                                   {keyword.toLowerCase() === cat.toLowerCase() && <span className="text-[10px]">✓</span>}
@@ -1786,11 +1786,11 @@ export default function Home() {
                     </div>
 
                     {searchEngine === "2gis" ? (
-                      <div className="space-y-3 p-4 rounded-2xl border border-green-500/25 bg-green-500/[0.04]">
+                      <div className="space-y-3 p-4 rounded-2xl border border-[#0072f0]/25 bg-[#0072f0]/[0.04]">
                         <div className="flex items-center justify-between">
-                          <label className="text-xs font-bold text-green-500 flex items-center gap-1.5">
+                          <label className="text-xs font-bold text-[#0072f0] flex items-center gap-1.5">
                             <span>2GIS Supported Location</span>
-                            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-green-500/15 border border-green-500/20 font-medium">Strict Region Mode</span>
+                            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[#0072f0]/15 border border-[#0072f0]/20 font-medium">Strict Region Mode</span>
                           </label>
                           <span className="text-[10px] text-zinc-500">Only official 2GIS regions supported</span>
                         </div>
@@ -1807,7 +1807,7 @@ export default function Home() {
                                   setTwoGisCity(found.cities[0].name);
                                 }
                               }}
-                              className={`w-full px-3 py-2.5 rounded-xl text-xs outline-none transition-all duration-200 cursor-pointer ${isDark ? "glass-input-dark text-white focus:border-green-500" : "glass-input-light text-black focus:border-black"}`}
+                              className={`w-full px-3 py-2.5 rounded-xl text-xs outline-none transition-all duration-200 cursor-pointer ${isDark ? "glass-input-dark text-white focus:border-[#0072f0]" : "glass-input-light text-black focus:border-black"}`}
                             >
                               {TWOGIS_SUPPORTED_REGIONS.map(reg => (
                                 <option key={reg.country} value={reg.country} className={isDark ? "bg-[#18181D] text-white" : "bg-white text-black"}>
@@ -1822,7 +1822,7 @@ export default function Home() {
                             <select
                               value={twoGisCity}
                               onChange={e => setTwoGisCity(e.target.value)}
-                              className={`w-full px-3 py-2.5 rounded-xl text-xs outline-none transition-all duration-200 cursor-pointer ${isDark ? "glass-input-dark text-white focus:border-green-500" : "glass-input-light text-black focus:border-black"}`}
+                              className={`w-full px-3 py-2.5 rounded-xl text-xs outline-none transition-all duration-200 cursor-pointer ${isDark ? "glass-input-dark text-white focus:border-[#0072f0]" : "glass-input-light text-black focus:border-black"}`}
                             >
                               {(TWOGIS_SUPPORTED_REGIONS.find(r => r.country === twoGisCountry)?.cities || []).map(c => (
                                 <option key={c.name} value={c.name} className={isDark ? "bg-[#18181D] text-white" : "bg-white text-black"}>
@@ -1842,7 +1842,7 @@ export default function Home() {
                                   key={c.name}
                                   type="button"
                                   onClick={() => setTwoGisCity(c.name)}
-                                  className={`px-2.5 py-1 rounded-xl text-[11px] font-semibold transition btn-spring ${twoGisCity === c.name ? "bg-green-600 text-white font-bold shadow-sm shadow-green-600/30" : (isDark ? "glass-icon-dark text-zinc-400 hover:text-white" : "glass-icon-light text-zinc-600 hover:text-black")}`}
+                                  className={`px-2.5 py-1 rounded-xl text-[11px] font-semibold transition btn-spring ${twoGisCity === c.name ? "bg-[#0072f0] text-white font-bold shadow-sm shadow-[#0072f0]/25" : (isDark ? "glass-icon-dark text-zinc-400 hover:text-white" : "glass-icon-light text-zinc-600 hover:text-black")}`}
                                 >
                                   {c.name}
                                 </button>
@@ -1859,16 +1859,16 @@ export default function Home() {
                           value={location}
                           onChange={e => setLocation(e.target.value)}
                           placeholder="e.g. Dubai, Abu Dhabi, Riyadh, London, New York"
-                          className={`w-full px-4 py-3 rounded-2xl text-xs outline-none transition-all duration-200 ${isDark ? "glass-input-dark text-white focus:border-green-500" : "glass-input-light text-black focus:border-black"}`}
+                          className={`w-full px-4 py-3 rounded-2xl text-xs outline-none transition-all duration-200 ${isDark ? "glass-input-dark text-white focus:border-[#0072f0]" : "glass-input-light text-black focus:border-black"}`}
                         />
                         <div className="flex flex-wrap items-center gap-1.5 mt-2">
                           <span className="text-[11px] text-zinc-500">Popular:</span>
-                          {["Dubai", "Abu Dhabi", "Sharjah", "Riyadh", "Doha", "London", "New York"].map(loc => (
+                          {["Dubai", "Jaipur", "Abu Dhabi", "Mumbai", "Delhi", "Bengaluru", "Riyadh", "London", "New York"].map(loc => (
                             <button
                               key={loc}
                               type="button"
                               onClick={() => setLocation(loc)}
-                              className={`px-2.5 py-1 rounded-xl text-[11px] font-semibold transition btn-spring ${location.toLowerCase() === loc.toLowerCase() ? "bg-green-600 text-white font-bold" : (isDark ? "glass-icon-dark text-zinc-400 hover:text-white" : "glass-icon-light text-zinc-600 hover:text-black")}`}
+                              className={`px-2.5 py-1 rounded-xl text-[11px] font-semibold transition btn-spring ${location.toLowerCase() === loc.toLowerCase() ? "bg-[#0072f0] text-white font-bold" : (isDark ? "glass-icon-dark text-zinc-400 hover:text-white" : "glass-icon-light text-zinc-600 hover:text-black")}`}
                             >
                               {loc}
                             </button>
@@ -1885,7 +1885,7 @@ export default function Home() {
                             key={amt}
                             type="button"
                             onClick={() => { setLeadCount(amt); setCustomLeadCount(""); }}
-                            className={`flex-1 py-2.5 rounded-xl text-xs font-bold btn-spring ${leadCount === amt && !customLeadCount ? (isDark ? "bg-green-600 text-white shadow-md shadow-green-600/30" : "bg-black text-white shadow-md shadow-black/15") : (isDark ? "glass-icon-dark text-zinc-400 hover:text-white" : "glass-icon-light text-zinc-600 hover:text-black")}`}
+                            className={`flex-1 py-2.5 rounded-xl text-xs font-bold btn-spring ${leadCount === amt && !customLeadCount ? (isDark ? "bg-[#0072f0] text-white shadow-md shadow-[#0072f0]/25" : "bg-black text-white shadow-md shadow-black/15") : (isDark ? "glass-icon-dark text-zinc-400 hover:text-white" : "glass-icon-light text-zinc-600 hover:text-black")}`}
                           >
                             {amt}
                           </button>
@@ -1893,7 +1893,7 @@ export default function Home() {
                         <button
                           type="button"
                           onClick={() => { setLeadCount(0); setCustomLeadCount(""); }}
-                          className={`flex-1 py-2.5 rounded-xl text-xs font-bold btn-spring ${leadCount === 0 && !customLeadCount ? (isDark ? "bg-green-600 text-white shadow-md shadow-green-600/30" : "bg-black text-white shadow-md shadow-black/15") : (isDark ? "glass-icon-dark text-zinc-400 hover:text-white" : "glass-icon-light text-zinc-600 hover:text-black")}`}
+                          className={`flex-1 py-2.5 rounded-xl text-xs font-bold btn-spring ${leadCount === 0 && !customLeadCount ? (isDark ? "bg-[#0072f0] text-white shadow-md shadow-[#0072f0]/25" : "bg-black text-white shadow-md shadow-black/15") : (isDark ? "glass-icon-dark text-zinc-400 hover:text-white" : "glass-icon-light text-zinc-600 hover:text-black")}`}
                         >
                           All
                         </button>
@@ -1904,7 +1904,7 @@ export default function Home() {
                       <button
                         type="submit"
                         disabled={isStarting || !keyword.trim()}
-                        className={`w-full py-3.5 rounded-2xl text-xs font-bold text-white btn-spring ${isDark ? "bg-green-600 hover:bg-green-700 disabled:opacity-50 shadow-lg shadow-green-600/30" : "bg-black hover:bg-zinc-800 disabled:opacity-50 shadow-lg shadow-black/15"}`}
+                        className={`w-full py-3.5 rounded-2xl text-xs font-bold text-white btn-spring ${isDark ? "bg-[#0072f0] hover:bg-[#005bb5] disabled:opacity-50 shadow-lg shadow-[#0072f0]/25" : "bg-black hover:bg-zinc-800 disabled:opacity-50 shadow-lg shadow-black/15"}`}
                       >
                         {isStarting ? "Starting..." : (leadCount === 0 ? "Find All Leads" : `Find ${leadCount} Leads`)}
                       </button>
@@ -1914,7 +1914,7 @@ export default function Home() {
                   <form onSubmit={startBulkSearch} className="space-y-5">
                     <div>
                       <label className="text-xs font-semibold block mb-1.5">Upload Queries File (.txt or .csv)</label>
-                      <div className={`border-2 border-dashed rounded-2xl p-4 text-center cursor-pointer transition ${isDark ? "border-zinc-700 hover:border-green-500 bg-white/[0.02]" : "border-zinc-300 hover:border-black bg-black/[0.01]"}`}>
+                      <div className={`border-2 border-dashed rounded-2xl p-4 text-center cursor-pointer transition ${isDark ? "border-zinc-700 hover:border-[#0072f0] bg-white/[0.02]" : "border-zinc-300 hover:border-black bg-black/[0.01]"}`}>
                         <input
                           type="file"
                           accept=".txt,.csv"
@@ -1923,7 +1923,7 @@ export default function Home() {
                           id="bulk-file-input"
                         />
                         <label htmlFor="bulk-file-input" className="cursor-pointer block">
-                          <div className="text-xs font-bold text-green-600">
+                          <div className="text-xs font-bold text-[#0072f0]">
                             {bulkFileName ? `Selected File: ${bulkFileName}` : "Click to select a .txt or .csv file"}
                           </div>
                           <div className="text-[11px] text-zinc-500 mt-1">One search query per line</div>
@@ -1935,7 +1935,7 @@ export default function Home() {
                       <div className="flex items-center justify-between mb-1.5">
                         <label className="text-xs font-semibold">Search Queries List</label>
                         {bulkQueriesText.trim().length > 0 && (
-                          <span className="text-[11px] text-green-600 font-bold">
+                          <span className="text-[11px] text-[#0072f0] font-bold">
                             {bulkQueriesText.split(/\r?\n/).filter(q => q.trim().length > 0).length} searches ready
                           </span>
                         )}
@@ -1945,7 +1945,7 @@ export default function Home() {
                         value={bulkQueriesText}
                         onChange={e => setBulkQueriesText(e.target.value)}
                         placeholder={"dentists in dubai\ncoffee shops in abu dhabi\nreal estate in sharjah"}
-                        className={`w-full px-4 py-3 rounded-2xl text-xs outline-none transition-all duration-200 font-mono ${isDark ? "glass-input-dark text-white focus:border-green-500" : "glass-input-light text-black focus:border-black"}`}
+                        className={`w-full px-4 py-3 rounded-2xl text-xs outline-none transition-all duration-200 font-mono ${isDark ? "glass-input-dark text-white focus:border-[#0072f0]" : "glass-input-light text-black focus:border-black"}`}
                         required
                       />
                     </div>
@@ -1958,7 +1958,7 @@ export default function Home() {
                             key={amt}
                             type="button"
                             onClick={() => { setLeadCount(amt); setCustomLeadCount(""); }}
-                            className={`flex-1 py-2.5 rounded-xl text-xs font-bold btn-spring ${leadCount === amt && !customLeadCount ? (isDark ? "bg-green-600 text-white shadow-md shadow-green-600/30" : "bg-black text-white shadow-md shadow-black/15") : (isDark ? "glass-icon-dark text-zinc-400 hover:text-white" : "glass-icon-light text-zinc-600 hover:text-black")}`}
+                            className={`flex-1 py-2.5 rounded-xl text-xs font-bold btn-spring ${leadCount === amt && !customLeadCount ? (isDark ? "bg-[#0072f0] text-white shadow-md shadow-[#0072f0]/25" : "bg-black text-white shadow-md shadow-black/15") : (isDark ? "glass-icon-dark text-zinc-400 hover:text-white" : "glass-icon-light text-zinc-600 hover:text-black")}`}
                           >
                             {amt}
                           </button>
@@ -1966,7 +1966,7 @@ export default function Home() {
                         <button
                           type="button"
                           onClick={() => { setLeadCount(0); setCustomLeadCount(""); }}
-                          className={`flex-1 py-2.5 rounded-xl text-xs font-bold btn-spring ${leadCount === 0 && !customLeadCount ? (isDark ? "bg-green-600 text-white shadow-md shadow-green-600/30" : "bg-black text-white shadow-md shadow-black/15") : (isDark ? "glass-icon-dark text-zinc-400 hover:text-white" : "glass-icon-light text-zinc-600 hover:text-black")}`}
+                          className={`flex-1 py-2.5 rounded-xl text-xs font-bold btn-spring ${leadCount === 0 && !customLeadCount ? (isDark ? "bg-[#0072f0] text-white shadow-md shadow-[#0072f0]/25" : "bg-black text-white shadow-md shadow-black/15") : (isDark ? "glass-icon-dark text-zinc-400 hover:text-white" : "glass-icon-light text-zinc-600 hover:text-black")}`}
                         >
                           All
                         </button>
@@ -1983,7 +1983,7 @@ export default function Home() {
                       <button
                         type="submit"
                         disabled={isBulkStarting || !bulkQueriesText.trim()}
-                        className={`w-full py-3.5 rounded-2xl text-xs font-bold text-white btn-spring ${isDark ? "bg-green-600 hover:bg-green-700 disabled:opacity-50 shadow-lg shadow-green-600/30" : "bg-black hover:bg-zinc-800 disabled:opacity-50 shadow-lg shadow-black/15"}`}
+                        className={`w-full py-3.5 rounded-2xl text-xs font-bold text-white btn-spring ${isDark ? "bg-[#0072f0] hover:bg-[#005bb5] disabled:opacity-50 shadow-lg shadow-[#0072f0]/25" : "bg-black hover:bg-zinc-800 disabled:opacity-50 shadow-lg shadow-black/15"}`}
                       >
                         {isBulkStarting ? "Starting Searches..." : "Start Batch Searches"}
                       </button>
@@ -1996,7 +1996,7 @@ export default function Home() {
                 <div className={`rounded-3xl p-6 transition-all duration-300 ${isDark ? "glass-surface-dark" : "glass-surface-light shadow-sm"}`}>
                   <div className="flex items-center justify-between mb-3">
                     <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-500">Recent Searches</h3>
-                    <button onClick={() => setActiveTab("leads")} className="text-xs font-bold text-green-600 hover:underline">
+                    <button onClick={() => setActiveTab("leads")} className="text-xs font-bold text-[#0072f0] hover:underline">
                       View All ({jobs.length})
                     </button>
                   </div>
@@ -2045,7 +2045,7 @@ export default function Home() {
                     placeholder="http://user:password@proxy.example.com:8080 or socks5://..."
                     value={userProxy}
                     onChange={e => setUserProxy(e.target.value)}
-                    className={`w-full px-4 py-2.5 rounded-xl text-xs outline-none transition-all duration-200 ${isDark ? "glass-input-dark text-white focus:border-green-500" : "glass-input-light text-black focus:border-black"}`}
+                    className={`w-full px-4 py-2.5 rounded-xl text-xs outline-none transition-all duration-200 ${isDark ? "glass-input-dark text-white focus:border-[#0072f0]" : "glass-input-light text-black focus:border-black"}`}
                   />
                   <span className="text-[11px] text-zinc-500 mt-1 block">Leave empty to use system default proxy.</span>
                 </div>
@@ -2053,7 +2053,7 @@ export default function Home() {
                 <div className="pt-2">
                   <button
                     onClick={handleSaveUserProxy}
-                    className="px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-green-600 hover:bg-green-700 btn-spring shadow-md shadow-green-600/25"
+                    className="px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-[#0072f0] hover:bg-[#005bb5] btn-spring shadow-md shadow-[#0072f0]/25"
                   >
                     {proxySaveSuccess ? "Saved!" : "Save Proxy"}
                   </button>
@@ -2071,7 +2071,7 @@ export default function Home() {
                 </div>
                 <button
                   onClick={() => { setActiveTab("search"); setSelectedJobId(null); }}
-                  className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-xs font-bold rounded-xl btn-spring shadow-md shadow-green-600/25 self-start"
+                  className="px-4 py-2 bg-[#0072f0] hover:bg-[#005bb5] text-white text-xs font-bold rounded-xl btn-spring shadow-md shadow-[#0072f0]/25 self-start"
                 >
                   + New Search
                 </button>
@@ -2091,12 +2091,12 @@ export default function Home() {
                         <div
                           key={j.id}
                           onClick={() => fetchJobDetails(j.id, token, true)}
-                          className={`p-4 rounded-2xl cursor-pointer transition-all duration-200 ${isSelected ? (isDark ? "glass-surface-dark border-green-500 shadow-md ring-1 ring-green-500/50" : "glass-surface-light border-black shadow-md ring-1 ring-black") : (isDark ? "glass-surface-dark hover:border-white/20" : "glass-surface-light hover:border-zinc-300")}`}
+                          className={`p-4 rounded-2xl cursor-pointer transition-all duration-200 ${isSelected ? (isDark ? "glass-surface-dark border-[#0072f0] shadow-md ring-1 ring-green-500/50" : "glass-surface-light border-black shadow-md ring-1 ring-black") : (isDark ? "glass-surface-dark hover:border-white/20" : "glass-surface-light hover:border-zinc-300")}`}
                         >
                           <div className="flex items-center justify-between gap-2">
                             <span className="font-bold text-xs capitalize truncate">{j.target}</span>
                             {isRunning ? (
-                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-green-500/20 text-green-500 shrink-0">
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#0072f0]/20 text-[#0072f0] shrink-0">
                                 Running
                               </span>
                             ) : (
@@ -2109,7 +2109,7 @@ export default function Home() {
                           {isRunning && (
                             <div className="mt-2.5">
                               <div className="w-full h-1.5 rounded-full overflow-hidden bg-black/10 dark:bg-white/10">
-                                <div className="h-full w-full bg-green-600 clean-progress-bar rounded-full"></div>
+                                <div className="h-full w-full bg-[#0072f0] clean-progress-bar rounded-full"></div>
                               </div>
                             </div>
                           )}
@@ -2127,7 +2127,7 @@ export default function Home() {
                               )}
                               <button
                                 onClick={(e) => { e.stopPropagation(); setExportJobId(j.id); }}
-                                className="text-green-600 hover:underline font-bold"
+                                className="text-[#0072f0] hover:underline font-bold"
                               >
                                 Export
                               </button>
@@ -2186,7 +2186,7 @@ export default function Home() {
                           <button
                             onClick={() => setExportJobId(selectedJobId)}
                             disabled={jobResults.length === 0}
-                            className="px-3.5 py-1.5 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white text-xs font-bold rounded-xl btn-spring shadow-sm shadow-green-600/25"
+                            className="px-3.5 py-1.5 bg-[#0072f0] hover:bg-[#005bb5] disabled:opacity-50 text-white text-xs font-bold rounded-xl btn-spring shadow-sm shadow-[#0072f0]/25"
                           >
                             Export
                           </button>
@@ -2219,7 +2219,7 @@ export default function Home() {
                                     <td className="px-4 py-2.5 font-mono text-[11px] whitespace-nowrap">{r.phone_1 || "—"}</td>
                                     <td className="px-4 py-2.5 max-w-[140px] truncate">
                                       {r.website ? (
-                                        <a href={r.website} target="_blank" rel="noreferrer" className="text-green-600 hover:underline">
+                                        <a href={r.website} target="_blank" rel="noreferrer" className="text-[#0072f0] hover:underline">
                                           {r.website.replace(/^https?:\/\//, '')}
                                         </a>
                                       ) : "—"}
@@ -2249,7 +2249,7 @@ export default function Home() {
                                         </span>
                                       )}
                                       {r.city && (
-                                        <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-green-500/10 text-green-600 dark:text-green-400">
+                                        <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-[#0072f0]/10 text-[#0072f0] dark:text-[#38bdf8]">
                                           {r.city}
                                         </span>
                                       )}
@@ -2265,7 +2265,7 @@ export default function Home() {
 
                                 <div className="space-y-1 pt-1 text-[11px]">
                                   {r.phone_1 ? (
-                                    <a href={`tel:${r.phone_1}`} className="flex items-center gap-2 text-green-600 dark:text-green-400 font-mono font-bold hover:underline">
+                                    <a href={`tel:${r.phone_1}`} className="flex items-center gap-2 text-[#0072f0] dark:text-[#38bdf8] font-mono font-bold hover:underline">
                                       <IconPhone className="w-3.5 h-3.5 shrink-0" />
                                       <span>{r.phone_1}</span>
                                     </a>
@@ -2334,7 +2334,7 @@ export default function Home() {
                         </div>
                         <div className={`p-4 rounded-2xl ${isDark ? "glass-surface-dark" : "glass-surface-light shadow-sm"}`}>
                           <span className="text-[11px] text-zinc-500 font-semibold uppercase tracking-wider block">Total Leads</span>
-                          <div className="text-2xl font-bold mt-1 text-green-600">{adminStats?.totalLeads || 0}</div>
+                          <div className="text-2xl font-bold mt-1 text-[#0072f0]">{adminStats?.totalLeads || 0}</div>
                         </div>
                         <div className={`p-4 rounded-2xl ${isDark ? "glass-surface-dark" : "glass-surface-light shadow-sm"}`}>
                           <span className="text-[11px] text-zinc-500 font-semibold uppercase tracking-wider block">Total Jobs</span>
@@ -2377,7 +2377,7 @@ export default function Home() {
                                           setAdminTab("users");
                                           fetchTeamList(token, val, "all");
                                         }}
-                                        className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-green-500/10 text-green-500 hover:bg-green-500/20 transition"
+                                        className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-[#0072f0]/10 text-[#0072f0] hover:bg-[#0072f0]/20 transition"
                                       >
                                         Filter Company &rarr;
                                       </button>
@@ -2417,7 +2417,7 @@ export default function Home() {
                                       <div className="text-[11px] text-zinc-500 font-mono">@{m.username}</div>
                                     </td>
                                     <td className="py-2.5 px-3 font-semibold">{m.company || "Unassigned"}</td>
-                                    <td className="py-2.5 px-3 font-bold text-green-500">{m.users_under_count} users</td>
+                                    <td className="py-2.5 px-3 font-bold text-[#0072f0]">{m.users_under_count} users</td>
                                     <td className="py-2.5 px-3 text-right">
                                       <button
                                         onClick={() => {
@@ -2425,7 +2425,7 @@ export default function Home() {
                                           setAdminTab("users");
                                           fetchTeamList(token, "all", m.id);
                                         }}
-                                        className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-green-500/10 text-green-500 hover:bg-green-500/20 transition"
+                                        className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-[#0072f0]/10 text-[#0072f0] hover:bg-[#0072f0]/20 transition"
                                       >
                                         Filter Team &rarr;
                                       </button>
@@ -2451,7 +2451,7 @@ export default function Home() {
                         </div>
                         <div className={`p-4 rounded-2xl ${isDark ? "glass-surface-dark" : "glass-surface-light shadow-sm"}`}>
                           <span className="text-[11px] text-zinc-500 font-semibold uppercase tracking-wider block">Team Leads</span>
-                          <div className="text-2xl font-bold mt-1 text-green-600">{adminStats?.teamLeads || 0}</div>
+                          <div className="text-2xl font-bold mt-1 text-[#0072f0]">{adminStats?.teamLeads || 0}</div>
                         </div>
                         <div className={`p-4 rounded-2xl ${isDark ? "glass-surface-dark" : "glass-surface-light shadow-sm"}`}>
                           <span className="text-[11px] text-zinc-500 font-semibold uppercase tracking-wider block">Search Jobs</span>
@@ -2488,7 +2488,7 @@ export default function Home() {
                         setNewUserCompany(user.role === "manager" ? (user.company || "") : "");
                         setNewUserManagerId(user.role === "manager" ? user.id : "");
                       }}
-                      className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-xs font-bold rounded-xl btn-spring shadow-md shadow-green-600/25 self-start sm:self-auto"
+                      className="px-4 py-2 bg-[#0072f0] hover:bg-[#005bb5] text-white text-xs font-bold rounded-xl btn-spring shadow-md shadow-[#0072f0]/25 self-start sm:self-auto"
                     >
                       + Add {user.role === "manager" ? "Team User" : "Account"}
                     </button>
@@ -2591,17 +2591,17 @@ export default function Home() {
                                 <div className="flex items-center gap-2">
                                   <button
                                     onClick={() => handleToggleUserProxy(u.id)}
-                                    className={`w-9 h-5 flex items-center rounded-full p-0.5 cursor-pointer transition-colors ${u.can_use_proxy === 1 ? "bg-green-600 justify-end" : "bg-zinc-300 dark:bg-zinc-700 justify-start"}`}
+                                    className={`w-9 h-5 flex items-center rounded-full p-0.5 cursor-pointer transition-colors ${u.can_use_proxy === 1 ? "bg-[#0072f0] justify-end" : "bg-zinc-300 dark:bg-zinc-700 justify-start"}`}
                                   >
                                     <span className="bg-white w-4 h-4 rounded-full shadow-sm"></span>
                                   </button>
-                                  <span className={`text-[11px] font-semibold ${u.can_use_proxy === 1 ? "text-green-600" : "text-zinc-400"}`}>
+                                  <span className={`text-[11px] font-semibold ${u.can_use_proxy === 1 ? "text-[#0072f0]" : "text-zinc-400"}`}>
                                     {u.can_use_proxy === 1 ? "Allowed" : "Off"}
                                   </span>
                                 </div>
                               </td>
                               <td className="px-5 py-3.5">
-                                <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${u.status === "active" ? "bg-green-500/10 text-green-600" : "bg-zinc-500/10 text-zinc-500"}`}>
+                                <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${u.status === "active" ? "bg-[#0072f0]/10 text-[#0072f0]" : "bg-zinc-500/10 text-zinc-500"}`}>
                                   {u.status}
                                 </span>
                               </td>
@@ -2633,7 +2633,7 @@ export default function Home() {
                                   Reset Pass
                                 </button>
                                 {u.status !== "active" && (
-                                  <button onClick={() => approveUser(u.id)} className="font-semibold text-green-600 hover:underline btn-spring">
+                                  <button onClick={() => approveUser(u.id)} className="font-semibold text-[#0072f0] hover:underline btn-spring">
                                     Approve
                                   </button>
                                 )}
@@ -2669,7 +2669,7 @@ export default function Home() {
                                 {u.avatar ? (
                                   <img src={u.avatar} alt={u.name} className="w-10 h-10 rounded-full object-cover shrink-0 border border-zinc-500/20" />
                                 ) : (
-                                  <div className="w-10 h-10 rounded-full bg-green-500/10 text-green-500 border border-green-500/20 flex items-center justify-center font-bold text-xs shrink-0">
+                                  <div className="w-10 h-10 rounded-full bg-[#0072f0]/10 text-[#0072f0] border border-[#0072f0]/20 flex items-center justify-center font-bold text-xs shrink-0">
                                     {(u.username || u.name || u.email || "U")[0].toUpperCase()}
                                   </div>
                                 )}
@@ -2691,7 +2691,7 @@ export default function Home() {
                                 </span>
                                 <span className={`px-2 py-0.5 rounded text-[10px] font-bold capitalize ${
                                   u.status === "active"
-                                    ? "bg-green-500/10 text-green-500"
+                                    ? "bg-[#0072f0]/10 text-[#0072f0]"
                                     : "bg-zinc-500/10 text-zinc-400"
                                 }`}>
                                   {u.status}
@@ -2709,11 +2709,11 @@ export default function Home() {
                                 <div className="flex items-center gap-1.5 mt-0.5">
                                   <button
                                     onClick={() => handleToggleUserProxy(u.id)}
-                                    className={`w-7 h-4 flex items-center rounded-full p-0.5 cursor-pointer transition-colors ${u.can_use_proxy === 1 ? "bg-green-600 justify-end" : "bg-zinc-300 dark:bg-zinc-700 justify-start"}`}
+                                    className={`w-7 h-4 flex items-center rounded-full p-0.5 cursor-pointer transition-colors ${u.can_use_proxy === 1 ? "bg-[#0072f0] justify-end" : "bg-zinc-300 dark:bg-zinc-700 justify-start"}`}
                                   >
                                     <span className="bg-white w-3 h-3 rounded-full shadow-sm"></span>
                                   </button>
-                                  <span className={`text-[10px] font-bold ${u.can_use_proxy === 1 ? "text-green-500" : "text-zinc-400"}`}>
+                                  <span className={`text-[10px] font-bold ${u.can_use_proxy === 1 ? "text-[#0072f0]" : "text-zinc-400"}`}>
                                     {u.can_use_proxy === 1 ? "Allowed" : "Off"}
                                   </span>
                                 </div>
@@ -2758,7 +2758,7 @@ export default function Home() {
                               {u.status !== "active" && (
                                 <button
                                   onClick={() => approveUser(u.id)}
-                                  className="py-2 px-3 rounded-xl text-[11px] font-bold bg-green-500/10 hover:bg-green-500/20 text-green-500 border border-green-500/20 btn-spring"
+                                  className="py-2 px-3 rounded-xl text-[11px] font-bold bg-[#0072f0]/10 hover:bg-[#0072f0]/20 text-[#0072f0] border border-[#0072f0]/20 btn-spring"
                                 >
                                   Approve
                                 </button>
@@ -2809,7 +2809,7 @@ export default function Home() {
                           setAdminUniqueOnly(nextVal);
                           fetchAdminGlobalLeads(token, adminLeadUserFilter, adminLeadSearch, adminCompanyFilter, adminManagerFilter, nextVal, adminCategoryFilter, adminCityFilter);
                         }}
-                        className={`px-3 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${adminUniqueOnly ? "bg-green-600 text-white shadow-md shadow-green-600/20" : isDark ? "bg-white/5 text-zinc-400 hover:text-white" : "bg-black/5 text-zinc-600 hover:text-black"}`}
+                        className={`px-3 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${adminUniqueOnly ? "bg-[#0072f0] text-white shadow-md shadow-[#0072f0]/20" : isDark ? "bg-white/5 text-zinc-400 hover:text-white" : "bg-black/5 text-zinc-600 hover:text-black"}`}
                       >
                         <span>{adminUniqueOnly ? "✓ Unique Leads Only" : "All Leads (Inc. Clones)"}</span>
                       </button>
@@ -2906,7 +2906,7 @@ export default function Home() {
                         <button
                           type="button"
                           onClick={() => fetchAdminGlobalLeads(token, adminLeadUserFilter, adminLeadSearch, adminCompanyFilter, adminManagerFilter, adminUniqueOnly, adminCategoryFilter, adminCityFilter)}
-                          className="px-3 py-2 bg-green-600 hover:bg-green-700 text-white text-xs font-bold rounded-xl btn-spring shadow-md shadow-green-600/25"
+                          className="px-3 py-2 bg-[#0072f0] hover:bg-[#005bb5] text-white text-xs font-bold rounded-xl btn-spring shadow-md shadow-[#0072f0]/25"
                         >
                           Filter
                         </button>
@@ -2965,7 +2965,7 @@ export default function Home() {
                                 <td className="px-3 py-3 font-mono text-[11px] whitespace-nowrap">{r.phone_1 || "—"}</td>
                                 <td className="px-3 py-3">
                                   {r.website ? (
-                                    <a href={r.website} target="_blank" rel="noreferrer" className="text-green-600 hover:underline truncate block max-w-[140px] text-[11px]">
+                                    <a href={r.website} target="_blank" rel="noreferrer" className="text-[#0072f0] hover:underline truncate block max-w-[140px] text-[11px]">
                                       {r.website.replace(/^https?:\/\//, '')}
                                     </a>
                                   ) : "—"}
@@ -3006,7 +3006,7 @@ export default function Home() {
                                     </span>
                                   )}
                                   {r.city && (
-                                    <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-green-500/10 text-green-600 dark:text-green-400">
+                                    <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-[#0072f0]/10 text-[#0072f0] dark:text-[#38bdf8]">
                                       {r.city}
                                     </span>
                                   )}
@@ -3022,7 +3022,7 @@ export default function Home() {
 
                             <div className="space-y-1.5 pt-1 text-[11px]">
                               {r.phone_1 ? (
-                                <a href={`tel:${r.phone_1}`} className="flex items-center gap-2 text-green-600 dark:text-green-400 font-mono font-bold hover:underline">
+                                <a href={`tel:${r.phone_1}`} className="flex items-center gap-2 text-[#0072f0] dark:text-[#38bdf8] font-mono font-bold hover:underline">
                                   <IconPhone className="w-3.5 h-3.5 shrink-0" />
                                   <span>{r.phone_1}</span>
                                 </a>
@@ -3070,7 +3070,7 @@ export default function Home() {
                   </div>
 
                   {settingsSuccess && (
-                    <div className="p-3 rounded-xl border text-xs font-semibold bg-green-500/10 border-green-500/30 text-green-500">
+                    <div className="p-3 rounded-xl border text-xs font-semibold bg-[#0072f0]/10 border-[#0072f0]/30 text-[#0072f0]">
                       Settings saved!
                     </div>
                   )}
@@ -3091,7 +3091,7 @@ export default function Home() {
                       <button
                         type="button"
                         onClick={() => setPublicRegistration(!publicRegistration)}
-                        className={`px-4 py-2.5 rounded-xl text-xs font-bold transition btn-spring ${publicRegistration ? "bg-green-500/10 border border-green-500/30 text-green-500" : (isDark ? "glass-icon-dark text-zinc-400" : "glass-icon-light text-zinc-600")}`}
+                        className={`px-4 py-2.5 rounded-xl text-xs font-bold transition btn-spring ${publicRegistration ? "bg-[#0072f0]/10 border border-[#0072f0]/30 text-[#0072f0]" : (isDark ? "glass-icon-dark text-zinc-400" : "glass-icon-light text-zinc-600")}`}
                       >
                         {publicRegistration ? "Enabled (Users can register)" : "Disabled (Admin creates users)"}
                       </button>
@@ -3106,7 +3106,7 @@ export default function Home() {
                         <button
                           type="button"
                           onClick={() => setSystemProxyEnabled(!systemProxyEnabled)}
-                          className={`w-9 h-5 flex items-center rounded-full p-0.5 cursor-pointer transition-colors ${systemProxyEnabled ? "bg-green-600 justify-end" : "bg-zinc-300 dark:bg-zinc-700 justify-start"}`}
+                          className={`w-9 h-5 flex items-center rounded-full p-0.5 cursor-pointer transition-colors ${systemProxyEnabled ? "bg-[#0072f0] justify-end" : "bg-zinc-300 dark:bg-zinc-700 justify-start"}`}
                         >
                           <span className="bg-white w-4 h-4 rounded-full shadow-sm"></span>
                         </button>
@@ -3136,7 +3136,7 @@ export default function Home() {
                               key={num}
                               type="button"
                               onClick={() => setParallelConcurrency(num)}
-                              className={`px-3 py-1.5 rounded-xl text-xs font-bold btn-spring ${parallelConcurrency === num ? "bg-green-600 text-white shadow-md shadow-green-600/30" : (isDark ? "glass-icon-dark text-zinc-400 hover:text-white" : "glass-icon-light text-zinc-600 hover:text-black")}`}
+                              className={`px-3 py-1.5 rounded-xl text-xs font-bold btn-spring ${parallelConcurrency === num ? "bg-[#0072f0] text-white shadow-md shadow-[#0072f0]/25" : (isDark ? "glass-icon-dark text-zinc-400 hover:text-white" : "glass-icon-light text-zinc-600 hover:text-black")}`}
                             >
                               {num}x
                             </button>
@@ -3149,13 +3149,13 @@ export default function Home() {
                   <div className="pt-3 border-t border-zinc-500/15 flex items-center gap-3">
                     <button
                       onClick={handleSaveSettings}
-                      className="px-5 py-2.5 bg-green-600 hover:bg-green-700 text-white font-bold text-xs rounded-xl btn-spring shadow-md shadow-green-600/25 flex items-center gap-1.5"
+                      className="px-5 py-2.5 bg-[#0072f0] hover:bg-[#005bb5] text-white font-bold text-xs rounded-xl btn-spring shadow-md shadow-[#0072f0]/25 flex items-center gap-1.5"
                     >
                       <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
                       <span>Save Settings</span>
                     </button>
                     {settingsSuccess && (
-                      <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold bg-green-500/15 text-green-500 border border-green-500/30 animate-in fade-in duration-150 shadow-sm">
+                      <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#0072f0]/15 text-[#0072f0] border border-[#0072f0]/30 animate-in fade-in duration-150 shadow-sm">
                         <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12"></polyline></svg>
                         Saved!
                       </span>
@@ -3194,7 +3194,7 @@ export default function Home() {
                     <div className="flex items-center justify-between mb-1">
                       <label className="text-xs font-semibold">Username <span className="text-red-500">*</span></label>
                       {newUserUsername.trim().length >= 3 && newUserUsernameStatus.checked && (
-                        <span className={`text-[10px] font-bold ${newUserUsernameStatus.valid ? "text-green-500" : "text-red-500"}`}>
+                        <span className={`text-[10px] font-bold ${newUserUsernameStatus.valid ? "text-[#0072f0]" : "text-red-500"}`}>
                           {newUserUsernameStatus.valid ? "✓ Available" : "✗ Taken"}
                         </span>
                       )}
@@ -3281,7 +3281,7 @@ export default function Home() {
                     </>
                   ) : (
                     <div className={`p-3 rounded-xl border text-xs ${isDark ? "bg-white/[0.03] border-white/10" : "bg-black/[0.02] border-black/10"}`}>
-                      <div className="font-bold text-green-500">Creating Team Member</div>
+                      <div className="font-bold text-[#0072f0]">Creating Team Member</div>
                       <div className="text-[11px] text-zinc-400 mt-0.5">
                         Role: <strong>User</strong> &bull; Company: <strong>{user.company || "Your Company"}</strong> &bull; Manager: <strong>@{user.username}</strong>
                       </div>
@@ -3293,7 +3293,7 @@ export default function Home() {
                       id="newProxyCheck"
                       checked={newUserCanProxy}
                       onChange={e => setNewUserCanProxy(e.target.checked)}
-                      className="w-4 h-4 rounded text-green-600 focus:ring-green-500 cursor-pointer"
+                      className="w-4 h-4 rounded text-[#0072f0] focus:ring-green-500 cursor-pointer"
                     />
                     <label htmlFor="newProxyCheck" className="text-xs font-medium cursor-pointer">
                       Allow user proxy settings
@@ -3310,7 +3310,7 @@ export default function Home() {
                     </button>
                     <button
                       type="submit"
-                      className="px-4 py-1.5 rounded-xl text-white text-xs font-bold bg-green-600 hover:bg-green-700 btn-spring shadow-md shadow-green-600/25"
+                      className="px-4 py-1.5 rounded-xl text-white text-xs font-bold bg-[#0072f0] hover:bg-[#005bb5] btn-spring shadow-md shadow-[#0072f0]/25"
                     >
                       Create
                     </button>
@@ -3434,7 +3434,7 @@ export default function Home() {
                       id="editProxyCheck"
                       checked={editUserCanProxy}
                       onChange={e => setEditUserCanProxy(e.target.checked)}
-                      className="w-4 h-4 rounded text-green-600 focus:ring-green-500 cursor-pointer"
+                      className="w-4 h-4 rounded text-[#0072f0] focus:ring-green-500 cursor-pointer"
                     />
                     <label htmlFor="editProxyCheck" className="text-xs font-medium cursor-pointer">
                       Allow user proxy settings
@@ -3451,7 +3451,7 @@ export default function Home() {
                     </button>
                     <button
                       type="submit"
-                      className="px-4 py-1.5 rounded-xl text-white text-xs font-bold bg-green-600 hover:bg-green-700 btn-spring shadow-md shadow-green-600/25"
+                      className="px-4 py-1.5 rounded-xl text-white text-xs font-bold bg-[#0072f0] hover:bg-[#005bb5] btn-spring shadow-md shadow-[#0072f0]/25"
                     >
                       Save
                     </button>
@@ -3495,7 +3495,7 @@ export default function Home() {
                       </button>
                       <button
                         type="submit"
-                        className="px-4 py-1.5 rounded-xl text-white text-xs font-bold bg-green-600 hover:bg-green-700 btn-spring shadow-md shadow-green-600/25"
+                        className="px-4 py-1.5 rounded-xl text-white text-xs font-bold bg-[#0072f0] hover:bg-[#005bb5] btn-spring shadow-md shadow-[#0072f0]/25"
                       >
                         Reset
                       </button>
@@ -3503,13 +3503,13 @@ export default function Home() {
                   </form>
                 ) : (
                   <div className="space-y-3">
-                    <div className="p-3.5 rounded-xl text-xs space-y-1 border border-green-500/30 bg-green-500/10 text-green-500">
+                    <div className="p-3.5 rounded-xl text-xs space-y-1 border border-[#0072f0]/30 bg-[#0072f0]/10 text-[#0072f0]">
                       <div className="font-bold">Password Reset Done:</div>
                       <code className="font-mono font-bold text-xs bg-black/20 px-2 py-0.5 rounded">{resetResultData.temporaryPassword}</code>
                     </div>
                     <button
                       onClick={() => { setResetModalUser(null); setResetResultData(null); }}
-                      className="w-full py-2.5 rounded-xl font-bold text-xs text-white bg-green-600 hover:bg-green-700 btn-spring shadow-md shadow-green-600/25"
+                      className="w-full py-2.5 rounded-xl font-bold text-xs text-white bg-[#0072f0] hover:bg-[#005bb5] btn-spring shadow-md shadow-[#0072f0]/25"
                     >
                       Done
                     </button>
@@ -3535,7 +3535,7 @@ export default function Home() {
                         key={fmt}
                         type="button"
                         onClick={() => setExportFormat(fmt)}
-                        className={`py-2 text-xs font-bold uppercase rounded-xl border transition btn-spring ${exportFormat === fmt ? (isDark ? "bg-green-600 border-green-600 text-white shadow-md shadow-green-600/25" : "bg-black border-black text-white shadow-md shadow-black/15") : (isDark ? "glass-icon-dark text-zinc-400" : "glass-icon-light text-zinc-600")}`}
+                        className={`py-2 text-xs font-bold uppercase rounded-xl border transition btn-spring ${exportFormat === fmt ? (isDark ? "bg-[#0072f0] border-green-600 text-white shadow-md shadow-[#0072f0]/25" : "bg-black border-black text-white shadow-md shadow-black/15") : (isDark ? "glass-icon-dark text-zinc-400" : "glass-icon-light text-zinc-600")}`}
                       >
                         {fmt}
                       </button>
@@ -3549,7 +3549,7 @@ export default function Home() {
                     {EXPORT_COLUMNS.map(col => {
                       const isChecked = selectedCols.includes(col.key);
                       return (
-                        <label key={col.key} className={`flex items-center gap-1.5 p-2 rounded-xl text-xs cursor-pointer btn-spring ${isChecked ? (isDark ? "bg-green-600/15 border border-green-500/40 text-white" : "bg-black/[0.04] border border-black/20 text-black font-semibold") : (isDark ? "glass-icon-dark text-zinc-400" : "glass-icon-light text-zinc-500")}`}>
+                        <label key={col.key} className={`flex items-center gap-1.5 p-2 rounded-xl text-xs cursor-pointer btn-spring ${isChecked ? (isDark ? "bg-[#0072f0]/15 border border-[#0072f0]/40 text-white" : "bg-black/[0.04] border border-black/20 text-black font-semibold") : (isDark ? "glass-icon-dark text-zinc-400" : "glass-icon-light text-zinc-500")}`}>
                           <input
                             type="checkbox"
                             checked={isChecked}
@@ -3562,7 +3562,7 @@ export default function Home() {
                                 setSelectedCols([...selectedCols, col.key]);
                               }
                             }}
-                            className="w-3.5 h-3.5 rounded text-green-600 focus:ring-green-500 cursor-pointer"
+                            className="w-3.5 h-3.5 rounded text-[#0072f0] focus:ring-green-500 cursor-pointer"
                           />
                           <span className="truncate">{col.label}</span>
                         </label>
@@ -3582,7 +3582,7 @@ export default function Home() {
                   <button
                     type="button"
                     onClick={downloadFile}
-                    className="px-4 py-1.5 rounded-xl text-white text-xs font-bold bg-green-600 hover:bg-green-700 btn-spring shadow-md shadow-green-600/25"
+                    className="px-4 py-1.5 rounded-xl text-white text-xs font-bold bg-[#0072f0] hover:bg-[#005bb5] btn-spring shadow-md shadow-[#0072f0]/25"
                   >
                     Download
                   </button>
@@ -3615,12 +3615,12 @@ export default function Home() {
                     placeholder="Filter..."
                     value={searchFilter}
                     onChange={e => setSearchFilter(e.target.value)}
-                    className={`w-24 sm:w-40 md:w-56 px-2.5 sm:px-3.5 py-1.5 sm:py-2 rounded-xl text-[11px] sm:text-xs outline-none transition ${isDark ? "glass-input-dark text-white focus:border-green-500" : "glass-input-light text-black focus:border-black"}`}
+                    className={`w-24 sm:w-40 md:w-56 px-2.5 sm:px-3.5 py-1.5 sm:py-2 rounded-xl text-[11px] sm:text-xs outline-none transition ${isDark ? "glass-input-dark text-white focus:border-[#0072f0]" : "glass-input-light text-black focus:border-black"}`}
                   />
                   <button
                     onClick={() => setExportJobId(selectedJobId)}
                     disabled={jobResults.length === 0}
-                    className="px-2.5 sm:px-4 py-1.5 sm:py-2 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white text-[11px] sm:text-xs font-bold rounded-xl btn-spring shadow-md shadow-green-600/25 flex items-center gap-1 shrink-0"
+                    className="px-2.5 sm:px-4 py-1.5 sm:py-2 bg-[#0072f0] hover:bg-[#005bb5] disabled:opacity-50 text-white text-[11px] sm:text-xs font-bold rounded-xl btn-spring shadow-md shadow-[#0072f0]/25 flex items-center gap-1 shrink-0"
                   >
                     <svg className="w-3 h-3 sm:w-3.5 sm:h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
                     <span>Export</span>
@@ -3648,7 +3648,7 @@ export default function Home() {
                         <td className="px-3 py-2.5 sm:py-3 font-mono text-[11px] whitespace-nowrap">{r.phone_1 || "—"}</td>
                         <td className="px-3 py-2.5 sm:py-3">
                           {r.website ? (
-                            <a href={r.website} target="_blank" rel="noreferrer" className="text-green-600 hover:underline truncate block text-[11px] max-w-[160px]" title={r.website}>
+                            <a href={r.website} target="_blank" rel="noreferrer" className="text-[#0072f0] hover:underline truncate block text-[11px] max-w-[160px]" title={r.website}>
                               {r.website.replace(/^https?:\/\//, '')}
                             </a>
                           ) : "—"}
@@ -3696,7 +3696,7 @@ export default function Home() {
                 </div>
 
                 {profileMsg && (
-                  <div className={`p-3 rounded-xl border text-xs font-semibold ${profileMsg.type === "success" ? "bg-green-500/10 border-green-500/30 text-green-500" : "bg-red-500/10 border-red-500/30 text-red-500"}`}>
+                  <div className={`p-3 rounded-xl border text-xs font-semibold ${profileMsg.type === "success" ? "bg-[#0072f0]/10 border-[#0072f0]/30 text-[#0072f0]" : "bg-red-500/10 border-red-500/30 text-red-500"}`}>
                     {profileMsg.text}
                   </div>
                 )}
@@ -3771,7 +3771,7 @@ export default function Home() {
                       <button
                         type="button"
                         onClick={handleProfileForgotPassword}
-                        className="text-[11px] text-green-600 hover:underline font-semibold"
+                        className="text-[11px] text-[#0072f0] hover:underline font-semibold"
                       >
                         Forgot password? Reset via mail
                       </button>
@@ -3826,7 +3826,7 @@ export default function Home() {
                     <button
                       type="submit"
                       disabled={profileLoading}
-                      className="px-4 py-1.5 rounded-xl text-white text-xs font-bold bg-green-600 hover:bg-green-700 btn-spring shadow-md shadow-green-600/25 disabled:opacity-50"
+                      className="px-4 py-1.5 rounded-xl text-white text-xs font-bold bg-[#0072f0] hover:bg-[#005bb5] btn-spring shadow-md shadow-[#0072f0]/25 disabled:opacity-50"
                     >
                       {profileLoading ? "Saving..." : "Save Changes"}
                     </button>
@@ -3843,9 +3843,9 @@ export default function Home() {
             <>
               <button
                 onClick={() => { setActiveTab("search"); setSelectedJobId(null); }}
-                className={`flex flex-col items-center justify-center flex-1 h-full py-1 text-[10px] font-bold transition btn-spring ${activeTab === "search" ? "text-green-600 dark:text-green-400" : "text-zinc-500 hover:text-black dark:hover:text-white"}`}
+                className={`flex flex-col items-center justify-center flex-1 h-full py-1 text-[10px] font-bold transition btn-spring ${activeTab === "search" ? "text-[#0072f0] dark:text-[#38bdf8]" : "text-zinc-500 hover:text-black dark:hover:text-white"}`}
               >
-                <div className={`p-1 rounded-xl transition ${activeTab === "search" ? "bg-green-500/10" : ""}`}>
+                <div className={`p-1 rounded-xl transition ${activeTab === "search" ? "bg-[#0072f0]/10" : ""}`}>
                   <IconSearch className="w-5 h-5" />
                 </div>
                 <span className="mt-0.5">Search</span>
@@ -3853,12 +3853,12 @@ export default function Home() {
 
               <button
                 onClick={() => setActiveTab("leads")}
-                className={`relative flex flex-col items-center justify-center flex-1 h-full py-1 text-[10px] font-bold transition btn-spring ${activeTab === "leads" ? "text-green-600 dark:text-green-400" : "text-zinc-500 hover:text-black dark:hover:text-white"}`}
+                className={`relative flex flex-col items-center justify-center flex-1 h-full py-1 text-[10px] font-bold transition btn-spring ${activeTab === "leads" ? "text-[#0072f0] dark:text-[#38bdf8]" : "text-zinc-500 hover:text-black dark:hover:text-white"}`}
               >
-                <div className={`relative p-1 rounded-xl transition ${activeTab === "leads" ? "bg-green-500/10" : ""}`}>
+                <div className={`relative p-1 rounded-xl transition ${activeTab === "leads" ? "bg-[#0072f0]/10" : ""}`}>
                   <IconLeads className="w-5 h-5" />
                   {jobs.length > 0 && (
-                    <span className="absolute -top-1 -right-2 px-1.5 py-0.2 rounded-full text-[9px] font-black bg-green-600 text-white">
+                    <span className="absolute -top-1 -right-2 px-1.5 py-0.2 rounded-full text-[9px] font-black bg-[#0072f0] text-white">
                       {jobs.length > 99 ? "99+" : jobs.length}
                     </span>
                   )}
@@ -3888,7 +3888,7 @@ export default function Home() {
                 className="flex flex-col items-center justify-center flex-1 h-full py-1 text-[10px] font-bold text-zinc-500 hover:text-black dark:hover:text-white btn-spring"
               >
                 <div className="p-1 rounded-xl">
-                  <IconHelp className="w-5 h-5 text-green-500" />
+                  <IconHelp className="w-5 h-5 text-[#0072f0]" />
                 </div>
                 <span className="mt-0.5">Support</span>
               </Link>
@@ -3913,9 +3913,9 @@ export default function Home() {
             <>
               <button
                 onClick={() => setAdminTab("overview")}
-                className={`flex flex-col items-center justify-center flex-1 h-full py-1 text-[10px] font-bold transition btn-spring ${adminTab === "overview" ? "text-green-600 dark:text-green-400" : "text-zinc-500 hover:text-black dark:hover:text-white"}`}
+                className={`flex flex-col items-center justify-center flex-1 h-full py-1 text-[10px] font-bold transition btn-spring ${adminTab === "overview" ? "text-[#0072f0] dark:text-[#38bdf8]" : "text-zinc-500 hover:text-black dark:hover:text-white"}`}
               >
-                <div className={`p-1 rounded-xl transition ${adminTab === "overview" ? "bg-green-500/10" : ""}`}>
+                <div className={`p-1 rounded-xl transition ${adminTab === "overview" ? "bg-[#0072f0]/10" : ""}`}>
                   <IconOverview className="w-5 h-5" />
                 </div>
                 <span className="mt-0.5">Stats</span>
@@ -3938,12 +3938,12 @@ export default function Home() {
 
               <button
                 onClick={() => { setAdminTab("leads"); fetchAdminGlobalLeads(); }}
-                className={`relative flex flex-col items-center justify-center flex-1 h-full py-1 text-[10px] font-bold transition btn-spring ${adminTab === "leads" ? "text-green-600 dark:text-green-400" : "text-zinc-500 hover:text-black dark:hover:text-white"}`}
+                className={`relative flex flex-col items-center justify-center flex-1 h-full py-1 text-[10px] font-bold transition btn-spring ${adminTab === "leads" ? "text-[#0072f0] dark:text-[#38bdf8]" : "text-zinc-500 hover:text-black dark:hover:text-white"}`}
               >
-                <div className={`relative p-1 rounded-xl transition ${adminTab === "leads" ? "bg-green-500/10" : ""}`}>
+                <div className={`relative p-1 rounded-xl transition ${adminTab === "leads" ? "bg-[#0072f0]/10" : ""}`}>
                   <IconLeads className="w-5 h-5" />
                   {adminGlobalTotal > 0 && (
-                    <span className="absolute -top-1 -right-2 px-1.5 py-0.2 rounded-full text-[9px] font-black bg-green-600 text-white">
+                    <span className="absolute -top-1 -right-2 px-1.5 py-0.2 rounded-full text-[9px] font-black bg-[#0072f0] text-white">
                       {adminGlobalTotal > 999 ? "999+" : adminGlobalTotal}
                     </span>
                   )}
