@@ -1,4 +1,14 @@
 import { ScrapedLead } from './types';
+import { WorldGeo } from './grid/worldGeo';
+import { GeoGrid } from './grid/geoGrid';
+
+export interface SearchPartition {
+  query: string;
+  lat?: number;
+  lon?: number;
+  zoom?: number;
+  areaName?: string;
+}
 
 export class GeographicPartitioner {
   private static readonly PRESET_PARTITIONS: Record<string, string[]> = {
@@ -98,214 +108,328 @@ export class GeographicPartitioner {
       'Al Reef',
       'Shakhbout City',
       'Al Shamkha',
-      'Masdar City',
-      'Corniche',
-      'Al Markaziyah',
-      'Al Nahyan',
-      'Al Muroor',
-      'Airport Road',
-      'Hamdan Street',
+      'Corniche Road',
+      'Tourist Club Area',
       'Electra Street',
-      'Zayed City'
+      'Hamdan Street',
+      'Al Muroor',
+      'Al Najda',
+      'Madinat Zayed'
     ],
     sharjah: [
       'Al Majaz',
-      'Al Nahda',
+      'Al Nahda Sharjah',
       'Al Qasimia',
       'Al Taawun',
       'Al Khan',
-      'Muwailih',
-      'Industrial Area',
+      'Muwaileh',
+      'Al Rolla',
+      'Industrial Area 1',
+      'Industrial Area 6',
+      'Industrial Area 12',
       'Al Yarmook',
-      'Al Rolla'
+      'Al Layyeh',
+      'Al Qasba',
+      'University City',
+      'Al Rahmaniya'
     ],
     riyadh: [
-      'Al Olaya',
+      'Olaya',
       'Al Malaz',
-      'Al Nakheel',
-      'Al Sulaimaniyah',
-      'King Fahd District',
       'Al Murabba',
+      'Al Sulaimaniyah',
+      'King Abdullah Financial District KAFD',
+      'Al Nakheel',
+      'Al Sahafa',
       'Al Yasmin',
       'Al Narjis',
-      'Al Sahafah',
-      'Al Aqiq'
+      'Al Aqiq',
+      'Al Wurud',
+      'Al Hamra',
+      'Al Yarmouk',
+      'Al Rawdah',
+      'Al Faisaliyah',
+      'Diplomatic Quarter DQ'
     ],
     jeddah: [
       'Al Balad',
       'Al Hamra',
       'Al Rawdah',
-      'Al Salamah',
       'Al Zahra',
-      'Al Andalus',
+      'Al Shate\'e',
+      'Al Naeem',
       'Al Mohammadiyyah',
-      'Al Naeem'
-    ],
-    doha: [
-      'West Bay',
-      'The Pearl',
-      'Al Sadd',
-      'Lusail',
-      'Old Airport',
-      'Msheireb Downtown',
-      'Al Dafna',
-      'Al Mansoura'
-    ],
-    kuwait: [
-      'Sharq',
-      'Salmiya',
-      'Hawally',
-      'Al Shuwaikh',
-      'Al Qibla',
-      'Al Mirqab'
-    ],
-    delhi: [
-      'Connaught Place',
-      'Nehru Place',
-      'Karol Bagh',
-      'Lajpat Nagar',
-      'Saket',
-      'Dwarka',
-      'Rohini',
-      'South Extension',
-      'Hauz Khas',
-      'Janakpuri',
-      'Okhla',
-      'Pitampura',
-      'Vasant Kunj',
-      'Netaji Subhash Place'
+      'Al Salamah',
+      'Al Andalus',
+      'Al Marwah',
+      'Al Bawadi',
+      'Al Safa',
+      'Al Rehab',
+      'Corniche Jeddah',
+      'Al Baghdadiyah'
     ],
     mumbai: [
       'Bandra West',
       'Andheri West',
+      'Andheri East',
+      'Bandra Kurla Complex BKC',
+      'Colaba',
       'Nariman Point',
       'Lower Parel',
-      'BKC Bandra Kurla Complex',
-      'Juhu',
+      'Worli',
       'Powai',
-      'Dadar',
+      'Juhu',
       'Malad West',
+      'Goregaon West',
       'Borivali West',
-      'Goregaon West'
+      'Thane West',
+      'Navi Mumbai Vashi'
+    ],
+    delhi: [
+      'Connaught Place',
+      'South Extension',
+      'Lajpat Nagar',
+      'Karol Bagh',
+      'Saket',
+      'Hauz Khas',
+      'Nehru Place',
+      'Chandni Chowk',
+      'Pitampura',
+      'Rohini',
+      'Dwarka',
+      'Janakpuri',
+      'Okhla Industrial Area',
+      'Rajouri Garden',
+      'Vasant Kunj'
     ],
     bengaluru: [
       'Koramangala',
       'Indiranagar',
-      'Whitefield',
       'HSR Layout',
+      'Whitefield',
       'Electronic City',
       'Jayanagar',
+      'JP Nagar',
+      'MG Road',
       'Marathahalli',
       'BTM Layout',
+      'Hebbal',
       'Malleshwaram',
-      'Bellandur',
-      'Hebbal'
-    ],
-    hyderabad: [
-      'Hitec City',
-      'Gachibowli',
-      'Madhapur',
-      'Banjara Hills',
-      'Jubilee Hills',
-      'Kondapur',
-      'Kukatpally',
-      'Secunderabad',
-      'Begumpet'
-    ],
-    pune: [
-      'Hinjewadi',
-      'Kothrud',
-      'Viman Nagar',
-      'Baner',
-      'Wakad',
-      'Shivaji Nagar',
-      'Hadapsar',
-      'Kalyani Nagar'
+      'Banashankari',
+      'Yelahanka'
     ],
     london: [
       'City of London',
       'Westminster',
-      'Canary Wharf',
-      'Camden',
-      'Kensington',
-      'Islington',
-      'Chelsea',
-      'Soho',
-      'Shoreditch',
       'Mayfair',
+      'Soho',
+      'Canary Wharf',
+      'Shoreditch',
+      'Camden Town',
+      'Kensington',
+      'Chelsea',
+      'Islington',
       'Greenwich',
-      'Stratford'
+      'Stratford',
+      'Hammersmith',
+      'Wandsworth',
+      'Brixton'
     ],
     new_york: [
       'Midtown Manhattan',
+      'Lower Manhattan',
       'Financial District',
-      'Downtown Manhattan',
-      'Brooklyn',
-      'Queens',
-      'Williamsburg',
-      'SoHo',
-      'Chelsea',
       'Upper East Side',
-      'Upper West Side'
-    ],
-    los_angeles: [
-      'Downtown Los Angeles',
-      'Beverly Hills',
-      'Santa Monica',
-      'Hollywood',
-      'Pasadena',
-      'Century City',
-      'Culver City'
-    ],
-    toronto: [
-      'Downtown Toronto',
-      'North York',
-      'Scarborough',
-      'Etobicoke',
-      'Yorkville',
-      'Financial District'
-    ],
-    singapore: [
-      'Downtown Core',
-      'Marina Bay',
-      'Orchard',
-      'Tanjong Pagar',
-      'Raffles Place',
-      'Jurong East'
+      'Upper West Side',
+      'Chelsea Manhattan',
+      'SoHo Manhattan',
+      'Greenwich Village',
+      'Williamsburg Brooklyn',
+      'DUMBO Brooklyn',
+      'Astoria Queens',
+      'Long Island City',
+      'Flushing Queens'
     ]
   };
 
-  public static getSubQueries(targetQuery: string): string[] {
-    const lower = targetQuery.toLowerCase().trim();
+  public static async resolveSearchPartitions(
+    targetQuery: string,
+    cityHint?: string
+  ): Promise<SearchPartition[]> {
+    const rawQuery = targetQuery.trim();
+    if (!rawQuery) return [];
 
-    // 1. Direct match with preset partitions
+    let locationCandidate = (cityHint || '').trim();
+    let baseCategory = rawQuery;
+
+    if (!locationCandidate) {
+      const prepMatch = rawQuery.match(/\b(?:in|at|near|around)\s+([a-zA-Z\s,]+)$/i);
+      if (prepMatch && prepMatch[1]) {
+        locationCandidate = prepMatch[1].trim();
+        baseCategory = rawQuery.replace(/\b(?:in|at|near|around)\s+([a-zA-Z\s,]+)$/i, '').trim() || rawQuery;
+      } else {
+        const countryMatch = WorldGeo.findCountry(rawQuery);
+        if (countryMatch) {
+          locationCandidate = countryMatch.name;
+          const countryRegex = new RegExp(`\\b${countryMatch.name}\\b`, 'i');
+          baseCategory = rawQuery.replace(countryRegex, '').replace(/\s+/g, ' ').trim() || rawQuery;
+        } else {
+          const words = rawQuery.split(/\s+/);
+          if (words.length >= 2) {
+            const lastWord = words[words.length - 1];
+            if (lastWord.length >= 3 && !/^(services|center|company|agency|store|shop|clinics|clinic|hotel|hotels)$/i.test(lastWord)) {
+              locationCandidate = lastWord;
+              baseCategory = words.slice(0, -1).join(' ');
+            }
+          }
+        }
+      }
+    }
+
+    if (!locationCandidate) {
+      return [{ query: rawQuery }];
+    }
+
+    // CASE 1: Location is a Country (e.g. "Kenya", "Germany", "Iceland", "Brazil", "India", etc.)
+    const countryEntry = WorldGeo.findCountry(locationCandidate);
+    if (countryEntry) {
+      const partitions: SearchPartition[] = [];
+      const countryCities = countryEntry.cities;
+
+      for (const city of countryCities) {
+        partitions.push({
+          query: `${baseCategory} in ${city}, ${countryEntry.name}`,
+          areaName: `${city}, ${countryEntry.name}`
+        });
+      }
+
+      if (partitions.length > 0) {
+        return [
+          { query: rawQuery, areaName: countryEntry.name },
+          ...partitions
+        ];
+      }
+    }
+
+    // CASE 2: Location is a City with Preset Localities (e.g. Dubai, Jaipur, Abu Dhabi, London, etc.)
+    const cityKey = locationCandidate.toLowerCase().replace(/[\s-]+/g, '_');
+    for (const [key, subAreas] of Object.entries(this.PRESET_PARTITIONS)) {
+      if (cityKey === key || cityKey.includes(key) || key.includes(cityKey)) {
+        const cityName = key.replace(/_/g, ' ');
+        return [
+          { query: rawQuery, areaName: cityName },
+          ...subAreas.map(area => ({
+            query: `${baseCategory} in ${area}, ${cityName}`,
+            areaName: area
+          }))
+        ];
+      }
+    }
+
+    // CASE 3: ANY Arbitrary City / Location in the World (e.g. Austin, Nairobi, Reykjavik, Munich, etc.)
+    const bbox = await GeoGrid.resolveCityBoundingBox(locationCandidate);
+    const partitions: SearchPartition[] = [];
+
+    partitions.push({ query: rawQuery, areaName: locationCandidate });
+
+    if (bbox) {
+      const midLat = (bbox.minLat + bbox.maxLat) / 2;
+      const midLon = (bbox.minLon + bbox.maxLon) / 2;
+
+      // Generate directional sectors with spatial coordinate anchors
+      const sectors = [
+        { name: 'Central', lat: midLat, lon: midLon, zoom: 14 },
+        { name: 'Downtown', lat: midLat, lon: midLon, zoom: 14 },
+        { name: 'North', lat: midLat + (bbox.maxLat - midLat) * 0.6, lon: midLon, zoom: 13 },
+        { name: 'South', lat: midLat - (midLat - bbox.minLat) * 0.6, lon: midLon, zoom: 13 },
+        { name: 'East', lat: midLat, lon: midLon + (bbox.maxLon - midLon) * 0.6, zoom: 13 },
+        { name: 'West', lat: midLat, lon: midLon - (midLon - bbox.minLon) * 0.6, zoom: 13 },
+        { name: 'Business District', lat: midLat, lon: midLon, zoom: 14 },
+        { name: 'Commercial Hub', lat: midLat, lon: midLon, zoom: 14 },
+        { name: 'Industrial Area', lat: midLat - (midLat - bbox.minLat) * 0.4, lon: midLon + (bbox.maxLon - midLon) * 0.4, zoom: 13 },
+        { name: 'Main Market', lat: midLat, lon: midLon, zoom: 14 }
+      ];
+
+      for (const sec of sectors) {
+        partitions.push({
+          query: `${baseCategory} in ${sec.name} ${locationCandidate}`,
+          lat: sec.lat,
+          lon: sec.lon,
+          zoom: sec.zoom,
+          areaName: `${sec.name} ${locationCandidate}`
+        });
+      }
+
+      // Also generate adaptive grid cells for complete geographic coverage
+      const cells = GeoGrid.generateCells(bbox, 3.5);
+      const cellSamples = cells.slice(0, 10);
+      for (let i = 0; i < cellSamples.length; i++) {
+        const cell = cellSamples[i];
+        partitions.push({
+          query: `${baseCategory} in ${locationCandidate}`,
+          lat: cell.lat,
+          lon: cell.lon,
+          zoom: 14,
+          areaName: `Sector ${i + 1} (${locationCandidate})`
+        });
+      }
+
+      return partitions;
+    }
+
+    // Fallback if geocoder gave no bbox
+    return [
+      { query: rawQuery },
+      { query: `${baseCategory} in Central ${locationCandidate}` },
+      { query: `${baseCategory} in North ${locationCandidate}` },
+      { query: `${baseCategory} in South ${locationCandidate}` },
+      { query: `${baseCategory} in East ${locationCandidate}` },
+      { query: `${baseCategory} in West ${locationCandidate}` },
+      { query: `${baseCategory} in Downtown ${locationCandidate}` },
+      { query: `${baseCategory} in Business District ${locationCandidate}` }
+    ];
+  }
+
+  public static getSubQueries(targetQuery: string, cityHint?: string): string[] {
+    const rawQuery = targetQuery.trim();
+    if (!rawQuery) return [];
+
+    const countryEntry = WorldGeo.findCountry(rawQuery) || (cityHint ? WorldGeo.findCountry(cityHint) : null);
+    if (countryEntry) {
+      const countryRegex = new RegExp(`\\b${countryEntry.name}\\b`, 'i');
+      const baseCategory = rawQuery.replace(countryRegex, '').replace(/\b(?:in|at|near|around)\b/gi, '').replace(/\s+/g, ' ').trim() || rawQuery;
+      return [
+        rawQuery,
+        ...countryEntry.cities.map(city => `${baseCategory} in ${city}, ${countryEntry.name}`)
+      ];
+    }
+
+    const lower = rawQuery.toLowerCase();
     for (const [cityKey, subAreas] of Object.entries(this.PRESET_PARTITIONS)) {
       const cityName = cityKey.replace(/_/g, ' ');
       const regex = new RegExp(`\\b${cityName}\\b`, 'i');
       if (regex.test(lower)) {
-        const baseQuery = targetQuery
+        const baseQuery = rawQuery
           .replace(new RegExp(`\\bin\\s+${cityName}\\b`, 'gi'), '')
           .replace(new RegExp(`\\bat\\s+${cityName}\\b`, 'gi'), '')
           .replace(new RegExp(`\\bnear\\s+${cityName}\\b`, 'gi'), '')
           .replace(new RegExp(`\\b${cityName}\\b`, 'gi'), '')
           .replace(/\s+/g, ' ')
-          .trim();
+          .trim() || rawQuery;
 
-        const cleanBase = baseQuery || targetQuery;
         return [
-          targetQuery,
-          ...subAreas.map(area => `${cleanBase} in ${area}, ${cityName}`.trim())
+          rawQuery,
+          ...subAreas.map(area => `${baseQuery} in ${area}, ${cityName}`.trim())
         ];
       }
     }
 
-    // 2. Preposition pattern match: "in [City]", "at [City]", "near [City]"
-    const prepMatch = targetQuery.match(/\b(?:in|at|near|around)\s+([a-zA-Z\s,]+)$/i);
+    const prepMatch = rawQuery.match(/\b(?:in|at|near|around)\s+([a-zA-Z\s,]+)$/i);
     if (prepMatch && prepMatch[1]) {
       const city = prepMatch[1].trim();
-      const base = targetQuery.replace(/\b(?:in|at|near|around)\s+([a-zA-Z\s,]+)$/i, '').trim();
+      const base = rawQuery.replace(/\b(?:in|at|near|around)\s+([a-zA-Z\s,]+)$/i, '').trim() || rawQuery;
       return [
-        targetQuery,
+        rawQuery,
         `${base} in Central ${city}`,
         `${base} in North ${city}`,
         `${base} in South ${city}`,
@@ -319,26 +443,7 @@ export class GeographicPartitioner {
       ];
     }
 
-    // 3. Trailing word pattern: "[Service] [City]" e.g. "clinics Jaipur"
-    const words = targetQuery.trim().split(/\s+/);
-    if (words.length >= 2) {
-      const potentialCity = words[words.length - 1];
-      const base = words.slice(0, -1).join(' ');
-      if (potentialCity.length >= 3 && !/^(services|center|company|agency|store|shop)$/i.test(potentialCity)) {
-        return [
-          targetQuery,
-          `${base} in Central ${potentialCity}`,
-          `${base} in North ${potentialCity}`,
-          `${base} in South ${potentialCity}`,
-          `${base} in East ${potentialCity}`,
-          `${base} in West ${potentialCity}`,
-          `${base} in Downtown ${potentialCity}`,
-          `${base} in Industrial Area ${potentialCity}`
-        ];
-      }
-    }
-
-    return [targetQuery];
+    return [rawQuery];
   }
 
   public static deduplicateLeads(leads: ScrapedLead[]): ScrapedLead[] {
@@ -357,44 +462,5 @@ export class GeographicPartitioner {
     }
 
     return deduplicated;
-  }
-
-  public static async executeWithControlledConcurrency<T, R>(
-    items: T[],
-    taskFn: (item: T) => Promise<R>,
-    concurrency = 4,
-    delayBetweenBatchesMs = 150
-  ): Promise<R[]> {
-    const results: R[] = [];
-    const queue = [...items];
-
-    while (queue.length > 0) {
-      const batch = queue.splice(0, concurrency);
-      const batchResults = await Promise.all(
-        batch.map(async (item) => {
-          let attempts = 0;
-          let delay = 500;
-          while (attempts < 2) {
-            try {
-              return await taskFn(item);
-            } catch (err) {
-              attempts++;
-              if (attempts >= 2) throw err;
-              await new Promise(res => setTimeout(res, delay));
-              delay *= 2;
-            }
-          }
-          throw new Error('Task failed');
-        })
-      );
-
-      results.push(...batchResults);
-
-      if (queue.length > 0 && delayBetweenBatchesMs > 0) {
-        await new Promise(res => setTimeout(res, delayBetweenBatchesMs));
-      }
-    }
-
-    return results;
   }
 }

@@ -4,7 +4,7 @@ import { TwoGisHttpProvider } from './http/twoGisHttpProvider';
 import { SerpApiGmapsProvider } from './external/serpApiProvider';
 import { GmapsPlaywrightFallback } from './playwright/gmapsPlaywrightFallback';
 import { TwoGisPlaywrightFallback } from './playwright/twoGisPlaywrightFallback';
-import { GeographicPartitioner } from './partitioner';
+import { GeographicPartitioner, SearchPartition } from './partitioner';
 import { GeoGrid } from './grid/geoGrid';
 
 export class ScraperManager {
@@ -73,24 +73,32 @@ export class ScraperManager {
     };
 
     if (engine === 'gmaps') {
-      const subQueries = GeographicPartitioner.getSubQueries(query);
-      await log(`[Partition Engine] Expanded target into ${subQueries.length} locality search partitions`);
+      const partitions: SearchPartition[] = await GeographicPartitioner.resolveSearchPartitions(query, options.city);
+      await log(`[Partition Engine] Expanded target into ${partitions.length} locality search partitions`);
 
       const concurrency = options.concurrency && options.concurrency > 0 ? options.concurrency : 4;
 
-      for (let idx = 0; idx < subQueries.length; idx += concurrency) {
+      for (let idx = 0; idx < partitions.length; idx += concurrency) {
         if (await checkCancelled()) break;
         if (cap > 0 && allLeads.length >= cap) break;
 
-        const batch = subQueries.slice(idx, idx + concurrency);
+        const batch = partitions.slice(idx, idx + concurrency);
         await Promise.all(
-          batch.map(async (subQ) => {
+          batch.map(async (partition) => {
             if (await checkCancelled()) return;
             if (cap > 0 && allLeads.length >= cap) return;
 
             try {
               const subLeads = await this.gmapsHttp.search(
-                { ...options, query: subQ, maxPagesPerCell: 5, seenKeys: seenTitles },
+                {
+                  ...options,
+                  query: partition.query,
+                  lat: partition.lat !== undefined ? partition.lat : options.lat,
+                  lon: partition.lon !== undefined ? partition.lon : options.lon,
+                  zoom: partition.zoom !== undefined ? partition.zoom : options.zoom,
+                  maxPagesPerCell: 5,
+                  seenKeys: seenTitles
+                },
                 {
                   checkCancelled,
                   log: async () => {},
@@ -102,7 +110,7 @@ export class ScraperManager {
               if (subLeads.length === 0 && !(await checkCancelled()) && this.gmapsExternal.isAvailable()) {
                 try {
                   await this.gmapsExternal.search(
-                    { ...options, query: subQ, seenKeys: seenTitles },
+                    { ...options, query: partition.query, seenKeys: seenTitles },
                     {
                       checkCancelled,
                       log: async () => {},
@@ -113,7 +121,7 @@ export class ScraperManager {
                 } catch {}
               }
             } catch (err: any) {
-              await log(`[HTTP Error] ${subQ}: ${err.message}`);
+              await log(`[HTTP Error] ${partition.query}: ${err.message}`);
             }
           })
         );

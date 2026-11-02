@@ -1,113 +1,144 @@
 @import "tailwindcss";
 
 :root {
-  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter", "Segoe UI", Roboto, sans-serif;
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --bg-main: #f8fafc;
+  --card-bg: #ffffff;
+  --border-color: #e2e8f0;
+  --primary-blue: #0072f0;
+  --text-main: #0f172a;
+  --text-muted: #64748b;
 }
 
 body {
   font-family: var(--font-sans);
+  background-color: var(--bg-main);
+  color: var(--text-main);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-@keyframes progress-stripe {
-  0% { background-position: 1rem 0; }
-  100% { background-position: 0 0; }
+/* CRM Standard Form Inputs */
+.crm-input {
+  background-color: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  color: #0f172a;
+  font-size: 13px;
+  height: 38px;
+  padding: 6px 12px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  width: 100%;
 }
 
-@keyframes pulse-soft {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.9; transform: scale(0.995); }
+.crm-input:focus {
+  border-color: #0072f0;
+  box-shadow: 0 0 0 2px rgba(0, 114, 240, 0.15);
+  outline: none;
 }
 
-.clean-progress-bar {
-  background-image: linear-gradient(
-    45deg,
-    rgba(255, 255, 255, 0.25) 25%,
-    transparent 25%,
-    transparent 50%,
-    rgba(255, 255, 255, 0.25) 50%,
-    rgba(255, 255, 255, 0.25) 75%,
-    transparent 75%,
-    transparent
-  );
-  background-size: 1rem 1rem;
-  animation: progress-stripe 1s linear infinite;
+.crm-input::placeholder {
+  color: #94a3b8;
 }
 
-.glass-surface-light {
-  background: rgba(255, 255, 255, 0.76);
-  backdrop-filter: blur(32px) saturate(180%);
-  -webkit-backdrop-filter: blur(32px) saturate(180%);
-  border: 1px solid rgba(255, 255, 255, 0.9);
-  box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.04), inset 0 1px 0 0 rgba(255, 255, 255, 1), inset 0 -1px 0 0 rgba(0, 0, 0, 0.03);
+/* CRM Standard Buttons */
+.crm-btn-primary {
+  background-color: #0072f0;
+  border: 1px solid #0072f0;
+  border-radius: 6px;
+  color: #ffffff;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 600;
+  height: 38px;
+  padding: 0 16px;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
 }
 
-.glass-surface-dark {
-  background: rgba(14, 14, 18, 0.65);
-  backdrop-filter: blur(36px) saturate(190%);
-  -webkit-backdrop-filter: blur(36px) saturate(190%);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  box-shadow: 0 20px 45px -10px rgba(0, 0, 0, 0.7), inset 0 1px 0 0 rgba(255, 255, 255, 0.16), inset 0 -1px 0 0 rgba(0, 0, 0, 0.4);
+.crm-btn-primary:hover {
+  background-color: #0060cb;
+  border-color: #0060cb;
 }
 
-.shiny-border-light {
-  border: 1px solid rgba(0, 0, 0, 0.08);
-  box-shadow: 0 1px 0 0 rgba(255, 255, 255, 0.9) inset, 0 12px 28px -6px rgba(0, 0, 0, 0.04);
+.crm-btn-default {
+  background-color: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  color: #475569;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 500;
+  height: 38px;
+  padding: 0 14px;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
 }
 
-.shiny-border-dark {
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  box-shadow: 0 1px 0 0 rgba(255, 255, 255, 0.18) inset, 0 20px 45px -10px rgba(0, 0, 0, 0.6);
+.crm-btn-default:hover {
+  background-color: #e2e8f0;
+  color: #0f172a;
 }
 
-.glass-input-light {
-  background: rgba(255, 255, 255, 0.88);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(0, 0, 0, 0.12);
-  box-shadow: inset 0 1px 2px 0 rgba(0, 0, 0, 0.04), 0 1px 0 0 rgba(255, 255, 255, 0.8);
+.crm-btn-danger {
+  background-color: #dc2626;
+  border: 1px solid #dc2626;
+  border-radius: 6px;
+  color: #ffffff;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 600;
+  height: 38px;
+  padding: 0 14px;
+  transition: background-color 0.15s ease;
 }
 
-.glass-input-dark {
-  background: rgba(10, 10, 14, 0.72);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  box-shadow: inset 0 1px 3px 0 rgba(0, 0, 0, 0.5), inset 0 0 0 1px rgba(255, 255, 255, 0.02);
+.crm-btn-danger:hover {
+  background-color: #b91c1c;
 }
 
-.glass-icon-light {
-  background: rgba(255, 255, 255, 0.82);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.95);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03), inset 0 1px 0 rgba(255, 255, 255, 1);
+/* CRM Card Boxes */
+.crm-box {
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.04), 0 1px 2px -1px rgba(0, 0, 0, 0.02);
 }
 
-.glass-icon-dark {
-  background: rgba(255, 255, 255, 0.06);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+.crm-box-header {
+  border-bottom: 1px solid #f1f5f9;
+  padding: 12px 18px;
 }
 
-.btn-spring {
-  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+.crm-box-title {
+  color: #0f172a;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  margin: 0;
 }
 
-.btn-spring:hover {
-  transform: translateY(-1.5px);
+.crm-label {
+  color: #475569;
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  margin-bottom: 5px;
+  text-transform: uppercase;
 }
 
-.btn-spring:active {
-  transform: translateY(0.5px) scale(0.985);
-}
-
+/* Scrollbars */
 ::-webkit-scrollbar {
-  width: 5px;
-  height: 5px;
+  width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
@@ -115,26 +146,14 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(120, 120, 120, 0.25);
+  background: #cbd5e1;
   border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(120, 120, 120, 0.5);
+  background: #94a3b8;
 }
 
 * {
   -webkit-tap-highlight-color: transparent;
-}
-
-.safe-bottom {
-  padding-bottom: env(safe-area-inset-bottom, 0px);
-}
-
-.no-scrollbar::-webkit-scrollbar {
-  display: none;
-}
-.no-scrollbar {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
 }
