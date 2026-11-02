@@ -1,6 +1,5 @@
 import { Router } from 'express';
 import bcrypt from 'bcrypt';
-import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 import { query } from '../db';
 import { AuthRequest, authMiddleware } from '../middlewares/auth';
@@ -8,37 +7,15 @@ import { AuthRequest, authMiddleware } from '../middlewares/auth';
 const router = Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'secret-kiri-key';
 
-const DISPOSABLE_EMAIL_DOMAINS = new Set([
-  'tempmail.com', 'temp-mail.org', 'guerrillamail.com', 'guerrillamailblock.com',
-  'mailinator.com', '10minutemail.com', '10minutemail.net', 'yopmail.com',
-  'trashmail.com', 'trashmail.net', 'dispostable.com', 'sharklasers.com',
-  'throwawaymail.com', 'fakeinbox.com', 'getairmail.com', 'mohmal.com',
-  'crazymailing.com', 'burnermail.io', 'tempail.com', 'fakemailgenerator.com',
-  'mytemp.email', 'inboxkitten.com', 'nada.ltd', 'getnada.com', 'tempmailo.com',
-  'internxt.com', 'minuteinbox.com', 'generator.email', 'emailondeck.com',
-  'tempmailgen.com', 'maildrop.cc', 'harakirimail.com', 'jetable.org',
-  'mailcatch.com', 'spamgourmet.com', 'incognitomail.org', 'zillamail.com'
-]);
+// Public registration is completely disabled
+router.get('/registration-status', async (_req, res) => {
+  res.json({ allowRegistration: false });
+});
 
-function isDisposableEmail(email: string): boolean {
-  const parts = email.toLowerCase().split('@');
-  if (parts.length !== 2) return true;
-  const domain = parts[1];
-  if (DISPOSABLE_EMAIL_DOMAINS.has(domain)) return true;
-  for (const disp of DISPOSABLE_EMAIL_DOMAINS) {
-    if (domain.endsWith('.' + disp)) return true;
-  }
-  return false;
-}
-
-router.get('/registration-status', async (req, res) => {
-  try {
-    const regSetting = await query("SELECT value FROM settings WHERE key = 'allow_registration'");
-    const isAllowed = regSetting.rows[0]?.value !== 'false';
-    res.json({ allowRegistration: isAllowed });
-  } catch {
-    res.json({ allowRegistration: true });
-  }
+router.post('/register', async (_req, res) => {
+  return res.status(403).json({
+    error: 'Public registration is disabled. User accounts can only be created by an administrator or manager from the Admin Console.'
+  });
 });
 
 router.get('/check-username', async (req, res) => {
@@ -57,76 +34,6 @@ router.get('/check-username', async (req, res) => {
     res.json({ valid: true, taken: false });
   } catch {
     res.status(500).json({ error: 'Server error checking username' });
-  }
-});
-
-router.post('/register', async (req, res) => {
-  try {
-    const { email, password, name, username } = req.body;
-
-    const regSetting = await query("SELECT value FROM settings WHERE key = 'allow_registration'");
-    if (regSetting.rows[0]?.value === 'false') {
-      return res.status(403).json({ error: 'Public registration is disabled by administrator' });
-    }
-
-    if (!email || !password) {
-      return res.status(400).json({ error: 'Email and password are required' });
-    }
-
-    if (!username || typeof username !== 'string' || !username.trim()) {
-      return res.status(400).json({ error: 'Username is required' });
-    }
-
-    const cleanUsername = username.trim().toLowerCase();
-    if (!/^[a-z0-9_]{3,30}$/.test(cleanUsername)) {
-      return res.status(400).json({ error: 'Username must be 3-30 lowercase characters (only letters a-z, numbers 0-9, and _)' });
-    }
-
-    const userExisting = await query('SELECT id FROM users WHERE LOWER(username) = $1', [cleanUsername]);
-    if (userExisting.rows.length > 0) {
-      return res.status(409).json({ error: 'Username is already taken. Please choose another username.' });
-    }
-
-    const normEmail = email.trim().toLowerCase();
-    if (isDisposableEmail(normEmail)) {
-      return res.status(400).json({ error: 'Temporary and disposable email addresses are not permitted. Please use your business, company, or trusted email.' });
-    }
-
-    const existing = await query('SELECT id FROM users WHERE email = $1', [normEmail]);
-    if (existing.rows.length > 0) {
-      return res.status(409).json({ error: 'Email is already registered' });
-    }
-
-    const countResult = await query('SELECT COUNT(*) as count FROM users');
-    const isFirstUser = parseInt(countResult.rows[0].count) === 0;
-
-    const role = isFirstUser ? 'admin' : 'user';
-    const status = isFirstUser ? 'active' : 'pending';
-    const canUseProxy = isFirstUser ? 1 : 0;
-
-    const salt = await bcrypt.genSalt(10);
-    const passwordHash = await bcrypt.hash(password, salt);
-
-    const result = await query(
-      'INSERT INTO users (email, username, password_hash, name, role, status, can_use_proxy) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, email, username, name, role, status, can_use_proxy, avatar',
-      [normEmail, cleanUsername, passwordHash, name || cleanUsername, role, status, canUseProxy]
-    );
-
-    const newUser = result.rows[0];
-
-    if (status === 'pending') {
-      return res.status(201).json({
-        message: 'Account created. Please wait for an administrator to approve your account.',
-        user: newUser,
-        requiresApproval: true
-      });
-    }
-
-    const token = jwt.sign({ id: newUser.id, role: newUser.role }, JWT_SECRET, { expiresIn: '7d' });
-    res.status(201).json({ token, user: newUser, requiresApproval: false });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Registration failed' });
   }
 });
 
@@ -158,7 +65,12 @@ router.post('/login', async (req, res) => {
       return res.status(403).json({ error: 'Your account has been deactivated' });
     }
 
-    const token = jwt.sign({ id: user.id, role: user.role, company: user.company, manager_id: user.manager_id }, JWT_SECRET, { expiresIn: '7d' });
+    const token = jwt.sign(
+      { id: user.id, role: user.role, company: user.company, manager_id: user.manager_id },
+      JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+
     res.json({
       token,
       user: {
@@ -188,7 +100,10 @@ router.post('/forgot-password', async (_req, res) => {
 
 router.get('/me', authMiddleware, async (req: AuthRequest, res) => {
   try {
-    const result = await query('SELECT id, email, username, name, avatar, role, company, manager_id, status, expires_at, can_use_proxy, custom_proxy FROM users WHERE id = $1', [req.user?.id]);
+    const result = await query(
+      'SELECT id, email, username, name, avatar, role, company, manager_id, status, expires_at, can_use_proxy, custom_proxy FROM users WHERE id = $1',
+      [req.user?.id]
+    );
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'User not found' });
     }
