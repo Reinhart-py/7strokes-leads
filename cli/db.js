@@ -171,53 +171,16 @@ async function viewDatabase() {
   }
 }
 
+// No-history policy: 7strokes no longer keeps leads, so backups and restores are disabled.
+const NO_HISTORY_NOTE = '[i] Backups and restores are turned off: 7strokes no longer keeps leads. Only the latest search is kept until the next one starts.';
+
 async function backupDatabase() {
-  if (!fs.existsSync(DB_PATH)) {
-    throw new Error(`Database ${DB_PATH} does not exist.`);
-  }
-
-  if (!fs.existsSync(BACKUPS_DIR)) {
-    fs.mkdirSync(BACKUPS_DIR, { recursive: true });
-  }
-
-  const now = new Date();
-  const timestamp = now.toISOString().replace(/[:.]/g, '-').slice(0, 19);
-  const backupFileName = `7strokes-backup-${timestamp}.sqlite`;
-  const backupFilePath = path.join(BACKUPS_DIR, backupFileName);
-
-  fs.copyFileSync(DB_PATH, backupFilePath);
-
-  const walPath = DB_PATH + '-wal';
-  if (fs.existsSync(walPath)) {
-    try { fs.copyFileSync(walPath, backupFilePath + '-wal'); } catch (_) {}
-  }
-
-  const stat = fs.statSync(backupFilePath);
-  console.log('\n[+] Database Backup Created Successfully!');
-  console.log(`File      : ${backupFilePath}`);
-  console.log(`Size      : ${formatBytes(stat.size)}`);
-  console.log(`Timestamp : ${now.toLocaleString()}\n`);
-
-  return backupFilePath;
+  console.log(NO_HISTORY_NOTE);
+  return null;
 }
 
-async function restoreDatabase(sourcePath) {
-  if (!sourcePath || !fs.existsSync(sourcePath)) {
-    throw new Error(`Backup file not found at: ${sourcePath}`);
-  }
-
-  console.log('[*] Creating temporary safety backup before restore...');
-  await backupDatabase();
-
-  fs.copyFileSync(sourcePath, DB_PATH);
-
-  try {
-    if (fs.existsSync(DB_PATH + '-wal')) fs.unlinkSync(DB_PATH + '-wal');
-    if (fs.existsSync(DB_PATH + '-shm')) fs.unlinkSync(DB_PATH + '-shm');
-  } catch (_) {}
-
-  console.log(`\n[+] Database Restored Successfully from: ${sourcePath}`);
-  console.log('[*] Run "fk db view" to inspect the restored database.\n');
+async function restoreDatabase() {
+  console.log(NO_HISTORY_NOTE);
 }
 
 module.exports = {

@@ -6,7 +6,6 @@ import Sidebar, { NavItem } from "./Sidebar";
 import dynamic from "next/dynamic";
 import LocationSearch, { PlaceSuggestion } from "./LocationSearch";
 import RadiusPicker, { formatRadius } from "./RadiusPicker";
-import NewListings from "./NewListings";
 import type { LatLon } from "./MapPicker";
 
 // Leaflet needs the browser; load the map only on the client.
@@ -146,16 +145,6 @@ const parseServerDate = (value?: string) => {
   const iso = /\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(value) ? value.replace(" ", "T") + "Z" : value;
   const d = new Date(iso);
   return isNaN(d.getTime()) ? null : d;
-};
-
-const formatRelative = (value?: string) => {
-  const d = parseServerDate(value);
-  if (!d) return "";
-  const diff = Math.max(0, Date.now() - d.getTime()) / 1000;
-  if (diff < 60) return "just now";
-  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
-  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
-  return d.toLocaleDateString();
 };
 
 const POPULAR_CATEGORIES = [
@@ -304,53 +293,8 @@ const svgProps = {
   strokeLinejoin: "round" as const
 };
 
-const IconHome = ({ className = "w-4 h-4" }: { className?: string }) => (
-  <svg className={className} {...svgProps}>
-    <rect x="3" y="3" width="7" height="9" rx="1.5" />
-    <rect x="14" y="3" width="7" height="5" rx="1.5" />
-    <rect x="14" y="12" width="7" height="9" rx="1.5" />
-    <rect x="3" y="16" width="7" height="5" rx="1.5" />
-  </svg>
-);
-
 const IconPlus = ({ className = "w-4 h-4" }: { className?: string }) => (
   <svg className={className} {...svgProps}><path d="M12 5v14M5 12h14" /></svg>
-);
-
-const IconPhone = ({ className = "w-4 h-4" }: { className?: string }) => (
-  <svg className={className} {...svgProps}>
-    <path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.5 2.1L8 9.9a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.7 2z" />
-  </svg>
-);
-
-const IconGlobe = ({ className = "w-4 h-4" }: { className?: string }) => (
-  <svg className={className} {...svgProps}>
-    <circle cx="12" cy="12" r="10" />
-    <path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
-  </svg>
-);
-
-const IconLayers = ({ className = "w-4 h-4" }: { className?: string }) => (
-  <svg className={className} {...svgProps}>
-    <path d="m12 2 10 5-10 5L2 7l10-5z" />
-    <path d="m2 17 10 5 10-5M2 12l10 5 10-5" />
-  </svg>
-);
-
-const IconActivity = ({ className = "w-4 h-4" }: { className?: string }) => (
-  <svg className={className} {...svgProps}><path d="M22 12h-4l-3 9L9 3l-3 9H2" /></svg>
-);
-
-const IconUpload = ({ className = "w-4 h-4" }: { className?: string }) => (
-  <svg className={className} {...svgProps}>
-    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-    <polyline points="17 8 12 3 7 8" />
-    <line x1="12" y1="3" x2="12" y2="15" />
-  </svg>
-);
-
-const IconArrowRight = ({ className = "w-4 h-4" }: { className?: string }) => (
-  <svg className={className} {...svgProps}><path d="M5 12h14M13 6l6 6-6 6" /></svg>
 );
 
 const BrandMark = ({ size = 36 }: { size?: number }) => (
@@ -374,28 +318,12 @@ const PageHeader = ({ eyebrow, title, subtitle, actions }: { eyebrow?: string; t
   </div>
 );
 
-type Summary = {
-  totals: { leads: number; withPhone: number; withWebsite: number; withEmail: number; withRating: number };
-  jobs: { total: number; byStatus: Record<string, number> };
-  daily: { day: string; total: number; withPhone: number }[];
-  topCategories: { name: string; count: number }[];
-  topCities: { name: string; count: number }[];
-};
-
-const pct = (part: number, whole: number) => (whole > 0 ? Math.round((part / whole) * 100) : 0);
-
-const greeting = () => {
-  const h = new Date().getHours();
-  return h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening";
-};
-
 const initialsOf = (name?: string) =>
   (name || "?").split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]!.toUpperCase()).join("") || "?";
 
 export default function Home() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [navPinned, setNavPinned] = useState(true);
-  const [summary, setSummary] = useState<Summary | null>(null);
   const [globalSearch, setGlobalSearch] = useState("");
   const globalSearchRef = useRef<HTMLInputElement>(null);
   const [searchEngine, setSearchEngine] = useState<"gmaps" | "2gis">("gmaps");
@@ -422,13 +350,12 @@ export default function Home() {
   const [authError, setAuthError] = useState("");
 
   const [viewMode, setViewMode] = useState<"app" | "admin">("app");
-  const [activeTab, setActiveTab] = useState<"dashboard" | "search" | "leads" | "changes" | "settings">("dashboard");
+  const [activeTab, setActiveTab] = useState<"search" | "leads" | "settings">("search");
   const [adminTab, setAdminTab] = useState<"overview" | "users" | "leads">("overview");
 
   const [jobs, setJobs] = useState<any[]>([]);
   const [adminStats, setAdminStats] = useState<any>(null);
   const [adminUsers, setAdminUsers] = useState<any[]>([]);
-  const [adminGlobalLeads, setAdminGlobalLeads] = useState<any[]>([]);
 
   const [keyword, setKeyword] = useState("");
   const [location, setLocation] = useState("");
@@ -449,8 +376,6 @@ export default function Home() {
   const [resultsPageSize, setResultsPageSize] = useState(50);
   const [resultsTotal, setResultsTotal] = useState(0);
   const [resultsStats, setResultsStats] = useState<{ total: number; withPhone: number; withWebsite: number; withEmail: number } | null>(null);
-  const [adminLeadsPage, setAdminLeadsPage] = useState(0);
-  const [adminLeadsTotal, setAdminLeadsTotal] = useState(0);
   const [startError, setStartError] = useState("");
 
   // Refs let the polling interval read the latest values without being re-created.
@@ -541,9 +466,16 @@ export default function Home() {
         const list = await res.json();
         const arr = Array.isArray(list) ? list : [];
         setJobs(arr);
-        if (!selectedJobIdRef.current && arr.length > 0) {
+        const current = selectedJobIdRef.current;
+        if ((!current || !arr.some(j => j.id === current)) && arr.length > 0) {
           selectedJobIdRef.current = arr[0].id;
           setSelectedJobId(arr[0].id);
+        } else if (arr.length === 0 && current) {
+          selectedJobIdRef.current = null;
+          setSelectedJobId(null);
+          setJobResults([]);
+          setResultsTotal(0);
+          setResultsStats(null);
         }
       }
     } catch {}
@@ -571,7 +503,6 @@ export default function Home() {
             if (u.role === "admin" || u.role === "manager") {
               fetchAdminStats(storedToken);
               fetchAdminUsers(storedToken);
-              fetchAdminGlobalLeads(storedToken);
             }
           } else {
             localStorage.removeItem("token");
@@ -615,24 +546,6 @@ export default function Home() {
     }
   }, [token]);
 
-  const authedRequest = useCallback(
-    (path: string) => apiFetch(path, { headers: { Authorization: `Bearer ${token}` } }),
-    [token]
-  );
-
-  const fetchSummary = useCallback(async (authToken: string) => {
-    try {
-      const res = await apiFetch("/api/jobs/summary?days=14", {
-        headers: { Authorization: `Bearer ${authToken}` }
-      });
-      if (res.ok) setSummary(await res.json());
-    } catch {}
-  }, []);
-
-  useEffect(() => {
-    if (token && activeTab === "dashboard" && viewMode === "app") fetchSummary(token);
-  }, [token, activeTab, viewMode, fetchSummary]);
-
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
@@ -666,12 +579,9 @@ export default function Home() {
       if (viewMode === "admin") {
         fetchAdminStats(token);
       }
-      if (viewMode === "app" && activeTab === "dashboard" && jobsRef.current.some(j => isActiveStatus(j.status))) {
-        fetchSummary(token);
-      }
     }, 3000);
     return () => clearInterval(interval);
-  }, [token, activeTab, viewMode, fetchJobsList, fetchJobDetails, fetchSummary]);
+  }, [token, activeTab, viewMode, fetchJobsList, fetchJobDetails]);
 
   const selectJob = (jobId: string) => {
     if (jobId === selectedJobId) return;
@@ -702,20 +612,6 @@ export default function Home() {
     } catch {}
   };
 
-  const fetchAdminGlobalLeads = async (authToken: string, page = 0) => {
-    try {
-      const res = await apiFetch(`/api/admin/leads?limit=100&offset=${page * 100}`, {
-        headers: { Authorization: `Bearer ${authToken}` }
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setAdminGlobalLeads(data.leads || []);
-        setAdminLeadsTotal(Number(data.total) || 0);
-        setAdminLeadsPage(page);
-      }
-    } catch {}
-  };
-
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setAuthError("");
@@ -739,7 +635,6 @@ export default function Home() {
         if (data.user.role === "admin" || data.user.role === "manager") {
           fetchAdminStats(data.token);
           fetchAdminUsers(data.token);
-          fetchAdminGlobalLeads(data.token);
         }
       } else {
         setAuthError(data.error || "Login failed. Check your credentials.");
@@ -759,15 +654,48 @@ export default function Home() {
     selectedJobIdRef.current = null;
     setSelectedJobId(null);
     setViewMode("app");
-    setActiveTab("dashboard");
-    setSummary(null);
+    setActiveTab("search");
   };
 
   const effectiveCap = limitMode === "custom" ? Math.max(0, Math.floor(Number(customLimit) || 0)) : leadCount;
 
+  /** Leads are not stored: a new search erases the current results, so confirm first. */
+  const confirmReplaceResults = () => {
+    const count = jobs.reduce((a, j) => a + (j.total_saved || 0), 0);
+    if (jobs.length === 0) return true;
+    return window.confirm(
+      count > 0
+        ? `Starting a new search permanently erases your current results (${formatNumber(count)} leads).\n\nDownload them first if you need them. Continue?`
+        : "Starting a new search replaces your current one. Continue?"
+    );
+  };
+
+  const resetSelection = () => {
+    selectedJobIdRef.current = null;
+    setSelectedJobId(null);
+    setJobResults([]);
+    setResultsTotal(0);
+    setResultsStats(null);
+    setResultsPage(0);
+    setSearchFilter("");
+    setDebouncedFilter("");
+  };
+
+  const clearResults = async () => {
+    const count = jobs.reduce((a, j) => a + (j.total_saved || 0), 0);
+    if (!window.confirm(`Erase the current results${count ? ` (${formatNumber(count)} leads)` : ""}? This cannot be undone.`)) return;
+    try {
+      await apiFetch("/api/jobs", { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
+    } catch {}
+    resetSelection();
+    setJobs([]);
+    fetchJobsList(token);
+  };
+
   const startLeadSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!keyword.trim()) return;
+    if (!confirmReplaceResults()) return;
 
     setIsStarting(true);
     setStartError("");
@@ -804,8 +732,10 @@ export default function Home() {
 
       if (res.ok) {
         const createdJob = await res.json();
+        resetSelection();
+        selectedJobIdRef.current = createdJob.id;
+        setSelectedJobId(createdJob.id);
         await fetchJobsList(token);
-        selectJob(createdJob.id);
         setActiveTab("leads");
       } else {
         const data = await res.json().catch(() => ({}));
@@ -844,6 +774,7 @@ export default function Home() {
       .filter(q => q.length > 0);
 
     if (queries.length === 0) return;
+    if (!confirmReplaceResults()) return;
     setIsBulkStarting(true);
     setBulkStatusMsg("");
 
@@ -867,6 +798,7 @@ export default function Home() {
       if (res.ok) {
         setBulkQueriesText("");
         setBulkFileName("");
+        resetSelection();
         await fetchJobsList(token);
         setActiveTab("leads");
       } else {
@@ -886,24 +818,6 @@ export default function Home() {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` }
       });
-      fetchJobsList(token);
-    } catch {}
-  };
-
-  const deleteSearch = async (jobId: string) => {
-    if (!confirm("Are you sure you want to delete this search and all its collected leads?")) return;
-    try {
-      await apiFetch(`/api/jobs/${jobId}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (selectedJobId === jobId) {
-        selectedJobIdRef.current = null;
-        setSelectedJobId(null);
-        setJobResults([]);
-        setResultsTotal(0);
-        setResultsStats(null);
-      }
       fetchJobsList(token);
     } catch {}
   };
@@ -1011,14 +925,13 @@ export default function Home() {
   const totalPages = Math.max(1, Math.ceil(resultsTotal / resultsPageSize));
   const filteredCategories = POPULAR_CATEGORIES.filter(c => !keyword.trim() || c.toLowerCase().includes(keyword.trim().toLowerCase()));
 
-  const goApp = (tab: "dashboard" | "search" | "leads" | "changes" | "settings") => {
+  const goApp = (tab: "search" | "leads" | "settings") => {
     setViewMode("app");
     setActiveTab(tab);
   };
-  const goAdmin = (tab: "overview" | "users" | "leads") => {
+  const goAdmin = (tab: "overview" | "users") => {
     setViewMode("admin");
     setAdminTab(tab);
-    if (tab === "leads" && token) fetchAdminGlobalLeads(token, 0);
   };
   const toggleNavPinned = () => {
     setNavPinned(p => {
@@ -1027,9 +940,8 @@ export default function Home() {
     });
   };
 
-  const recentJobs = jobs.slice(0, 6);
+  const latestLeadCount = jobs.reduce((a, j) => a + (j.total_saved || 0), 0);
   const navItems: NavItem[] = [
-    { key: "dashboard", label: "Dashboard", icon: <IconHome className="w-[18px] h-[18px]" />, onSelect: () => goApp("dashboard") },
     {
       key: "find",
       label: "Find leads",
@@ -1040,20 +952,11 @@ export default function Home() {
       ]
     },
     {
-      key: "leads",
-      label: "Leads",
+      key: "results",
+      label: "Latest results",
       icon: <IconDatabase className="w-[18px] h-[18px]" />,
-      badge: runningJob ? "live" : jobs.length,
-      children: [
-        { key: "leads:all", label: "All extractions", meta: String(jobs.length), onSelect: () => goApp("leads") },
-        { key: "changes", label: "New listings", onSelect: () => goApp("changes") },
-        ...recentJobs.map(j => ({
-          key: `job:${j.id}`,
-          label: j.target,
-          meta: isActiveStatus(j.status) ? "live" : formatNumber(j.total_saved || 0),
-          onSelect: () => { selectJob(j.id); goApp("leads"); }
-        }))
-      ]
+      badge: runningJob ? "live" : latestLeadCount ? formatNumber(latestLeadCount) : undefined,
+      onSelect: () => goApp("leads")
     },
     ...((user?.role === "admin" || user?.can_use_proxy === 1)
       ? [{ key: "settings", label: "Proxy settings", icon: <IconShield className="w-[18px] h-[18px]" />, onSelect: () => goApp("settings") }]
@@ -1065,8 +968,7 @@ export default function Home() {
           icon: <IconUsers className="w-[18px] h-[18px]" />,
           children: [
             { key: "admin:overview", label: "Overview", onSelect: () => goAdmin("overview") },
-            { key: "admin:users", label: "Users & team", onSelect: () => goAdmin("users") },
-            { key: "admin:leads", label: "All leads", onSelect: () => goAdmin("leads") }
+            { key: "admin:users", label: "Users & team", onSelect: () => goAdmin("users") }
           ]
         }]
       : [])
@@ -1077,7 +979,7 @@ export default function Home() {
     : activeTab === "search"
       ? `search:${searchMode}`
       : activeTab === "leads"
-        ? (selectedJobId && recentJobs.some(j => j.id === selectedJobId) ? `job:${selectedJobId}` : "leads:all")
+        ? "results"
         : activeTab;
 
   const submitGlobalSearch = (e: React.FormEvent) => {
@@ -1085,19 +987,6 @@ export default function Home() {
     goApp("leads");
     setSearchFilter(globalSearch.trim());
   };
-
-  const today = new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
-  const summaryTotals = summary?.totals;
-  const dailyMax = Math.max(1, ...(summary?.daily || []).map(d => d.total));
-  const chartTicks = (() => {
-    const step = Math.max(1, Math.ceil(dailyMax / 4 / 10) * 10);
-    return [4, 3, 2, 1, 0].map(i => i * step);
-  })();
-  const chartTop = chartTicks[0] || 1;
-  const leadsLast14 = (summary?.daily || []).reduce((a, d) => a + d.total, 0);
-  const categoryMax = Math.max(1, ...(summary?.topCategories || []).map(c => c.count));
-  const cityMax = Math.max(1, ...(summary?.topCities || []).map(c => c.count));
-
 
   // ----------------------------------------------------
   // UNAUTHENTICATED SCREEN (Clean Apple-Style Sign In)
@@ -1454,9 +1343,9 @@ export default function Home() {
               type="search"
               value={globalSearch}
               onChange={e => setGlobalSearch(e.target.value)}
-              placeholder="Search leads by name, phone, address..."
+              placeholder="Search the current results..."
               className="crm-input h-10 pl-10 pr-16 rounded-full bg-white"
-              aria-label="Search leads"
+              aria-label="Search the current results"
             />
             <kbd className="hidden sm:inline-flex absolute right-3 top-1/2 -translate-y-1/2 items-center h-6 px-2 rounded-md border border-[#0b2a4a]/15 text-[10px] font-semibold text-[#0b2a4a]/60 bg-[#eef6f4]">Ctrl K</kbd>
           </form>
@@ -1511,214 +1400,6 @@ export default function Home() {
         {/* Dedicated Page View Area */}
         <div className="flex-1 overflow-y-auto px-3 py-5 sm:px-6 sm:py-7">
           <div className="max-w-[1400px] mx-auto space-y-6">
-
-            {/* PAGE 0: DASHBOARD */}
-            {viewMode === "app" && activeTab === "dashboard" && (
-              <div className="space-y-6">
-                <PageHeader
-                  eyebrow={today}
-                  title={greeting()}
-                  subtitle={<>{user.name || user.username}{user.company ? ` · ${user.company}` : ""} · {formatNumber(summary?.jobs.total ?? jobs.length)} extractions · {formatNumber(summaryTotals?.leads || 0)} leads collected</>}
-                  actions={
-                    <>
-                      <button onClick={() => { setSearchMode("bulk"); goApp("search"); }} className="crm-btn-default">
-                        <IconUpload className="w-4 h-4" /> Bulk upload
-                      </button>
-                      <button onClick={() => goApp("leads")} className="crm-btn-default">View leads</button>
-                      <button onClick={() => { setSearchMode("single"); goApp("search"); }} className="crm-btn-primary">
-                        <IconPlus className="w-4 h-4" /> New search
-                      </button>
-                    </>
-                  }
-                />
-
-                {/* KPI cards */}
-                <div className="grid grid-cols-2 xl:grid-cols-5 gap-3 sm:gap-4">
-                  {[
-                    { label: "Total leads", value: formatNumber(summaryTotals?.leads || 0), sub: `${formatNumber(leadsLast14)} in the last 14 days`, icon: <IconDatabase className="w-[18px] h-[18px]" /> },
-                    { label: "With phone", value: formatNumber(summaryTotals?.withPhone || 0), sub: `${pct(summaryTotals?.withPhone || 0, summaryTotals?.leads || 0)}% of all leads`, icon: <IconPhone className="w-[18px] h-[18px]" /> },
-                    { label: "With website", value: formatNumber(summaryTotals?.withWebsite || 0), sub: `${pct(summaryTotals?.withWebsite || 0, summaryTotals?.leads || 0)}% of all leads`, icon: <IconGlobe className="w-[18px] h-[18px]" /> },
-                    { label: "Extractions", value: formatNumber(summary?.jobs.total ?? jobs.length), sub: `${formatNumber(summary?.jobs.byStatus.completed || 0)} completed`, icon: <IconLayers className="w-[18px] h-[18px]" /> },
-                    { label: "Running now", value: formatNumber((summary?.jobs.byStatus.running || 0) + (summary?.jobs.byStatus.pending || 0)), sub: runningJob ? runningJob.target : "Nothing in progress", icon: <IconActivity className="w-[18px] h-[18px]" />, live: !!runningJob }
-                  ].map((card, idx, all) => (
-                    <div key={card.label} className={`crm-box p-4 sm:p-5 relative overflow-hidden ${idx === all.length - 1 ? "col-span-2 xl:col-span-1" : ""}`}>
-                      <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-[#12a594]/0 via-[#12a594]/70 to-[#12a594]/0" />
-                      <div className="flex flex-col sm:flex-row items-start gap-3 sm:gap-3.5">
-                        <span className="crm-icon-tile">{card.icon}</span>
-                        <div className="min-w-0">
-                          <div className="crm-label !mb-1 flex items-center gap-1.5">
-                            {card.label}
-                            {card.live && <span className="w-1.5 h-1.5 rounded-full bg-[#12a594] animate-pulse" />}
-                          </div>
-                          <div className="text-[22px] sm:text-[26px] leading-none font-extrabold tracking-[-0.02em] tabular-nums">{card.value}</div>
-                          <div className="text-xs text-[#0b2a4a]/60 mt-2 truncate" title={card.sub}>{card.sub}</div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-                  {/* Leads collected chart */}
-                  <div className="crm-box p-5 sm:p-6 xl:col-span-2">
-                    <div className="flex flex-wrap items-start justify-between gap-3">
-                      <div>
-                        <h2 className="crm-box-title">Leads collected</h2>
-                        <p className="text-xs text-[#0b2a4a]/60 mt-1">Last 14 days · {formatNumber(leadsLast14)} leads · {formatNumber((summary?.daily || []).reduce((a, d) => a + d.withPhone, 0))} with phone</p>
-                      </div>
-                      <div className="flex items-center gap-4 text-xs text-[#0b2a4a]/70">
-                        <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-[3px] bg-[#0b2a4a]" />Leads</span>
-                        <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-[3px] bg-[#12a594]" />With phone</span>
-                      </div>
-                    </div>
-
-                    <div className="mt-6 flex gap-3">
-                      <div className="flex flex-col justify-between h-56 xl:h-[336px] text-[10px] text-[#0b2a4a]/45 tabular-nums text-right w-8 shrink-0 -mt-1.5 pb-5">
-                        {chartTicks.map(t => <span key={t}>{t >= 1000 ? `${Math.round(t / 100) / 10}k` : t}</span>)}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="relative h-52 xl:h-[312px]">
-                          {chartTicks.map((t, i) => (
-                            <div key={t} className="absolute inset-x-0 border-t border-dashed border-[#0b2a4a]/[0.08]" style={{ top: `${(i / 4) * 100}%` }} />
-                          ))}
-                          <div className="absolute inset-0 flex items-end justify-between gap-1 sm:gap-2">
-                            {(summary?.daily || []).map(d => (
-                              <div key={d.day} className="group relative flex-1 h-full flex items-end justify-center gap-[3px]">
-                                <div className="w-full max-w-[14px] rounded-t-[4px] bg-[#0b2a4a] transition-[height] duration-500" style={{ height: `${(d.total / chartTop) * 100}%` }} />
-                                <div className="w-full max-w-[14px] rounded-t-[4px] bg-[#12a594] transition-[height] duration-500" style={{ height: `${(d.withPhone / chartTop) * 100}%` }} />
-                                <div className="pointer-events-none absolute bottom-full mb-2 left-1/2 -translate-x-1/2 hidden group-hover:block whitespace-nowrap rounded-lg bg-[#0b2a4a] text-white text-[11px] px-2.5 py-1.5 shadow-lg z-10">
-                                  <div className="font-semibold">{new Date(d.day + "T00:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</div>
-                                  <div>{formatNumber(d.total)} leads · {formatNumber(d.withPhone)} with phone</div>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                        <div className="flex justify-between gap-1 sm:gap-2 mt-2 text-[10px] text-[#0b2a4a]/50">
-                          {(summary?.daily || []).map((d, i, arr) => (
-                            <span key={d.day} className={`flex-1 text-center ${i === arr.length - 1 ? "font-bold text-[#0b2a4a]" : ""} ${i % 2 === 1 && i !== arr.length - 1 ? "invisible sm:visible" : ""}`}>
-                              {new Date(d.day + "T00:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Data quality / top categories */}
-                  <div className="crm-box p-5 sm:p-6">
-                    <div className="flex items-center justify-between">
-                      <h2 className="crm-box-title">Data quality</h2>
-                      <button onClick={() => goApp("leads")} className="text-xs font-semibold text-[#0b2a4a]/70 hover:text-[#0b2a4a] inline-flex items-center gap-1">
-                        All leads <IconArrowRight className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                    <p className="text-xs text-[#0b2a4a]/60 mt-1">How complete your saved leads are</p>
-                    <div className="mt-5 space-y-4">
-                      {[
-                        { label: "Phone number", value: summaryTotals?.withPhone || 0, gold: false },
-                        { label: "Website", value: summaryTotals?.withWebsite || 0, gold: true },
-                        { label: "Rating & reviews", value: summaryTotals?.withRating || 0, gold: false },
-                        { label: "Email", value: summaryTotals?.withEmail || 0, gold: true }
-                      ].map(row => (
-                        <div key={row.label}>
-                          <div className="flex items-baseline justify-between text-[13px]">
-                            <span className="font-medium">{row.label}</span>
-                            <span className="font-bold tabular-nums">{pct(row.value, summaryTotals?.leads || 0)}%</span>
-                          </div>
-                          <div className="mt-1.5 h-2 rounded-full bg-[#eef6f4] overflow-hidden">
-                            <div className={`h-full rounded-full ${row.gold ? "bg-[#12a594]" : "bg-[#0b2a4a]"}`} style={{ width: `${pct(row.value, summaryTotals?.leads || 0)}%` }} />
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                    <div className="mt-6 pt-4 border-t border-[#0b2a4a]/[0.07]">
-                      <div className="crm-label">Top categories</div>
-                      {(summary?.topCategories || []).length === 0 ? (
-                        <p className="text-xs text-[#0b2a4a]/50">No leads yet.</p>
-                      ) : (
-                        <ul className="space-y-2.5">
-                          {summary!.topCategories.slice(0, 5).map((c, i) => (
-                            <li key={c.name} className="flex items-center gap-3 text-[13px]">
-                              <span className="flex-1 min-w-0 truncate" title={c.name}>{c.name}</span>
-                              <span className="w-20 h-1.5 rounded-full bg-[#eef6f4] overflow-hidden shrink-0">
-                                <span className={`block h-full rounded-full ${i % 2 ? "bg-[#12a594]" : "bg-[#0b2a4a]"}`} style={{ width: `${(c.count / categoryMax) * 100}%` }} />
-                              </span>
-                              <span className="w-12 text-right font-semibold tabular-nums">{formatNumber(c.count)}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-                  {/* Recent extractions */}
-                  <div className="crm-box xl:col-span-2 overflow-hidden">
-                    <div className="crm-box-header flex items-center justify-between">
-                      <h2 className="crm-box-title">Recent extractions</h2>
-                      <button onClick={() => goApp("leads")} className="text-xs font-semibold text-[#0b2a4a]/70 hover:text-[#0b2a4a] inline-flex items-center gap-1">
-                        View all <IconArrowRight className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                    {jobs.length === 0 ? (
-                      <div className="p-10 text-center">
-                        <p className="text-sm text-[#0b2a4a]/60">No extractions yet.</p>
-                        <button onClick={() => goApp("search")} className="crm-btn-primary mt-4"><IconPlus className="w-4 h-4" /> Start your first search</button>
-                      </div>
-                    ) : (
-                      <ul className="divide-y divide-[#0b2a4a]/[0.06]">
-                        {jobs.slice(0, 6).map(j => (
-                          <li key={j.id}>
-                            <button
-                              onClick={() => { selectJob(j.id); goApp("leads"); }}
-                              className="w-full flex items-center gap-4 px-5 py-3.5 text-left hover:bg-[#eef6f4]/60 transition-colors"
-                            >
-                              <span className="crm-icon-tile !w-9 !h-9 !rounded-[10px]">
-                                {j.engine === "2gis" ? <IconLayers className="w-4 h-4" /> : <IconGlobe className="w-4 h-4" />}
-                              </span>
-                              <span className="flex-1 min-w-0">
-                                <span className="block text-[13.5px] font-semibold capitalize truncate">{j.target}</span>
-                                <span className="block text-[11.5px] text-[#0b2a4a]/55">{j.engine === "2gis" ? "2GIS" : "Google Maps"} · {scopeLabel(j)} · {j.cap > 0 ? `Max ${formatNumber(j.cap)}` : "Unlimited"} · {formatRelative(j.created_at)}</span>
-                              </span>
-                              <span className="hidden sm:block"><StatusBadge status={j.status} /></span>
-                              <span className="w-20 text-right">
-                                <span className="block text-[15px] font-bold tabular-nums">{formatNumber(j.total_saved || 0)}</span>
-                                <span className="block text-[10.5px] text-[#0b2a4a]/50">leads</span>
-                              </span>
-                            </button>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </div>
-
-                  {/* Top cities */}
-                  <div className="crm-box p-5 sm:p-6">
-                    <h2 className="crm-box-title">Top cities</h2>
-                    <p className="text-xs text-[#0b2a4a]/60 mt-1">Where your leads are located</p>
-                    {(summary?.topCities || []).length === 0 ? (
-                      <p className="text-xs text-[#0b2a4a]/50 mt-5">No leads yet.</p>
-                    ) : (
-                      <ul className="mt-5 space-y-4">
-                        {summary!.topCities.map((c, i) => (
-                          <li key={c.name}>
-                            <div className="flex items-baseline justify-between text-[13px]">
-                              <span className="font-medium truncate" title={c.name}>{c.name}</span>
-                              <span className="font-bold tabular-nums">{formatNumber(c.count)}</span>
-                            </div>
-                            <div className="mt-1.5 h-2 rounded-full bg-[#eef6f4] overflow-hidden">
-                              <div className={`h-full rounded-full ${i % 2 ? "bg-[#12a594]" : "bg-[#0b2a4a]"}`} style={{ width: `${(c.count / cityMax) * 100}%` }} />
-                            </div>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )}
 
             {/* PAGE 1: DEDICATED SEARCH PAGE */}
             {viewMode === "app" && activeTab === "search" && (
@@ -1991,96 +1672,66 @@ export default function Home() {
               </div>
             )}
 
-            {/* PAGE 2: DEDICATED FULL DATABASE PAGE */}
+            {/* PAGE 2: LATEST RESULTS (nothing older is kept) */}
             {viewMode === "app" && activeTab === "leads" && (
               <div className="space-y-4 sm:space-y-6">
                 <PageHeader
-                  eyebrow="Leads"
-                  title="Saved leads"
-                  subtitle={`${formatNumber(jobs.length)} extractions · ${formatNumber(jobs.reduce((a, j) => a + (j.total_saved || 0), 0))} leads`}
+                  eyebrow="Results"
+                  title={jobs.length ? "Latest search" : "No results yet"}
+                  subtitle={jobs.length
+                    ? `${jobs.length > 1 ? `${jobs.length} searches (bulk) · ` : ""}${formatNumber(jobs.reduce((a, j) => a + (j.total_saved || 0), 0))} leads found`
+                    : "Run a search and its results will appear here."}
                   actions={
                     <>
                       {selectedJobId && (
                         <button onClick={() => setExportJobId(selectedJobId)} disabled={!resultsStats?.total} className="crm-btn-default disabled:opacity-50">
-                          <IconDownload className="w-4 h-4" /> Export
+                          <IconDownload className="w-4 h-4" /> Download
                         </button>
+                      )}
+                      {jobs.length > 0 && (
+                        <button onClick={clearResults} className="crm-btn-default">Clear results</button>
                       )}
                       <button onClick={() => goApp("search")} className="crm-btn-primary"><IconPlus className="w-4 h-4" /> New search</button>
                     </>
                   }
                 />
-                {/* Extraction history */}
-                <div className="crm-box">
-                  <div className="crm-box-header flex items-center justify-between gap-2">
-                    <h2 className="crm-box-title">Extraction history</h2>
-                    <span className="text-xs text-[#0b2a4a]/55">{formatNumber(jobs.length)} total</span>
-                  </div>
-                  <div className="p-3 sm:p-4 overflow-x-auto">
-                    {jobs.length === 0 ? (
-                      <div className="p-6 text-center text-xs text-[#0b2a4a]/60">No extractions yet. Start one from Find Leads.</div>
-                    ) : (
-                      <div className="flex gap-3 pb-1">
-                        {jobs.map(j => {
-                          const isSelected = j.id === selectedJobId;
-                          const active = isActiveStatus(j.status);
-                          const capPct = j.cap > 0 ? Math.min(100, Math.round(((j.total_saved || 0) / j.cap) * 100)) : null;
-                          return (
-                            <div
-                              key={j.id}
-                              role="button"
-                              tabIndex={0}
-                              onClick={() => selectJob(j.id)}
-                              onKeyDown={e => { if (e.key === "Enter") selectJob(j.id); }}
-                              className={`p-3 rounded border text-xs w-[240px] shrink-0 cursor-pointer transition-colors ${isSelected ? "border-[#12a594] bg-[#12a594]/10" : "border-[#0b2a4a]/10 bg-white hover:border-[#0b2a4a]/20"}`}
-                            >
-                              <div className="flex items-start justify-between gap-2">
-                                <div className="font-semibold text-[#0b2a4a] capitalize truncate" title={j.target}>{j.target}</div>
-                                <StatusBadge status={j.status} />
-                              </div>
-                              <div className="mt-1.5 text-[11px] text-[#0b2a4a]/60 truncate">
-                                {j.engine === "2gis" ? "2GIS" : "Google Maps"} · {scopeLabel(j)} · {j.cap > 0 ? `Max ${formatNumber(j.cap)}` : "Unlimited"} · {formatRelative(j.created_at)}
-                              </div>
-                              <div className="mt-2 font-semibold text-[#0b2a4a] text-sm">
-                                {formatNumber(j.total_saved || 0)} <span className="text-[11px] font-medium text-[#0b2a4a]/60">leads</span>
-                              </div>
-                              <div className="mt-1.5 h-1 rounded-full bg-[#eef6f4] overflow-hidden">
-                                <div
-                                  className={`h-full rounded-full ${active ? "bg-[#12a594]" : j.status === "failed" ? "bg-[#0b2a4a]/30" : "bg-[#0b2a4a]"} ${active && capPct === null ? "animate-pulse w-full opacity-40" : ""}`}
-                                  style={capPct !== null ? { width: `${active ? capPct : 100}%` } : (active ? undefined : { width: "100%" })}
-                                />
-                              </div>
-                              <div className="flex items-center justify-end gap-3 mt-2 text-[11px]">
-                                {active && (
-                                  <button
-                                    onClick={e => { e.stopPropagation(); stopSearch(j.id); }}
-                                    className="text-[#0b2a4a] hover:underline font-semibold"
-                                  >
-                                    Stop
-                                  </button>
-                                )}
-                                <button
-                                  onClick={e => { e.stopPropagation(); setExportJobId(j.id); }}
-                                  disabled={!j.total_saved}
-                                  className="text-[#0b2a4a] hover:underline font-semibold disabled:opacity-40 disabled:no-underline"
-                                >
-                                  Export
-                                </button>
-                                <button
-                                  onClick={e => { e.stopPropagation(); deleteSearch(j.id); }}
-                                  className="text-[#0b2a4a]/70 hover:underline font-semibold"
-                                >
-                                  Delete
-                                </button>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
+
+                <div className="flex items-start gap-3 rounded-xl bg-[#12a594]/[0.08] ring-1 ring-[#12a594]/30 px-4 py-3 text-[13px] text-[#0b2a4a]">
+                  <IconShield className="w-4 h-4 mt-0.5 shrink-0 text-[#12a594]" />
+                  <span>
+                    <b>Leads are not stored.</b> These results are kept only until you start a new search or press Clear results. Download them to keep a copy.
+                  </span>
                 </div>
 
+                {jobs.length === 0 && (
+                  <div className="crm-box p-10 text-center">
+                    <p className="text-sm text-[#0b2a4a]/60">There are no results. Old searches are not kept.</p>
+                    <button onClick={() => goApp("search")} className="crm-btn-primary mt-4"><IconPlus className="w-4 h-4" /> Start a search</button>
+                  </div>
+                )}
+
+                {jobs.length > 1 && (
+                  <div className="crm-box p-3 sm:p-4 overflow-x-auto">
+                    <div className="flex gap-2">
+                      {jobs.map(j => (
+                        <button
+                          key={j.id}
+                          onClick={() => selectJob(j.id)}
+                          className={`shrink-0 text-left rounded-xl px-3.5 py-2.5 ring-1 transition-colors ${j.id === selectedJobId ? "ring-[#12a594] bg-[#12a594]/[0.08]" : "ring-[#0b2a4a]/10 hover:ring-[#0b2a4a]/25 bg-white"}`}
+                        >
+                          <span className="flex items-center gap-2">
+                            <span className="text-[13px] font-semibold capitalize max-w-[220px] truncate">{j.target}</span>
+                            <StatusBadge status={j.status} />
+                          </span>
+                          <span className="block text-[11px] text-[#0b2a4a]/55 mt-0.5">{formatNumber(j.total_saved || 0)} leads · {scopeLabel(j)}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 {/* Leads table */}
+                {jobs.length > 0 && (
                 <div className="crm-box">
                   <div className="crm-box-header flex flex-col lg:flex-row lg:items-center justify-between gap-3">
                     <div className="min-w-0">
@@ -2274,18 +1925,7 @@ export default function Home() {
                     </>
                   )}
                 </div>
-              </div>
-            )}
-
-            {/* PAGE: NEW LISTINGS */}
-            {viewMode === "app" && activeTab === "changes" && (
-              <div className="space-y-6">
-                <PageHeader
-                  eyebrow="Leads"
-                  title="New listings"
-                  subtitle="Businesses that appeared since your earlier searches, from Google Maps and 2GIS."
-                />
-                <NewListings jobs={jobs} request={authedRequest} onCopy={copyToClipboard} />
+                )}
               </div>
             )}
 
@@ -2361,12 +2001,6 @@ export default function Home() {
                       >
                         Users & Team
                       </button>
-                      <button
-                        onClick={() => { setAdminTab("leads"); fetchAdminGlobalLeads(token, 0); }}
-                        className={`text-xs font-semibold px-2.5 py-1 rounded transition-colors ${adminTab === "leads" ? "bg-[#0b2a4a] text-white" : "text-[#0b2a4a]/60 hover:bg-[#eef6f4]"}`}
-                      >
-                        All Leads
-                      </button>
                     </div>
                   </div>
 
@@ -2386,14 +2020,6 @@ export default function Home() {
                       <div className="p-4 bg-[#eef6f4] border border-[#0b2a4a]/10 rounded">
                         <span className="crm-label">Total Users</span>
                         <span className="text-2xl font-bold text-[#0b2a4a]">{adminStats.totalUsers || 0}</span>
-                      </div>
-                      <div className="p-4 bg-[#eef6f4] border border-[#0b2a4a]/10 rounded">
-                        <span className="crm-label">Total Extractions</span>
-                        <span className="text-2xl font-bold text-[#0b2a4a]">{adminStats.totalJobs || 0}</span>
-                      </div>
-                      <div className="p-4 bg-[#eef6f4] border border-[#0b2a4a]/10 rounded">
-                        <span className="crm-label">Total Stored Leads</span>
-                        <span className="text-2xl font-bold text-[#0b2a4a]">{adminStats.totalLeads || 0}</span>
                       </div>
                       <div className="p-4 bg-[#eef6f4] border border-[#0b2a4a]/10 rounded">
                         <span className="crm-label">Running Tasks</span>
@@ -2431,55 +2057,6 @@ export default function Home() {
                     </div>
                   )}
 
-                  {adminTab === "leads" && (
-                    <div className="overflow-x-auto">
-                      <table className="min-w-full divide-y divide-[#0b2a4a]/10 text-left text-xs">
-                        <thead className="bg-[#eef6f4] text-[#0b2a4a]/75 font-semibold uppercase tracking-wider">
-                          <tr>
-                            <th className="px-4 py-3">Title</th>
-                            <th className="px-4 py-3">Phone</th>
-                            <th className="px-4 py-3">Address</th>
-                            <th className="px-4 py-3">Category</th>
-                            <th className="px-4 py-3">Rating</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-[#0b2a4a]/[0.06] bg-white">
-                          {adminGlobalLeads.map((l, i) => (
-                            <tr key={i} className="hover:bg-[#eef6f4]/60">
-                              <td className="px-4 py-3 font-semibold text-[#0b2a4a]">{l.title}</td>
-                              <td className="px-4 py-3 font-mono">{l.phone_1 || "—"}</td>
-                              <td className="px-4 py-3 text-[#0b2a4a]/75 max-w-[200px] truncate">{l.address || "—"}</td>
-                              <td className="px-4 py-3 text-[#0b2a4a]/60">{l.category || "—"}</td>
-                              <td className="px-4 py-3">{l.rating || "—"}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                      <div className="flex items-center justify-between gap-3 pt-3 text-xs text-[#0b2a4a]/60">
-                        <span>
-                          {adminLeadsTotal > 0
-                            ? `Showing ${formatNumber(adminLeadsPage * 100 + 1)}–${formatNumber(Math.min(adminLeadsTotal, (adminLeadsPage + 1) * 100))} of ${formatNumber(adminLeadsTotal)}`
-                            : "No leads yet"}
-                        </span>
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => fetchAdminGlobalLeads(token, Math.max(0, adminLeadsPage - 1))}
-                            disabled={adminLeadsPage === 0}
-                            className="crm-btn-default h-8 px-3 text-xs disabled:opacity-40"
-                          >
-                            Prev
-                          </button>
-                          <button
-                            onClick={() => fetchAdminGlobalLeads(token, adminLeadsPage + 1)}
-                            disabled={(adminLeadsPage + 1) * 100 >= adminLeadsTotal}
-                            className="crm-btn-default h-8 px-3 text-xs disabled:opacity-40"
-                          >
-                            Next
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  )}
                 </div>
               </div>
               </div>

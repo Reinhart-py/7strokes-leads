@@ -2,7 +2,8 @@ const fs = require('fs');
 const path = require('path');
 const sqlite3 = require('../backend/node_modules/sqlite3');
 const { loadConfig, saveConfig, promptConfig, CONFIG_PATH } = require('./config');
-const { backupDatabase } = require('./db');
+// No-history policy: leads are not stored, so there is nothing to back up or restore.
+const NO_HISTORY_MSG = 'Backups, restores and database downloads are turned off: 7strokes no longer keeps leads.\nOnly your latest search is kept (until you start a new one). Use /export <id> to download it.';
 const {
   isBackendRunning,
   isFrontendRunning,
@@ -223,7 +224,7 @@ Tunnel    : ${tunnelLabel}
 Frontend  : ${frontendLabel}
 DNS Bridge: ${bridgeLabel}
 ------------------------------------
-Total Leads Saved: ${leadCount.toLocaleString()}
+Leads in latest search: ${leadCount.toLocaleString()}
 Active Searches  : ${runningJobs}
 ------------------------------------
 Select a menu below:`;
@@ -232,14 +233,14 @@ Select a menu below:`;
     inline_keyboard: [
       [
         { text: "Services Control", callback_data: "nav_services" },
-        { text: "Database & Backups", callback_data: "nav_database" }
+        { text: "Database", callback_data: "nav_database" }
       ],
       [
-        { text: "Browse All Leads", callback_data: "nav_leads_page_1" },
+        { text: "Browse Latest Search", callback_data: "nav_leads_page_1" },
         { text: "Search Jobs & Exports", callback_data: "nav_searches_page_1" }
       ],
       [
-        { text: `Download All Leads CSV (${leadCount.toLocaleString()})`, callback_data: "action_download_all_csv" }
+        { text: `Download Latest Search CSV (${leadCount.toLocaleString()})`, callback_data: "action_download_all_csv" }
       ],
       [
         { text: "Settings & Users", callback_data: "nav_settings" },
@@ -317,24 +318,18 @@ async function renderDatabaseMenu() {
     try { db.close(); } catch (_) {}
   }
 
-  const text = `Database & Backups
+  const text = `Database
 ------------------------------------
 Database File: dashmin.sqlite (${dbSizeStr})
 Total Leads  : ${counts.leads.toLocaleString()}
 Total Searches: ${counts.jobs}
 Users / Teams: ${counts.users} users, ${counts.companies} companies
 ------------------------------------
-Features:
-* Tap "Download Database" to receive dashmin.sqlite here in chat.
-* Tap "Create Backup" to save a snapshot on server.
-* To RESTORE: Simply send any .sqlite or .db file to this bot.`;
+Leads are not stored: only the latest search is kept until the next one starts.
+Backups and database downloads are turned off.`;
 
   const replyMarkup = {
     inline_keyboard: [
-      [
-        { text: "Download Database File", callback_data: "action_download_db" },
-        { text: "Create Backup", callback_data: "action_backup_db" }
-      ],
       [
         { text: "Database Stats", callback_data: "action_db_stats" },
         { text: "Download Config", callback_data: "action_download_config" }
@@ -408,7 +403,7 @@ async function renderLeadsBrowser(page = 1) {
     inlineButtons.push(navRow);
   }
   inlineButtons.push([
-    { text: `Download All Leads CSV (${totalCount.toLocaleString()})`, callback_data: "action_download_all_csv" }
+    { text: `Download Latest Search CSV (${totalCount.toLocaleString()})`, callback_data: "action_download_all_csv" }
   ]);
   inlineButtons.push([
     { text: "<< Back to Main Menu", callback_data: "nav_main" },
@@ -482,7 +477,7 @@ async function renderSearchesMenu(page = 1) {
   }
 
   inlineButtons.push([
-    { text: "Download All Leads CSV", callback_data: "action_download_all_csv" }
+    { text: "Download Latest Search CSV", callback_data: "action_download_all_csv" }
   ]);
 
   inlineButtons.push([
@@ -850,41 +845,20 @@ async function handleCallbackQuery(bot, query, allowedChatIds) {
     }
 
     if (data === 'action_download_all_csv') {
-      await bot.answerCallbackQuery(query.id, 'Exporting all leads...');
+      await bot.answerCallbackQuery(query.id, 'Exporting the latest search...');
       await exportAllLeadsToCsv(bot, chatId);
       return;
     }
 
     if (data === 'action_download_db') {
-      await bot.answerCallbackQuery(query.id, 'Preparing database file...');
-      if (!fs.existsSync(DB_PATH)) {
-        await bot.sendMessage(chatId, 'Database file not found on server.');
-        return;
-      }
-      const buffer = fs.readFileSync(DB_PATH);
-      const stat = fs.statSync(DB_PATH);
-      await bot.sendDocument(
-        chatId,
-        'dashmin.sqlite',
-        buffer,
-        `7strokes SQLite Database\nSize: ${formatBytes(stat.size)}\nTo restore, send this file back to this bot.`
-      );
+      await bot.answerCallbackQuery(query.id);
+      await bot.sendMessage(chatId, NO_HISTORY_MSG);
       return;
     }
 
     if (data === 'action_backup_db') {
-      await bot.answerCallbackQuery(query.id, 'Creating backup...');
-      try {
-        const backupPath = await backupDatabase();
-        const baseName = path.basename(backupPath);
-        const stat = fs.statSync(backupPath);
-        await bot.sendMessage(
-          chatId,
-          `Backup created successfully!\nFile: ${baseName}\nSize: ${formatBytes(stat.size)}\nPath: backups/${baseName}`
-        );
-      } catch (err) {
-        await bot.sendMessage(chatId, `Backup failed: ${err.message}`);
-      }
+      await bot.answerCallbackQuery(query.id);
+      await bot.sendMessage(chatId, NO_HISTORY_MSG);
       return;
     }
 
@@ -914,7 +888,7 @@ async function handleCallbackQuery(bot, query, allowedChatIds) {
 
         const statText = `Database Overview
 ------------------------------------
-Total Leads Saved: ${counts.leads.toLocaleString()}
+Leads in latest search: ${counts.leads.toLocaleString()}
 Total Searches   : ${counts.jobs}
 Users            : ${counts.users}
 Companies        : ${counts.companies}
@@ -969,37 +943,7 @@ async function handleFileUpload(bot, msg, allowedChatIds) {
   const fileName = (doc.file_name || '').toLowerCase();
 
   if (fileName.endsWith('.sqlite') || fileName.endsWith('.db')) {
-    await bot.sendMessage(chatId, `Receiving database file "${doc.file_name}" (${formatBytes(doc.file_size)})...\nCreating safety backup of current database first...`);
-    try {
-      const fileInfo = await bot.getFile(doc.file_id);
-      if (!fileInfo || !fileInfo.ok || !fileInfo.result?.file_path) {
-        throw new Error('Could not retrieve file download link from Telegram.');
-      }
-
-      const fileBuffer = await bot.downloadFile(fileInfo.result.file_path);
-
-      let safetyBackupName = 'None';
-      try {
-        const safetyBackupPath = await backupDatabase();
-        safetyBackupName = path.basename(safetyBackupPath);
-      } catch (_) {}
-
-      fs.writeFileSync(DB_PATH, fileBuffer);
-
-      try {
-        if (fs.existsSync(DB_PATH + '-wal')) fs.unlinkSync(DB_PATH + '-wal');
-        if (fs.existsSync(DB_PATH + '-shm')) fs.unlinkSync(DB_PATH + '-shm');
-      } catch (_) {}
-
-      const newStat = fs.statSync(DB_PATH);
-      await bot.sendMessage(
-        chatId,
-        `Database Restored Successfully!\n------------------------------------\nActive File : dashmin.sqlite\nSize        : ${formatBytes(newStat.size)}\nSafety Backup: backups/${safetyBackupName}\n\nAll services and scrapers are now using the restored database.`
-      );
-    } catch (err) {
-      console.error('[!] Database restore error:', err.message);
-      await bot.sendMessage(chatId, `Database restore failed: ${err.message}`);
-    }
+    await bot.sendMessage(chatId, NO_HISTORY_MSG);
     return;
   }
 
@@ -1026,7 +970,7 @@ async function handleFileUpload(bot, msg, allowedChatIds) {
     return;
   }
 
-  await bot.sendMessage(chatId, `File received: ${doc.file_name}\nTo restore a database, send a .sqlite or .db file.`);
+  await bot.sendMessage(chatId, `File received: ${doc.file_name}\nOnly configuration files (.json) can be uploaded.`);
 }
 
 async function handleCommand(bot, msg, allowedChatIds) {
@@ -1084,18 +1028,7 @@ async function handleCommand(bot, msg, allowedChatIds) {
 
       case '/get_db':
       case '/download_db': {
-        if (!fs.existsSync(DB_PATH)) {
-          await bot.sendMessage(chatId, 'Database file not found on server.');
-          break;
-        }
-        const buffer = fs.readFileSync(DB_PATH);
-        const stat = fs.statSync(DB_PATH);
-        await bot.sendDocument(
-          chatId,
-          'dashmin.sqlite',
-          buffer,
-          `7strokes SQLite Database\nSize: ${formatBytes(stat.size)}\nTo restore, send this file back to this bot.`
-        );
+        await bot.sendMessage(chatId, NO_HISTORY_MSG);
         break;
       }
 
@@ -1201,7 +1134,7 @@ Tunnel    : ${status.tunnel ? (status.tunnelUrl || 'Active') : 'Stopped'}
 Frontend  : ${status.frontend ? `Running on port ${status.frontendPort}` : 'Stopped'}
 DNS Bridge: ${status.bridge ? 'Active' : 'Stopped'}
 ------------------------------------
-Total Leads Saved: ${counts.total_leads.toLocaleString()}
+Leads in latest search: ${counts.total_leads.toLocaleString()}
 Total Searches   : ${counts.total_jobs}
 Running Searches : ${counts.running_jobs}
 Uptime           : ${uptimeMins} minutes
@@ -1229,14 +1162,7 @@ Memory Usage     : ${memMb} MB
       }
 
       case '/backup': {
-        await bot.sendMessage(chatId, 'Creating database backup...');
-        try {
-          const backupPath = await backupDatabase();
-          const baseName = path.basename(backupPath);
-          await bot.sendMessage(chatId, `Backup created successfully!\nFile: ${baseName}\nPath: backups/${baseName}`);
-        } catch (err) {
-          await bot.sendMessage(chatId, `Backup error: ${err.message}`);
-        }
+        await bot.sendMessage(chatId, NO_HISTORY_MSG);
         break;
       }
 
@@ -1376,6 +1302,15 @@ Memory Usage     : ${memMb} MB
         const adminUser = (await queryAll(db, "SELECT id FROM users WHERE role = 'admin' LIMIT 1"))[0];
         const userId = adminUser?.id || 'admin';
 
+        // No history: a new search erases the previous one (and its leads).
+        try {
+          const { clearUserSearches } = require('../backend/dist/history');
+          await clearUserSearches(userId);
+        } catch (_) {
+          await queryRun(db, 'DELETE FROM results WHERE job_id IN (SELECT id FROM jobs WHERE user_id = ?)', [userId]);
+          await queryRun(db, 'DELETE FROM jobs WHERE user_id = ?', [userId]);
+        }
+
         await queryRun(
           db,
           'INSERT INTO jobs (id, user_id, engine, target, cap, status, total_saved) VALUES (?, ?, ?, ?, ?, ?, ?)',
@@ -1426,17 +1361,15 @@ MENUS & CONTROL:
 /menu or /start - Main control panel
 /services - Services sub-menu (start/stop)
 /restart - Restart all services (backend, tunnel, frontend)
-/database - Database sub-menu (stats, download, restore)
-/leads [page] - Browse all leads page by page
+/database - Database stats
+/leads [page] - Browse the latest search page by page
 /jobs [page] - Browse searches with one-tap CSV download buttons
 /config - Settings & allowed users
 
 DOWNLOADS & BACKUPS:
 /export_all - Download complete CSV of ALL leads in database
 /export <id> - Download CSV of a specific search
-/get_db - Download SQLite database file to Telegram
 /get_config - Download .7strokes-config.json
-/backup - Trigger instant backup to backups/
 RESTORE: Send any .sqlite or .db file to this chat!
 
 SEARCH & LEADS:

@@ -47,8 +47,6 @@ router.get('/stats', async (req: AuthRequest, res: Response) => {
       const userRes = await query("SELECT COUNT(*) as count FROM users WHERE role = 'user'");
       const managerRes = await query("SELECT COUNT(*) as count FROM users WHERE role = 'manager'");
       const companyRes = await query("SELECT COUNT(DISTINCT company) as count FROM users WHERE company IS NOT NULL AND TRIM(company) != ''");
-      const jobsRes = await query('SELECT COUNT(*) as count FROM jobs');
-      const leadsRes = await query('SELECT COUNT(*) as count FROM results');
       const runningJobsRes = await query("SELECT COUNT(*) as count FROM jobs WHERE status = 'running'");
 
       const companyBreakdown = await query(`
@@ -76,8 +74,6 @@ router.get('/stats', async (req: AuthRequest, res: Response) => {
         totalCompanies: parseInt(companyRes.rows[0]?.count || 0),
         totalManagers: parseInt(managerRes.rows[0]?.count || 0),
         totalUsers: parseInt(userRes.rows[0]?.count || 0),
-        totalLeads: parseInt(leadsRes.rows[0]?.count || 0),
-        totalJobs: parseInt(jobsRes.rows[0]?.count || 0),
         runningJobs: parseInt(runningJobsRes.rows[0]?.count || 0),
         companies: companyBreakdown.rows,
         managers: managerBreakdown.rows,
@@ -101,20 +97,10 @@ router.get('/stats', async (req: AuthRequest, res: Response) => {
       WHERE u.manager_id = $1 OR u.id = $1 OR (u.company = $2 AND u.role = 'user' AND u.company != '')
     `, [userId, userCompany]);
 
-    const teamLeadsRes = await query(`
-      SELECT COUNT(r.id) as count
-      FROM results r
-      JOIN jobs j ON r.job_id = j.id
-      JOIN users u ON j.user_id = u.id
-      WHERE u.manager_id = $1 OR u.id = $1 OR (u.company = $2 AND u.role = 'user' AND u.company != '')
-    `, [userId, userCompany]);
-
     res.json({
       role: 'manager',
       company: userCompany || 'Company Workspace',
       teamUsers: parseInt(teamUsersRes.rows[0]?.count || 0),
-      teamJobs: parseInt(teamJobsRes.rows[0]?.total_jobs || 0),
-      teamLeads: parseInt(teamLeadsRes.rows[0]?.count || 0),
       runningJobs: parseInt(teamJobsRes.rows[0]?.running_jobs || 0),
       databaseType: 'SQLite / PostgreSQL Dual Engine',
       queueType: isRedisConnected ? 'Redis Distributed Queue' : 'In-Process Resilient Queue',
@@ -269,137 +255,6 @@ router.put('/users/:id', async (req: AuthRequest, res: Response) => {
     res.json(updated.rows[0]);
   } catch (err) {
     res.status(500).json({ error: 'Failed to update user' });
-  }
-});
-
-router.get('/leads', async (req: AuthRequest, res: Response) => {
-  try {
-    const isManager = req.user?.role === 'manager';
-    const managerId = req.user?.id;
-    const managerCompany = req.user?.company || '';
-
-    const userId = req.query.userId as string | undefined;
-    const companyFilter = req.query.company as string | undefined;
-    const managerFilter = req.query.managerId as string | undefined;
-    const search = req.query.search as string | undefined;
-    const uniqueOnly = req.query.unique === 'true' || req.query.unique === '1';
-    const categoryFilter = req.query.category as string | undefined;
-    const cityFilter = req.query.city as string | undefined;
-    const limit = Math.min(parseInt(req.query.limit as string) || 200, 1000);
-    const offset = parseInt(req.query.offset as string) || 0;
-
-    let sql = `
-      SELECT r.id, r.title, r.phone_1, r.phone_2, r.email, r.website, r.address, r.street, r.city, r.state, r.country, r.postal_code, r.category, r.rating, r.reviews, r.created_at,
-             j.id as job_id, j.target as job_target, j.engine as job_engine,
-             u.id as user_id, u.email as user_email, u.name as user_name, u.username as user_username,
-             u.company as user_company, u.manager_id as user_manager_id,
-             m.name as manager_name, m.username as manager_username
-      FROM results r
-      LEFT JOIN jobs j ON r.job_id = j.id
-      LEFT JOIN users u ON j.user_id = u.id
-      LEFT JOIN users m ON u.manager_id = m.id
-      WHERE 1=1
-    `;
-    const params: any[] = [];
-
-    if (uniqueOnly) {
-      sql += ` AND r.id IN (SELECT MIN(r2.id) FROM results r2 GROUP BY COALESCE(NULLIF(r2.phone_1, ''), LOWER(TRIM(r2.title))))`;
-    }
-
-    if (isManager) {
-      params.push(managerId, managerCompany);
-      sql += ` AND (u.manager_id = $1 OR u.id = $1 OR (u.company = $2 AND u.role = 'user' AND u.company != ''))`;
-    } else {
-      if (companyFilter && companyFilter !== 'all') {
-        params.push(companyFilter);
-        sql += ` AND u.company = $${params.length}`;
-      }
-      if (managerFilter && managerFilter !== 'all') {
-        params.push(managerFilter);
-        sql += ` AND u.manager_id = $${params.length}`;
-      }
-    }
-
-    if (userId && userId !== 'all') {
-      params.push(userId);
-      sql += ` AND j.user_id = $${params.length}`;
-    }
-
-    if (categoryFilter && categoryFilter !== 'all') {
-      params.push(categoryFilter);
-      sql += ` AND r.category = $${params.length}`;
-    }
-
-    if (cityFilter && cityFilter !== 'all') {
-      params.push(cityFilter);
-      sql += ` AND r.city = $${params.length}`;
-    }
-
-    if (search && search.trim().length > 0) {
-      params.push(`%${search.trim().toLowerCase()}%`);
-      sql += ` AND (LOWER(r.title) LIKE $${params.length} OR LOWER(r.phone_1) LIKE $${params.length} OR LOWER(r.address) LIKE $${params.length} OR LOWER(r.website) LIKE $${params.length} OR LOWER(r.category) LIKE $${params.length})`;
-    }
-
-    sql += ` ORDER BY r.created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
-    params.push(limit, offset);
-
-    const result = await query(sql, params);
-
-    let countSql = `
-      SELECT COUNT(*) as count
-      FROM results r
-      LEFT JOIN jobs j ON r.job_id = j.id
-      LEFT JOIN users u ON j.user_id = u.id
-      WHERE 1=1
-    `;
-    const countParams: any[] = [];
-
-    if (uniqueOnly) {
-      countSql += ` AND r.id IN (SELECT MIN(r2.id) FROM results r2 GROUP BY COALESCE(NULLIF(r2.phone_1, ''), LOWER(TRIM(r2.title))))`;
-    }
-
-    if (isManager) {
-      countParams.push(managerId, managerCompany);
-      countSql += ` AND (u.manager_id = $1 OR u.id = $1 OR (u.company = $2 AND u.role = 'user' AND u.company != ''))`;
-    } else {
-      if (companyFilter && companyFilter !== 'all') {
-        countParams.push(companyFilter);
-        countSql += ` AND u.company = $${countParams.length}`;
-      }
-      if (managerFilter && managerFilter !== 'all') {
-        countParams.push(managerFilter);
-        countSql += ` AND u.manager_id = $${countParams.length}`;
-      }
-    }
-
-    if (userId && userId !== 'all') {
-      countParams.push(userId);
-      countSql += ` AND j.user_id = $${countParams.length}`;
-    }
-
-    if (categoryFilter && categoryFilter !== 'all') {
-      countParams.push(categoryFilter);
-      countSql += ` AND r.category = $${countParams.length}`;
-    }
-
-    if (cityFilter && cityFilter !== 'all') {
-      countParams.push(cityFilter);
-      countSql += ` AND r.city = $${countParams.length}`;
-    }
-
-    if (search && search.trim().length > 0) {
-      countParams.push(`%${search.trim().toLowerCase()}%`);
-      countSql += ` AND (LOWER(r.title) LIKE $${countParams.length} OR LOWER(r.phone_1) LIKE $${countParams.length} OR LOWER(r.address) LIKE $${countParams.length} OR LOWER(r.website) LIKE $${countParams.length} OR LOWER(r.category) LIKE $${countParams.length})`;
-    }
-
-    const countRes = await query(countSql, countParams);
-
-    res.json({
-      leads: result.rows,
-      total: parseInt(countRes.rows[0]?.count || 0)
-    });
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to fetch leads' });
   }
 });
 

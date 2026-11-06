@@ -4,7 +4,23 @@ All notable changes, version upgrades, and development milestones for 7strokes a
 
 ---
 
-## [v2.7.0] — New Listings Tracking, Place Suggestions, Radius & Map-Pin Search (Current)
+## [v2.8.0] — No Lead History (Current)
+
+### Changed
+- **Leads are no longer kept.** Only the search you just ran is held so it can be viewed and downloaded; starting a new search (web app, bulk upload or Telegram bot) or pressing **Clear results** erases it. The app warns before erasing results so they can be downloaded first.
+- The web app opens on Find leads; **Latest results** replaces the saved-leads database and extraction history.
+- On startup, existing history is cleaned up automatically: each user keeps only their latest search.
+- A search that is erased while still running stops and leaves no leads behind.
+
+### Removed
+- Dashboard history (lead totals, 14-day chart, recent extractions, top categories/cities).
+- **New listings** (it compared against stored history) and its API.
+- Admin "All leads" browser and lead/search totals in admin stats.
+- Database backups, restores and database downloads in the Telegram bot and `kiki` CLI.
+
+---
+
+## [v2.7.0] — New Listings Tracking, Place Suggestions, Radius & Map-Pin Search
 
 ### Added
 - **New listings** page (Leads → New listings) for Google Maps and 2GIS:

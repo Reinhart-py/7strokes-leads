@@ -125,8 +125,8 @@ function showInteractiveMenu() {
   console.log(' [1] Start All Services (Backend, Tunnel, Frontend)');
   console.log(' [2] Start Telegram Bot');
   console.log(' [3] View Database Stats');
-  console.log(' [4] Create Database Backup');
-  console.log(' [5] Restore Database From Backup');
+  console.log(' [4] (Backups are off: leads are not stored)');
+  console.log(' [5] (Restore is off: leads are not stored)');
   console.log(' [6] Change Settings (Tokens, Links, Bot)');
   console.log(' [7] Android DNS Bridge (Port 8888)');
   console.log(' [8] Stop All Services');
@@ -153,23 +153,9 @@ function showInteractiveMenu() {
         await viewDatabase();
         break;
       case '4':
-        await backupDatabase();
+      case '5':
+        await backupDatabase(); // prints why backups/restores are off
         break;
-      case '5': {
-        const rlRestore = readline.createInterface({
-          input: process.stdin,
-          output: process.stdout
-        });
-        rlRestore.question('Enter path to backup file: ', async (backupPath) => {
-          rlRestore.close();
-          if (backupPath.trim()) {
-            await restoreDatabase(backupPath.trim());
-          } else {
-            console.log('[!] Cancelled.');
-          }
-        });
-        break;
-      }
       case '6':
         await promptConfig(true, false);
         break;
@@ -265,7 +251,7 @@ async function main() {
         }
         await restoreDatabase(param);
       } else {
-        console.log(`[!] Unknown db command: "${subCommand}". Use: view, backup, restore.`);
+        console.log(`[!] Unknown db command: "${subCommand}". Use: view.`);
       }
       break;
 
@@ -312,8 +298,6 @@ COMMANDS:
   frontend [stop]     Start or stop frontend web interface
   tunnel [stop]       Start or stop public link
   db view             Display database statistics
-  db backup           Create database backup in backups/
-  db restore <file>   Restore database from a backup file
   bridge              Start standalone DNS bridge for Android Termux
   config              Change settings (tokens, links, bot)
   help                Show this command manual

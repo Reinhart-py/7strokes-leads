@@ -176,8 +176,8 @@ An interactive control panel will open:
  [1] Start Engine (Backend + Public Tunnel)
  [2] Start Telegram Bot
  [3] View Database Stats
- [4] Create Database Backup
- [5] Restore Database From Backup
+ [4] (Backups are off: leads are not stored)
+ [5] (Restore is off: leads are not stored)
  [6] Configure Settings (Tokens, Domains, Bot)
  [7] Start Android DNS Bridge (Port 8888)
  [0] Exit
@@ -203,11 +203,6 @@ kiki bot
 # View database metrics (auto-detects mobile or desktop screen)
 kiki db view
 
-# Make a backup of the SQLite database
-kiki db backup
-
-# Restore a database from a backup file
-kiki db restore backups/7strokes-backup-2026-10-07.sqlite
 
 # Reconfigure your Ngrok token, custom domain, or Telegram bot credentials
 kiki config
@@ -227,8 +222,6 @@ Commands:
   start               Start backend server and public tunnel (Ngrok / Cloudflare)
   bot                 Start or configure the interactive Telegram bot
   db view             Display database overview (Mobile and Desktop table views)
-  db backup           Create timestamped database backup in backups/
-  db restore <file>   Restore database from a chosen backup file
   bridge              Start standalone Node.js DNS bridge for Android Termux
   config              Run interactive setup wizard for tokens, domains, and chat IDs
   help                Show command help manual
@@ -291,19 +284,19 @@ The setup wizard will ask you for:
 #### Telegram Remote Control Panel:
 Send `/menu` or `/start` to your bot in Telegram to open the interactive control panel with tap-to-click inline buttons:
 - **[Services Control]** — Manage backend, public link, frontend, and bridge services.
-- **[Database & Backups]** — Download SQLite database file, create backups, or restore.
-- **[Browse All Leads]** — View and flip through all saved leads page by page directly in chat with `[<< Prev]` and `[Next >>]` buttons.
-- **[Search Jobs & Exports]** — Browse all historical searches with one-tap CSV download buttons for each job.
-- **[Download All Leads CSV]** — Instant one-tap download of the complete CSV containing all leads in the database.
+- **[Database]** — Database stats (backups and database downloads are turned off: leads are not stored).
+- **[Browse Latest Search]** — Flip through the latest search's leads page by page with `[<< Prev]` and `[Next >>]` buttons.
+- **[Search Jobs & Exports]** — The latest search with a one-tap CSV download button.
+- **[Download Latest Search CSV]** — One-tap CSV download of the latest search.
 - **[Settings & Users]** — View configuration, ports, and allowed users.
 - **[Start All]** / **[Stop All]** — Turn all services on or off with a single tap.
 - **[Refresh Status]** — Update metrics and live service indicators.
 
 #### Telegram Text Commands:
 - `/menu` or `/start` — Open the interactive control panel with buttons.
-- `/leads [page]` — Browse all saved leads in Telegram with pagination (e.g. `/leads 2`).
-- `/export_all` — Download complete CSV export of all leads in the database.
-- `/jobs [page]` — Browse all search jobs with pagination and one-tap export buttons.
+- `/leads [page]` — Browse the latest search's leads with pagination (e.g. `/leads 2`).
+- `/export_all` — Download the latest search as CSV.
+- `/jobs [page]` — The latest search with a one-tap export button.
 - `/export <job_id>` — Download CSV file for a specific search job.
 - `/status` — Live server metrics, memory, uptime, and total leads.
 - `/start_all` | `/stop_all` | `/restart` — Start, stop, or restart all services remotely.
@@ -311,9 +304,7 @@ Send `/menu` or `/start` to your bot in Telegram to open the interactive control
 - `/start_tunnel` | `/stop_tunnel` — Start or stop public link.
 - `/start_frontend` | `/stop_frontend` — Start or stop frontend.
 - `/link` — Get current live web dashboard link.
-- `/get_db` — Download live `dashmin.sqlite` file to Telegram.
 - `/get_config` — Download `.7strokes-config.json` configuration file.
-- `/backup` — Create a database backup in `backups/`.
 - `/search <target> [limit]` — Start lead search (e.g. `/search cafes in london 50`).
 - `/config` — View current configuration.
 - `/set_port <number>` — Change backend port.
@@ -355,17 +346,11 @@ kiki db view
 - **On Android / Termux**: Outputs a clean vertical list designed for mobile screens that will not wrap or break.
 - **On Desktop**: Outputs wide tables with company breakdowns, manager counts, and recent searches.
 
-#### 2. Backup Database (`kiki db backup`)
-```powershell
-kiki db backup
-```
-Saves a snapshot of your database in the `backups/` directory.
+#### No lead history
 
-#### 3. Restore Database (`kiki db restore <file>`)
-```powershell
-kiki db restore backups/7strokes-backup-2026-10-07.sqlite
-```
-Safely restores your database with an automatic rollback backup.
+7strokes does not keep leads. Only the search you just ran is held, so you can view and download it; it is erased as soon as you start a new search (in the web app, the Telegram bot, or bulk upload) or press **Clear results**. There is no search history, no "all leads" archive, and database backups/restores are turned off. Download your results before starting the next search.
+
+On the first start after upgrading, older searches and their leads are deleted automatically, keeping only each user's latest search.
 
 ### Production 24/7 VPS Hosting
 

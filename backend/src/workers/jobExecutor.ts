@@ -1,4 +1,5 @@
 import { query } from '../db';
+import { deleteOrphanResults } from '../history';
 import { ScraperManager } from '../scrapers/scraperManager';
 import { ScrapedLead, JobGeo, SearchScope } from '../scrapers/types';
 
@@ -12,7 +13,8 @@ export async function executeJob(data: { jobId: string; engine: string; target: 
 
     const checkCancelled = async () => {
       const result = await query('SELECT status FROM jobs WHERE id = $1', [jobId]);
-      return result.rows[0]?.status === 'stopped';
+      // A search that was cleared (row gone) is treated as stopped.
+      return !result.rows[0] || result.rows[0].status === 'stopped';
     };
 
     const log = async (msg: string) => {
@@ -155,5 +157,9 @@ export async function executeJob(data: { jobId: string; engine: string; target: 
     console.error(`Job ${jobId} failed:`, err);
     await query('UPDATE jobs SET status = $1 WHERE id = $2', ['failed', jobId]);
     throw err;
+  } finally {
+    // If the user started another search (or cleared this one) while it ran,
+    // drop anything this worker wrote after its search was erased.
+    await deleteOrphanResults(jobId).catch(() => {});
   }
 }
