@@ -18,7 +18,7 @@ function getQueue(): Queue | null {
   return scraperQueue;
 }
 
-export async function addScraperJob(jobId: string, engine: string, target: string, cap: number, userId: string, proxy?: string, scope: 'exact' | 'extended' = 'extended') {
+export async function addScraperJob(jobId: string, engine: string, target: string, cap: number, userId: string, proxy?: string, scope: 'exact' | 'extended' = 'exact') {
   const queue = getQueue();
   if (queue) {
     try {

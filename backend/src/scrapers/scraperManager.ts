@@ -129,7 +129,7 @@ export class ScraperManager {
       }
     };
 
-    const scope: 'exact' | 'extended' = options.scope === 'exact' ? 'exact' : 'extended';
+    const scope: 'exact' | 'extended' = options.scope === 'extended' ? 'extended' : 'exact';
     const { keyword, location } = GeographicPartitioner.parseTarget(query, options.city);
     let place: ResolvedPlace | null = null;
     if (location) {

@@ -26,13 +26,15 @@ export interface ResolvedPlace {
   source: string;
 }
 
-export type PlaceLookup = (query: string) => Promise<{
+export type PlaceCandidate = {
   title: string;
   lat: number;
   lon: number;
   categories: string[];
   address?: string | null;
-} | null>;
+};
+
+export type PlaceLookup = (query: string) => Promise<PlaceCandidate[]>;
 
 const AREA_CATEGORY = /\b(neighbou?rhood|sublocality|locality|district|area|city|town|village|region|province|state|country|political|community|zone|island|municipality)\b/i;
 const STOP_WORDS = new Set(['the', 'and', 'of', 'al', 'el', 'de', 'la', 'le', 'in', 'at', 'on', 'llc', 'fze', 'fzco', 'ltd']);
@@ -55,6 +57,39 @@ export function textMentionsPlace(text: string | null | undefined, name: string)
   const have = new Set(tokenize(text).map(singular));
   return want.every(t => have.has(t));
 }
+
+const PHRASE_SKIP = new Set(['the']);
+
+/**
+ * True when `name` appears in `text` as a phrase (words adjacent and in order),
+ * e.g. "Regal Tower" matches "Office 1203, The Regal Towers - Business Bay"
+ * but not "Regal Plaza, opposite Bay Tower".
+ */
+export function textHasPhrase(text: string | null | undefined, name: string): boolean {
+  const want = tokenize(name).filter(t => !PHRASE_SKIP.has(t)).map(singular);
+  if (want.length === 0) return false;
+  const have = tokenize(text).filter(t => !PHRASE_SKIP.has(t)).map(singular);
+  outer: for (let i = 0; i + want.length <= have.length; i++) {
+    for (let j = 0; j < want.length; j++) {
+      if (have[i + j] !== want[j]) continue outer;
+    }
+    return true;
+  }
+  return false;
+}
+
+const BUILDING_WORD = /\b(tower|towers|building|bldg|plaza|centre|center|mall|complex|residence|residences|heights|square|court|house|hub|arcade|block|gate|point|suites|offices)\b/i;
+
+/** Address parts that name a building, e.g. ["Regal Tower", "Bay Square Building 5"]. */
+export function buildingNamesIn(address: string | null | undefined): string[] {
+  return (address || '')
+    .split(/\s+-\s+|,|\|/)
+    .map(p => p.trim())
+    .filter(p => p && BUILDING_WORD.test(p) && !/^(office|shop|unit|suite|floor|flat|apt|apartment)\b/i.test(p));
+}
+
+/** The last comma part of the context ("Business Bay, Dubai" -> "Dubai"): the city to stay in. */
+const contextCity = (context: string) => context.split(',').map(p => p.trim()).filter(Boolean).pop() || '';
 
 export function distanceKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const toRad = (d: number) => (d * Math.PI) / 180;
@@ -84,8 +119,13 @@ async function fetchJson(url: string, timeoutMs: number): Promise<any> {
   }
 }
 
-/** Radius (km) treated as "inside" a single building or landmark. */
-export const POINT_RADIUS_KM = 0.08;
+/**
+ * Radius (km) treated as "inside" a single building when the business's address
+ * doesn't name any building. Kept small: towers in dense districts sit 50-100 m apart.
+ */
+export const POINT_RADIUS_KM = 0.04;
+/** A lead naming the place but further than this from its pin is a namesake elsewhere. */
+export const SAME_PLACE_KM = 1.5;
 /** Radius (km) searched around a building/landmark in Extended mode. */
 export const EXTENDED_RADIUS_KM = 3;
 
@@ -125,12 +165,23 @@ export class LocationResolver {
       });
     }
 
-    // 3) Google Maps: the most accurate geocoder for buildings and businesses
+    // 3) Google Maps: the most accurate geocoder for buildings and businesses.
+    //    Several places can share a name ("Regal Tower" exists in many cities), so
+    //    prefer the candidate whose name matches AND whose address is in the typed city.
     if (googleLookup) {
       try {
-        const hit = await googleLookup(full);
-        if (hit && Number.isFinite(hit.lat) && Number.isFinite(hit.lon)) {
-          const isArea = hit.categories.some(c => AREA_CATEGORY.test(c));
+        const city = contextCity(context);
+        const candidates = (await googleLookup(full)).filter(c => Number.isFinite(c.lat) && Number.isFinite(c.lon));
+        const nameOk = (c: PlaceCandidate) =>
+          textHasPhrase(c.title, name) || textHasPhrase(name, c.title) || textHasPhrase(c.address, name);
+        const cityOk = (c: PlaceCandidate) => !city || textMentionsPlace(c.address, city) || textMentionsPlace(c.title, city);
+        const hit =
+          candidates.find(c => nameOk(c) && cityOk(c)) ||
+          candidates.find(c => c.categories.some(cat => AREA_CATEGORY.test(cat)) && cityOk(c)) ||
+          null;
+
+        if (hit) {
+          const isArea = hit.categories.some(c => AREA_CATEGORY.test(c)) && !BUILDING_WORD.test(name);
           if (isArea) {
             return remember({
               ...base,
@@ -141,10 +192,7 @@ export class LocationResolver {
               source: 'google'
             });
           }
-          // Only trust the hit as "the building" when its name matches what was typed.
-          if (textMentionsPlace(hit.title, name) || textMentionsPlace(name, hit.title)) {
-            return remember({ ...base, kind: 'point', lat: hit.lat, lon: hit.lon, source: 'google' });
-          }
+          return remember({ ...base, kind: 'point', lat: hit.lat, lon: hit.lon, source: 'google' });
         }
       } catch {}
     }
@@ -194,38 +242,64 @@ export class LocationResolver {
 
   /**
    * Builds the "is this lead really in the requested place?" test used by Exact mode.
-   * The address text is the primary signal (Google writes "Regal Tower - Business Bay - Dubai");
-   * coordinates are the fallback when the address doesn't name the place.
+   *
+   * Building / landmark ("Regal Tower, Dubai"):
+   *   - the address must contain the phrase "Regal Tower" AND be the same tower
+   *     (within 1.5 km of its pin, or in the typed city when there's no pin), or
+   *   - the address names no building at all and the pin is within ~40 m.
+   *   Anything whose address names a different building is rejected.
+   * Area / city / country: the address must name the place (and the typed city, if any).
    */
   public static buildExactFilter(place: ResolvedPlace): (lead: ScrapedLead) => boolean {
+    const city = contextCity(place.context);
     const nameTargets = [place.name];
     if (place.kind === 'country' && place.country) {
       nameTargets.push(place.country.name, ...(place.country.aliases || []));
     }
 
-    const mentions = (lead: ScrapedLead) => {
-      const text = [lead.address, lead.street, lead.city, lead.state, lead.country].filter(Boolean).join(' ');
-      return nameTargets.some(n => textMentionsPlace(text, n));
-    };
+    const addressOf = (lead: ScrapedLead) =>
+      [lead.address, lead.street, lead.city, lead.state, lead.country].filter(Boolean).join(' - ');
 
     return (lead: ScrapedLead) => {
-      if (mentions(lead)) return true;
-
+      const address = addressOf(lead);
       const hasCoords = typeof lead.latitude === 'number' && typeof lead.longitude === 'number';
-      if (!hasCoords) return false;
       const lat = lead.latitude as number;
       const lon = lead.longitude as number;
+      const pinned = place.lat !== undefined && place.lon !== undefined;
+      const inTypedCity = !city || textMentionsPlace(address, city);
 
-      switch (place.kind) {
-        case 'point':
-          // Same building: within a few dozen metres of the tower's pin.
-          return place.lat !== undefined && distanceKm(lat, lon, place.lat, place.lon!) <= POINT_RADIUS_KM;
-        case 'area':
-        case 'city':
-          return !!place.bbox && inBox(lat, lon, place.bbox) && !lead.address;
-        default:
-          return false;
+      if (place.kind === 'point') {
+        if (textHasPhrase(address, place.name)) {
+          // Same name - make sure it is this tower, not a namesake in another city/country.
+          if (pinned && hasCoords) return distanceKm(lat, lon, place.lat!, place.lon!) <= SAME_PLACE_KM;
+          return inTypedCity;
+        }
+        if (buildingNamesIn(lead.address).length > 0) return false; // names a different building
+        return pinned && hasCoords && distanceKm(lat, lon, place.lat!, place.lon!) <= POINT_RADIUS_KM;
       }
+
+      if (place.kind === 'area') {
+        if (textHasPhrase(address, place.name)) {
+          if (place.bbox && hasCoords) {
+            const pad = GeoGrid.getBoundingBoxFromCenter((place.bbox.minLat + place.bbox.maxLat) / 2, (place.bbox.minLon + place.bbox.maxLon) / 2, boxDiagonalKm(place.bbox));
+            return inBox(lat, lon, pad);
+          }
+          return inTypedCity;
+        }
+        return !lead.address && !!place.bbox && hasCoords && inBox(lat, lon, place.bbox);
+      }
+
+      if (place.kind === 'city') {
+        if (nameTargets.some(n => textHasPhrase(address, n))) return inTypedCity;
+        return !lead.address && !!place.bbox && hasCoords && inBox(lat, lon, place.bbox);
+      }
+
+      if (place.kind === 'country') {
+        return nameTargets.some(n => textHasPhrase(address, n));
+      }
+
+      // unknown: address text only
+      return textHasPhrase(address, place.name) && inTypedCity;
     };
   }
 

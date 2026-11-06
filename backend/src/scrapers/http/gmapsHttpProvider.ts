@@ -100,20 +100,18 @@ export class GmapsHttpProvider implements IScraperProvider {
     ];
     for (const url of urls) {
       const raw = await this.fetchEndpoint(url, dispatcher).catch(() => '');
-      const hit = GmapsParser.parseSearchResponse(raw, text).find(
-        l => typeof l.latitude === 'number' && typeof l.longitude === 'number'
-      );
-      if (hit) {
-        return {
-          title: hit.title,
-          lat: hit.latitude as number,
-          lon: hit.longitude as number,
-          categories: hit.categories || (hit.category ? [hit.category] : []),
-          address: hit.address
-        };
-      }
+      const hits = GmapsParser.parseSearchResponse(raw, text)
+        .filter(l => typeof l.latitude === 'number' && typeof l.longitude === 'number')
+        .map(l => ({
+          title: l.title,
+          lat: l.latitude as number,
+          lon: l.longitude as number,
+          categories: l.categories || (l.category ? [l.category] : []),
+          address: l.address
+        }));
+      if (hits.length > 0) return hits;
     }
-    return null;
+    return [];
   }
 
   public async search(options: ScraperOptions, control: ScraperControl): Promise<ScrapedLead[]> {

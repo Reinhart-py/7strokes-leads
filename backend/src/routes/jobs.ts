@@ -77,7 +77,8 @@ function normalizeEngine(raw: any): 'gmaps' | '2gis' {
 }
 
 function normalizeScope(raw: any): 'exact' | 'extended' {
-  return raw === 'exact' ? 'exact' : 'extended';
+  // Older clients (and the Telegram bot) don't send a scope: default to accurate results.
+  return raw === 'extended' ? 'extended' : 'exact';
 }
 
 router.post('/', async (req: AuthRequest, res) => {
