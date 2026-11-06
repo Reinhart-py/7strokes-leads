@@ -188,6 +188,86 @@ router.get('/columns', async (_req, res) => {
   res.json(COLUMN_DEFINITIONS);
 });
 
+// Dashboard summary for the signed-in user. Registered before '/:id' so "summary" isn't read as a job id.
+router.get('/summary', async (req: AuthRequest, res) => {
+  try {
+    const userId = req.user?.id;
+    const days = Math.min(Math.max(parseInt(req.query.days as string) || 14, 7), 90);
+
+    const totalsRes = await query(
+      `SELECT COUNT(*) AS total,
+              SUM(CASE WHEN r.phone_1 IS NOT NULL AND r.phone_1 != '' THEN 1 ELSE 0 END) AS with_phone,
+              SUM(CASE WHEN r.website IS NOT NULL AND r.website != '' THEN 1 ELSE 0 END) AS with_website,
+              SUM(CASE WHEN r.email IS NOT NULL AND r.email != '' THEN 1 ELSE 0 END) AS with_email,
+              SUM(CASE WHEN r.rating IS NOT NULL AND r.rating != '' THEN 1 ELSE 0 END) AS with_rating
+       FROM results r JOIN jobs j ON r.job_id = j.id
+       WHERE j.user_id = $1`,
+      [userId]
+    );
+
+    const statusRes = await query(
+      'SELECT status, COUNT(*) AS count FROM jobs WHERE user_id = $1 GROUP BY status',
+      [userId]
+    );
+
+    const since = new Date(Date.now() - (days - 1) * 86400000).toISOString().slice(0, 10);
+    const dailyRes = await query(
+      `SELECT DATE(r.created_at) AS day, COUNT(*) AS total,
+              SUM(CASE WHEN r.phone_1 IS NOT NULL AND r.phone_1 != '' THEN 1 ELSE 0 END) AS with_phone
+       FROM results r JOIN jobs j ON r.job_id = j.id
+       WHERE j.user_id = $1 AND r.created_at >= $2
+       GROUP BY DATE(r.created_at)`,
+      [userId, since]
+    );
+
+    const topBy = async (column: 'category' | 'city') => {
+      const r = await query(
+        `SELECT r.${column} AS name, COUNT(*) AS count
+         FROM results r JOIN jobs j ON r.job_id = j.id
+         WHERE j.user_id = $1 AND r.${column} IS NOT NULL AND r.${column} != ''
+         GROUP BY r.${column} ORDER BY count DESC LIMIT 6`,
+        [userId]
+      );
+      return r.rows.map((row: any) => ({ name: String(row.name), count: Number(row.count) || 0 }));
+    };
+
+    const dayKey = (v: any) => (v instanceof Date ? v.toISOString().slice(0, 10) : String(v).slice(0, 10));
+    const byDay = new Map<string, { total: number; withPhone: number }>();
+    for (const row of dailyRes.rows) {
+      byDay.set(dayKey(row.day), { total: Number(row.total) || 0, withPhone: Number(row.with_phone) || 0 });
+    }
+    const daily = [];
+    for (let i = days - 1; i >= 0; i--) {
+      const d = new Date(Date.now() - i * 86400000).toISOString().slice(0, 10);
+      daily.push({ day: d, ...(byDay.get(d) || { total: 0, withPhone: 0 }) });
+    }
+
+    const jobsByStatus: Record<string, number> = {};
+    for (const row of statusRes.rows) jobsByStatus[row.status || 'pending'] = Number(row.count) || 0;
+
+    const t = totalsRes.rows[0] || {};
+    res.json({
+      totals: {
+        leads: Number(t.total) || 0,
+        withPhone: Number(t.with_phone) || 0,
+        withWebsite: Number(t.with_website) || 0,
+        withEmail: Number(t.with_email) || 0,
+        withRating: Number(t.with_rating) || 0
+      },
+      jobs: {
+        total: Object.values(jobsByStatus).reduce((a, b) => a + b, 0),
+        byStatus: jobsByStatus
+      },
+      daily,
+      topCategories: await topBy('category'),
+      topCities: await topBy('city')
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to build summary' });
+  }
+});
+
 router.get('/:id', async (req: AuthRequest, res) => {
   try {
     const result = await query(
