@@ -150,8 +150,8 @@ export class TwoGisHttpProvider implements IScraperProvider {
     return cachedCookieHeader;
   }
 
-  private getDispatcher() {
-    const proxyUrl = process.env.PROXY_URL || process.env.HTTP_PROXY || '';
+  private getDispatcher(customProxy?: string) {
+    const proxyUrl = customProxy || process.env.PROXY_URL || process.env.HTTP_PROXY || '';
     return proxyUrl ? new ProxyAgent(proxyUrl) : undefined;
   }
 
@@ -166,7 +166,7 @@ export class TwoGisHttpProvider implements IScraperProvider {
     await log(`[2GIS-HTTP Worker] Search Keyword: "${cleanKeyword}"`);
 
     const cookieHeader = await this.getSessionCookieHeader(region.domain);
-    const dispatcher = this.getDispatcher();
+    const dispatcher = this.getDispatcher(options.proxy);
 
     const headers: Record<string, string> = {
       'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
@@ -176,7 +176,6 @@ export class TwoGisHttpProvider implements IScraperProvider {
     };
 
     const results: ScrapedLead[] = [];
-    const seenTitles = new Set<string>();
     const seenFirms = new Set<string>();
 
     const cityKey = region.city.toLowerCase();
@@ -188,7 +187,8 @@ export class TwoGisHttpProvider implements IScraperProvider {
       if (cap > 0 && results.length >= cap) break;
 
       const currentQuery = district ? `${cleanKeyword} ${district}` : cleanKeyword;
-      const pagesToScan = district ? 3 : 5;
+      // Unlimited: keep paging until 2GIS runs out of results for this area.
+      const pagesToScan = cap > 0 ? (district ? 3 : 5) : 60;
 
       for (let pageNum = 1; pageNum <= pagesToScan; pageNum++) {
         if (await checkCancelled()) break;
@@ -204,6 +204,10 @@ export class TwoGisHttpProvider implements IScraperProvider {
           const fetchOpts: any = { headers };
           if (dispatcher) fetchOpts.dispatcher = dispatcher;
           const res = await fetch(pageUrl, fetchOpts);
+          if (!res.ok) {
+            await log(`[2GIS-HTTP Warning] HTTP ${res.status} on "${currentQuery}" page ${pageNum}`);
+            break;
+          }
           pageHtml = await res.text();
         } catch (err: any) {
           await log(`[2GIS-HTTP Warning] Fetch error on "${currentQuery}" page ${pageNum}: ${err.message}`);
@@ -241,9 +245,6 @@ export class TwoGisHttpProvider implements IScraperProvider {
               rawTitle = rawTitle.replace(/&amp;/g, '&').replace(/,\s*[^,]*on the map.*$/i, '').replace(/\s+/g, ' ').trim();
               if (!rawTitle || rawTitle.toLowerCase().includes('2gis')) return;
 
-              const norm = rawTitle.toLowerCase().replace(/[^a-z0-9]/g, '');
-              if (seenTitles.has(norm)) return;
-              seenTitles.add(norm);
 
               const rawCandidates: string[] = [];
               const telMatches = html.match(/href="tel:([^"]+)"/g) || [];
@@ -300,6 +301,7 @@ export class TwoGisHttpProvider implements IScraperProvider {
 
               const lead: ScrapedLead = {
                 query,
+                place_id: `2gis:${firmPath.replace(/\D/g, '')}`,
                 title: rawTitle,
                 category,
                 phone_1: phone1,

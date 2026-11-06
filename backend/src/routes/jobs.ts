@@ -67,9 +67,22 @@ function getFilteredRows(rawRows: any[], requestedColumns?: string): { headers: 
   return { headers, keys: activeKeys, data };
 }
 
+function normalizeCap(raw: any): number {
+  const n = Math.floor(Number(raw));
+  return Number.isFinite(n) && n > 0 ? Math.min(n, 1_000_000) : 0;
+}
+
+function normalizeEngine(raw: any): 'gmaps' | '2gis' {
+  return raw === '2gis' ? '2gis' : 'gmaps';
+}
+
 router.post('/', async (req: AuthRequest, res) => {
   try {
-    const { engine, target, cap, proxy } = req.body;
+    const { proxy } = req.body;
+    const engine = normalizeEngine(req.body.engine);
+    const cap = normalizeCap(req.body.cap);
+    const target = typeof req.body.target === 'string' ? req.body.target.trim() : '';
+    if (!target) return res.status(400).json({ error: 'Search target is required' });
     const userId = req.user?.id;
 
     let effectiveProxy = '';
@@ -94,7 +107,7 @@ router.post('/', async (req: AuthRequest, res) => {
 
     const result = await query(
       'INSERT INTO jobs (user_id, engine, target, cap, proxy_url) VALUES ($1, $2, $3, $4, $5) RETURNING *',
-      [userId, engine, target, cap || 0, effectiveProxy || null]
+      [userId, engine, target, cap, effectiveProxy || null]
     );
     const job = result.rows[0];
 
@@ -109,7 +122,9 @@ router.post('/', async (req: AuthRequest, res) => {
 
 router.post('/batch', async (req: AuthRequest, res) => {
   try {
-    const { engine = 'gmaps', queries, cap, proxy } = req.body;
+    const { queries, proxy } = req.body;
+    const engine = normalizeEngine(req.body.engine);
+    const cap = normalizeCap(req.body.cap);
     const userId = req.user?.id;
 
     if (!Array.isArray(queries) || queries.length === 0) {
@@ -143,7 +158,7 @@ router.post('/batch', async (req: AuthRequest, res) => {
 
       const result = await query(
         'INSERT INTO jobs (user_id, engine, target, cap, proxy_url) VALUES ($1, $2, $3, $4, $5) RETURNING *',
-        [userId, engine, trimmed, cap || 0, effectiveProxy || null]
+        [userId, engine, trimmed, cap, effectiveProxy || null]
       );
       const job = result.rows[0];
       await addScraperJob(job.id, engine, trimmed, cap, userId as string, effectiveProxy || undefined);
@@ -194,13 +209,51 @@ router.get('/:id/results', async (req: AuthRequest, res) => {
     );
     if (jobCheck.rowCount === 0) return res.status(404).json({ error: 'Job not found' });
 
-    const limit = parseInt(req.query.limit as string) || 200;
-    const offset = parseInt(req.query.offset as string) || 0;
+    const limit = Math.min(Math.max(parseInt(req.query.limit as string) || 200, 1), 5000);
+    const offset = Math.max(parseInt(req.query.offset as string) || 0, 0);
+    const search = typeof req.query.q === 'string' ? req.query.q.trim().toLowerCase() : '';
+
+    let where = 'WHERE job_id = $1';
+    const params: any[] = [req.params.id];
+    if (search) {
+      params.push(`%${search}%`);
+      const p = `$${params.length}`;
+      where += ` AND (LOWER(title) LIKE ${p} OR LOWER(COALESCE(phone_1, '')) LIKE ${p} OR LOWER(COALESCE(phone_2, '')) LIKE ${p}`
+        + ` OR LOWER(COALESCE(address, '')) LIKE ${p} OR LOWER(COALESCE(category, '')) LIKE ${p}`
+        + ` OR LOWER(COALESCE(website, '')) LIKE ${p} OR LOWER(COALESCE(email, '')) LIKE ${p})`;
+    }
 
     const result = await query(
-      'SELECT * FROM results WHERE job_id = $1 ORDER BY created_at ASC LIMIT $2 OFFSET $3',
-      [req.params.id, limit, offset]
+      `SELECT * FROM results ${where} ORDER BY created_at ASC, id ASC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+      [...params, limit, offset]
     );
+
+    // `paged=1` returns { rows, total, stats }; the plain array response is kept for older clients.
+    if (req.query.paged === '1' || req.query.paged === 'true') {
+      const countRes = await query(`SELECT COUNT(*) AS count FROM results ${where}`, params);
+      const statsRes = await query(
+        `SELECT COUNT(*) AS total,
+                SUM(CASE WHEN phone_1 IS NOT NULL AND phone_1 != '' THEN 1 ELSE 0 END) AS with_phone,
+                SUM(CASE WHEN website IS NOT NULL AND website != '' THEN 1 ELSE 0 END) AS with_website,
+                SUM(CASE WHEN email IS NOT NULL AND email != '' THEN 1 ELSE 0 END) AS with_email
+         FROM results WHERE job_id = $1`,
+        [req.params.id]
+      );
+      const st = statsRes.rows[0] || {};
+      return res.json({
+        rows: result.rows,
+        total: Number(countRes.rows[0]?.count || 0),
+        limit,
+        offset,
+        stats: {
+          total: Number(st.total || 0),
+          withPhone: Number(st.with_phone || 0),
+          withWebsite: Number(st.with_website || 0),
+          withEmail: Number(st.with_email || 0)
+        }
+      });
+    }
+
     res.json(result.rows);
   } catch (err) {
     res.status(500).json({ error: 'Internal error' });

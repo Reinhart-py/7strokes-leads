@@ -18,121 +18,125 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* CRM Standard Form Inputs */
-.crm-input {
-  background-color: #ffffff;
-  border: 1px solid #cbd5e1;
-  border-radius: 6px;
-  color: #0f172a;
-  font-size: 13px;
-  height: 38px;
-  padding: 6px 12px;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
-  width: 100%;
-}
+/* Component classes live in the components layer so Tailwind utilities
+   (h-8, text-xs, pl-8, w-auto...) can override them per element. */
+@layer components {
+  /* CRM Standard Form Inputs */
+  .crm-input {
+    background-color: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    color: #0f172a;
+    font-size: 13px;
+    height: 38px;
+    padding: 6px 12px;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    width: 100%;
+  }
 
-.crm-input:focus {
-  border-color: #0072f0;
-  box-shadow: 0 0 0 2px rgba(0, 114, 240, 0.15);
-  outline: none;
-}
+  .crm-input:focus {
+    border-color: #0072f0;
+    box-shadow: 0 0 0 2px rgba(0, 114, 240, 0.15);
+    outline: none;
+  }
 
-.crm-input::placeholder {
-  color: #94a3b8;
-}
+  .crm-input::placeholder {
+    color: #94a3b8;
+  }
 
-/* CRM Standard Buttons */
-.crm-btn-primary {
-  background-color: #0072f0;
-  border: 1px solid #0072f0;
-  border-radius: 6px;
-  color: #ffffff;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 13px;
-  font-weight: 600;
-  height: 38px;
-  padding: 0 16px;
-  transition: background-color 0.15s ease, border-color 0.15s ease;
-}
+  /* CRM Standard Buttons */
+  .crm-btn-primary {
+    background-color: #0072f0;
+    border: 1px solid #0072f0;
+    border-radius: 6px;
+    color: #ffffff;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 600;
+    height: 38px;
+    padding: 0 16px;
+    transition: background-color 0.15s ease, border-color 0.15s ease;
+  }
 
-.crm-btn-primary:hover {
-  background-color: #0060cb;
-  border-color: #0060cb;
-}
+  .crm-btn-primary:hover {
+    background-color: #0060cb;
+    border-color: #0060cb;
+  }
 
-.crm-btn-default {
-  background-color: #f1f5f9;
-  border: 1px solid #cbd5e1;
-  border-radius: 6px;
-  color: #475569;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 13px;
-  font-weight: 500;
-  height: 38px;
-  padding: 0 14px;
-  transition: background-color 0.15s ease, border-color 0.15s ease;
-}
+  .crm-btn-default {
+    background-color: #f1f5f9;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    color: #475569;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 500;
+    height: 38px;
+    padding: 0 14px;
+    transition: background-color 0.15s ease, border-color 0.15s ease;
+  }
 
-.crm-btn-default:hover {
-  background-color: #e2e8f0;
-  color: #0f172a;
-}
+  .crm-btn-default:hover {
+    background-color: #e2e8f0;
+    color: #0f172a;
+  }
 
-.crm-btn-danger {
-  background-color: #dc2626;
-  border: 1px solid #dc2626;
-  border-radius: 6px;
-  color: #ffffff;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 13px;
-  font-weight: 600;
-  height: 38px;
-  padding: 0 14px;
-  transition: background-color 0.15s ease;
-}
+  .crm-btn-danger {
+    background-color: #dc2626;
+    border: 1px solid #dc2626;
+    border-radius: 6px;
+    color: #ffffff;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 600;
+    height: 38px;
+    padding: 0 14px;
+    transition: background-color 0.15s ease;
+  }
 
-.crm-btn-danger:hover {
-  background-color: #b91c1c;
-}
+  .crm-btn-danger:hover {
+    background-color: #b91c1c;
+  }
 
-/* CRM Card Boxes */
-.crm-box {
-  background-color: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.04), 0 1px 2px -1px rgba(0, 0, 0, 0.02);
-}
+  /* CRM Card Boxes */
+  .crm-box {
+    background-color: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.04), 0 1px 2px -1px rgba(0, 0, 0, 0.02);
+  }
 
-.crm-box-header {
-  border-bottom: 1px solid #f1f5f9;
-  padding: 12px 18px;
-}
+  .crm-box-header {
+    border-bottom: 1px solid #f1f5f9;
+    padding: 12px 18px;
+  }
 
-.crm-box-title {
-  color: #0f172a;
-  font-size: 15px;
-  font-weight: 600;
-  letter-spacing: 0.2px;
-  margin: 0;
-}
+  .crm-box-title {
+    color: #0f172a;
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: 0.2px;
+    margin: 0;
+  }
 
-.crm-label {
-  color: #475569;
-  display: block;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.4px;
-  margin-bottom: 5px;
-  text-transform: uppercase;
+  .crm-label {
+    color: #475569;
+    display: block;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.4px;
+    margin-bottom: 5px;
+    text-transform: uppercase;
+  }
 }
 
 /* Scrollbars */

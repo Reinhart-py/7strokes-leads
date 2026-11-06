@@ -96,16 +96,21 @@ export class GeoGrid {
   };
 
   public static getBoundingBoxForCity(cityName: string): GridBoundingBox | null {
-    const key = cityName.toLowerCase().trim().replace(/[\s-]+/g, '_');
+    const key = cityName.toLowerCase().trim().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+    if (!key) return null;
     if (this.KNOWN_CITY_BBOX[key]) {
       return this.KNOWN_CITY_BBOX[key];
     }
-    for (const [k, box] of Object.entries(this.KNOWN_CITY_BBOX)) {
-      if (key.includes(k) || k.includes(key)) {
-        return box;
+    // Allow "dubai_uae" / "greater_london" style variants, but never partial words
+    // (previously "in" matched "berlin" and "al" matched "al_ain").
+    let best: string | null = null;
+    for (const k of Object.keys(this.KNOWN_CITY_BBOX)) {
+      if (k.length < 4) continue;
+      if (key.startsWith(`${k}_`) || key.endsWith(`_${k}`) || key.includes(`_${k}_`)) {
+        if (!best || k.length > best.length) best = k;
       }
     }
-    return null;
+    return best ? this.KNOWN_CITY_BBOX[best] : null;
   }
 
   public static async resolveCityBoundingBox(cityName: string): Promise<GridBoundingBox | null> {

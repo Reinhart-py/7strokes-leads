@@ -45,8 +45,12 @@ export function classifyPhones(candidates: (string | null | undefined)[]): Class
     if (!item || typeof item !== 'string') continue;
     const trimmed = item.trim();
     const digits = trimmed.replace(/\D/g, '');
-    if (digits.length < 7 || seenDigits.has(digits)) continue;
-    seenDigits.add(digits);
+    if (digits.length < 7 || digits.length > 15) continue;
+    // "+971 4 123 4567" and "04 123 4567" are the same line: compare the
+    // subscriber part (last 8 digits) rather than the full digit string.
+    const subscriber = digits.slice(-8);
+    if (seenDigits.has(subscriber)) continue;
+    seenDigits.add(subscriber);
     uniqueNumbers.push(trimmed);
   }
 

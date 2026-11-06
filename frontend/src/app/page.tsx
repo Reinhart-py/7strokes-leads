@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
@@ -40,6 +40,50 @@ const EXPORT_COLUMNS = [
   { key: "opening_hours", label: "Hours" },
   { key: "place_id", label: "Place ID" }
 ];
+
+const LIMIT_PRESETS = [100, 250, 500, 1000, 5000];
+const PAGE_SIZES = [25, 50, 100, 250];
+
+type JobStatus = "pending" | "running" | "completed" | "stopped" | "failed";
+
+const STATUS_STYLES: Record<string, string> = {
+  pending: "bg-[#fef9c3] text-[#854d0e]",
+  running: "bg-[#dbeafe] text-[#1d4ed8]",
+  completed: "bg-[#dcfce7] text-[#15803d]",
+  stopped: "bg-[#f1f5f9] text-[#475569]",
+  failed: "bg-[#fee2e2] text-[#b91c1c]"
+};
+
+const isActiveStatus = (status?: string) => status === "running" || status === "pending";
+
+const StatusBadge = ({ status }: { status?: string }) => (
+  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wide ${STATUS_STYLES[status || "pending"] || STATUS_STYLES.pending}`}>
+    {isActiveStatus(status) && <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse" />}
+    {status || "pending"}
+  </span>
+);
+
+const formatNumber = (n: number) => new Intl.NumberFormat("en-US").format(n || 0);
+
+const formatCap = (cap?: number) => (cap && cap > 0 ? formatNumber(cap) : "Unlimited");
+
+const parseServerDate = (value?: string) => {
+  if (!value) return null;
+  // SQLite returns "YYYY-MM-DD HH:MM:SS" in UTC without a zone marker.
+  const iso = /\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(value) ? value.replace(" ", "T") + "Z" : value;
+  const d = new Date(iso);
+  return isNaN(d.getTime()) ? null : d;
+};
+
+const formatRelative = (value?: string) => {
+  const d = parseServerDate(value);
+  if (!d) return "";
+  const diff = Math.max(0, Date.now() - d.getTime()) / 1000;
+  if (diff < 60) return "just now";
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+  return d.toLocaleDateString();
+};
 
 const POPULAR_CATEGORIES = [
   "Real Estate & Property",
@@ -214,7 +258,9 @@ export default function Home() {
 
   const [keyword, setKeyword] = useState("");
   const [location, setLocation] = useState("");
-  const [leadCount, setLeadCount] = useState<number>(100);
+  const [leadCount, setLeadCount] = useState<number>(500);
+  const [limitMode, setLimitMode] = useState<"preset" | "custom">("preset");
+  const [customLimit, setCustomLimit] = useState<string>("2000");
   const [isStarting, setIsStarting] = useState(false);
 
   const [userProxy, setUserProxy] = useState("");
@@ -222,8 +268,22 @@ export default function Home() {
 
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
   const [jobResults, setJobResults] = useState<any[]>([]);
-  const [loadingResults, setLoadingResults] = useState(false);
+  const [loadedResultsKey, setLoadedResultsKey] = useState("");
   const [searchFilter, setSearchFilter] = useState("");
+  const [debouncedFilter, setDebouncedFilter] = useState("");
+  const [resultsPage, setResultsPage] = useState(0);
+  const [resultsPageSize, setResultsPageSize] = useState(50);
+  const [resultsTotal, setResultsTotal] = useState(0);
+  const [resultsStats, setResultsStats] = useState<{ total: number; withPhone: number; withWebsite: number; withEmail: number } | null>(null);
+  const [adminLeadsPage, setAdminLeadsPage] = useState(0);
+  const [adminLeadsTotal, setAdminLeadsTotal] = useState(0);
+  const [startError, setStartError] = useState("");
+
+  // Refs let the polling interval read the latest values without being re-created.
+  const selectedJobIdRef = useRef<string | null>(null);
+  const resultsQueryRef = useRef({ page: 0, size: 50, q: "" });
+  const resultsRequestRef = useRef(0);
+  const jobsRef = useRef<any[]>([]);
 
   // Modals
   const [exportJobId, setExportJobId] = useState<string | null>(null);
@@ -266,6 +326,51 @@ export default function Home() {
   const [isServerOnline, setIsServerOnline] = useState<boolean>(true);
   const [copyToast, setCopyToast] = useState<string | null>(null);
 
+  const fetchJobDetails = useCallback(async (jobId: string, authToken: string) => {
+    const { page, size, q } = resultsQueryRef.current;
+    const requestKey = `${jobId}|${page}|${size}|${q}`;
+    const requestId = ++resultsRequestRef.current;
+    try {
+      const params = new URLSearchParams({ paged: "1", limit: String(size), offset: String(page * size) });
+      if (q) params.set("q", q);
+      const res = await apiFetch(`/api/jobs/${jobId}/results?${params.toString()}`, {
+        headers: { Authorization: `Bearer ${authToken}` }
+      });
+      // Ignore responses for a job/page the user has already navigated away from.
+      if (requestId !== resultsRequestRef.current) return;
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          setJobResults(data);
+          setResultsTotal(data.length);
+        } else {
+          setJobResults(Array.isArray(data.rows) ? data.rows : []);
+          setResultsTotal(Number(data.total) || 0);
+          setResultsStats(data.stats || null);
+        }
+      }
+    } catch {} finally {
+      if (requestId === resultsRequestRef.current) setLoadedResultsKey(requestKey);
+    }
+  }, []);
+
+  const fetchJobsList = useCallback(async (authToken: string) => {
+    try {
+      const res = await apiFetch("/api/jobs", {
+        headers: { Authorization: `Bearer ${authToken}` }
+      });
+      if (res.ok) {
+        const list = await res.json();
+        const arr = Array.isArray(list) ? list : [];
+        setJobs(arr);
+        if (!selectedJobIdRef.current && arr.length > 0) {
+          selectedJobIdRef.current = arr[0].id;
+          setSelectedJobId(arr[0].id);
+        }
+      }
+    } catch {}
+  }, []);
+
   useEffect(() => {
     setServerStatusGlobal = setIsServerOnline;
     const storedToken = localStorage.getItem("token") || localStorage.getItem("dashmin_token");
@@ -301,48 +406,56 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
+    selectedJobIdRef.current = selectedJobId;
+  }, [selectedJobId]);
+
+  useEffect(() => {
+    jobsRef.current = jobs;
+  }, [jobs]);
+
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setDebouncedFilter(searchFilter.trim());
+      setResultsPage(0);
+    }, 350);
+    return () => clearTimeout(t);
+  }, [searchFilter]);
+
+  // Reload the visible page whenever the job, page, page size or search changes.
+  useEffect(() => {
+    resultsQueryRef.current = { page: resultsPage, size: resultsPageSize, q: debouncedFilter };
+    if (token && selectedJobId) {
+      fetchJobDetails(selectedJobId, token);
+    }
+  }, [token, selectedJobId, resultsPage, resultsPageSize, debouncedFilter, fetchJobDetails]);
+
+  useEffect(() => {
     if (!token) return;
     const interval = setInterval(() => {
-      fetchJobsList(token, false);
-      if (selectedJobId && activeTab === "leads") {
-        fetchJobDetails(selectedJobId, token, false);
+      if (document.hidden) return;
+      fetchJobsList(token);
+      const jobId = selectedJobIdRef.current;
+      const job = jobsRef.current.find(j => j.id === jobId);
+      // Only re-pull rows while the selected extraction is still collecting.
+      if (jobId && activeTab === "leads" && viewMode === "app" && job && isActiveStatus(job.status)) {
+        fetchJobDetails(jobId, token);
       }
       if (viewMode === "admin") {
         fetchAdminStats(token);
       }
-    }, 2500);
+    }, 3000);
     return () => clearInterval(interval);
-  }, [token, selectedJobId, activeTab, viewMode]);
+  }, [token, activeTab, viewMode, fetchJobsList, fetchJobDetails]);
 
-  const fetchJobsList = async (authToken: string, showLoading = true) => {
-    try {
-      const res = await apiFetch("/api/jobs", {
-        headers: { Authorization: `Bearer ${authToken}` }
-      });
-      if (res.ok) {
-        const list = await res.json();
-        setJobs(Array.isArray(list) ? list : []);
-        if (!selectedJobId && Array.isArray(list) && list.length > 0) {
-          setSelectedJobId(list[0].id);
-          fetchJobDetails(list[0].id, authToken, showLoading);
-        }
-      }
-    } catch {}
-  };
-
-  const fetchJobDetails = async (jobId: string, authToken: string, showLoading = true) => {
-    if (showLoading) setLoadingResults(true);
-    try {
-      const res = await apiFetch(`/api/jobs/${jobId}/results?limit=1000`, {
-        headers: { Authorization: `Bearer ${authToken}` }
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setJobResults(Array.isArray(data) ? data : []);
-      }
-    } catch {} finally {
-      if (showLoading) setLoadingResults(false);
-    }
+  const selectJob = (jobId: string) => {
+    if (jobId === selectedJobId) return;
+    setJobResults([]);
+    setResultsTotal(0);
+    setResultsStats(null);
+    setResultsPage(0);
+    setSearchFilter("");
+    setDebouncedFilter("");
+    setSelectedJobId(jobId);
   };
 
   const fetchAdminStats = async (authToken: string) => {
@@ -363,14 +476,16 @@ export default function Home() {
     } catch {}
   };
 
-  const fetchAdminGlobalLeads = async (authToken: string) => {
+  const fetchAdminGlobalLeads = async (authToken: string, page = 0) => {
     try {
-      const res = await apiFetch("/api/admin/leads?limit=500", {
+      const res = await apiFetch(`/api/admin/leads?limit=100&offset=${page * 100}`, {
         headers: { Authorization: `Bearer ${authToken}` }
       });
       if (res.ok) {
         const data = await res.json();
         setAdminGlobalLeads(data.leads || []);
+        setAdminLeadsTotal(Number(data.total) || 0);
+        setAdminLeadsPage(page);
       }
     } catch {}
   };
@@ -415,16 +530,20 @@ export default function Home() {
     setUser(null);
     setJobs([]);
     setJobResults([]);
+    selectedJobIdRef.current = null;
     setSelectedJobId(null);
     setViewMode("app");
     setActiveTab("search");
   };
+
+  const effectiveCap = limitMode === "custom" ? Math.max(0, Math.floor(Number(customLimit) || 0)) : leadCount;
 
   const startLeadSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!keyword.trim()) return;
 
     setIsStarting(true);
+    setStartError("");
     const chosenLocation = searchEngine === "2gis" ? twoGisCity : location;
     const targetQuery = chosenLocation.trim() ? `${keyword.trim()} in ${chosenLocation.trim()}` : keyword.trim();
 
@@ -438,7 +557,7 @@ export default function Home() {
         body: JSON.stringify({
           engine: searchEngine,
           target: targetQuery,
-          cap: leadCount,
+          cap: effectiveCap,
           proxy: userProxy.trim()
         })
       });
@@ -446,11 +565,15 @@ export default function Home() {
       if (res.ok) {
         const createdJob = await res.json();
         await fetchJobsList(token);
-        setSelectedJobId(createdJob.id);
-        fetchJobDetails(createdJob.id, token, true);
+        selectJob(createdJob.id);
         setActiveTab("leads");
+      } else {
+        const data = await res.json().catch(() => ({}));
+        setStartError(data.error || `Could not start the search (HTTP ${res.status})`);
       }
-    } catch {} finally {
+    } catch (err: any) {
+      setStartError(err?.message ? `Network error: ${err.message}` : "Network error");
+    } finally {
       setIsStarting(false);
     }
   };
@@ -494,7 +617,7 @@ export default function Home() {
         body: JSON.stringify({
           engine: searchEngine,
           queries,
-          cap: leadCount,
+          cap: effectiveCap,
           proxy: userProxy.trim() || undefined
         })
       });
@@ -521,7 +644,7 @@ export default function Home() {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` }
       });
-      fetchJobsList(token, false);
+      fetchJobsList(token);
     } catch {}
   };
 
@@ -533,10 +656,13 @@ export default function Home() {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (selectedJobId === jobId) {
+        selectedJobIdRef.current = null;
         setSelectedJobId(null);
         setJobResults([]);
+        setResultsTotal(0);
+        setResultsStats(null);
       }
-      fetchJobsList(token, false);
+      fetchJobsList(token);
     } catch {}
   };
 
@@ -638,16 +764,10 @@ export default function Home() {
   const selectedJob = jobs.find(j => j.id === selectedJobId) || jobs[0];
   const runningJob = jobs.find(j => j.status === "running" || j.status === "pending");
 
-  const filteredResults = jobResults.filter(r => {
-    if (!searchFilter.trim()) return true;
-    const term = searchFilter.toLowerCase();
-    return (
-      (r.title && r.title.toLowerCase().includes(term)) ||
-      (r.phone_1 && r.phone_1.includes(term)) ||
-      (r.address && r.address.toLowerCase().includes(term)) ||
-      (r.category && r.category.toLowerCase().includes(term))
-    );
-  });
+  const filteredResults = jobResults;
+  const loadingResults = !!selectedJobId && loadedResultsKey !== `${selectedJobId}|${resultsPage}|${resultsPageSize}|${debouncedFilter}`;
+  const totalPages = Math.max(1, Math.ceil(resultsTotal / resultsPageSize));
+  const filteredCategories = POPULAR_CATEGORIES.filter(c => !keyword.trim() || c.toLowerCase().includes(keyword.trim().toLowerCase()));
 
   // ----------------------------------------------------
   // UNAUTHENTICATED SCREEN (Clean Apple-Style Sign In)
@@ -922,6 +1042,10 @@ export default function Home() {
         </div>
       )}
 
+      {sidebarOpen && (
+        <div className="fixed inset-0 z-30 bg-black/30 md:hidden" onClick={() => setSidebarOpen(false)} aria-hidden="true" />
+      )}
+
       {/* LEFT SIDEBAR NAVIGATION (Persistent Desktop Bar) */}
       <aside className={`fixed inset-y-0 left-0 z-40 w-64 bg-white border-r border-[#e2e8f0] flex flex-col justify-between p-4 transition-transform duration-200 md:static md:translate-x-0 ${sidebarOpen ? "translate-x-0 shadow-xl" : "-translate-x-full"}`}>
         <div>
@@ -955,7 +1079,7 @@ export default function Home() {
                 <IconDatabase className="w-4 h-4 shrink-0" />
                 <span>Saved Database</span>
               </div>
-              <span className="text-[10px] font-semibold text-[#64748b]">
+              <span className="text-[10px] font-semibold text-[#64748b] tabular-nums">
                 {jobs.length}
               </span>
             </button>
@@ -1007,25 +1131,33 @@ export default function Home() {
       {/* MAIN VIEW CONTENT AREA */}
       <main className="flex-1 flex flex-col h-screen overflow-hidden min-w-0">
         {/* Top Header */}
-        <header className="h-14 bg-white border-b border-[#e2e8f0] px-6 flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-3">
+        <header className="h-14 bg-white border-b border-[#e2e8f0] px-4 md:px-6 flex items-center justify-between gap-3 shrink-0">
+          <div className="flex items-center gap-3 min-w-0">
             <button onClick={() => setSidebarOpen(true)} className="md:hidden text-[#64748b]">
               <IconMenu className="w-5 h-5" />
             </button>
-            <div className="flex items-center gap-2 text-xs text-[#64748b]">
-              <span>CRM</span>
-              <span>/</span>
+            <div className="flex items-center gap-2 text-xs text-[#64748b] min-w-0">
+              <span className="hidden sm:inline">CRM</span>
+              <span className="hidden sm:inline">/</span>
               <span className="text-[#0f172a] font-semibold">
                 {viewMode === "admin" ? "Admin Console" : (activeTab === "search" ? "Find Leads" : (activeTab === "leads" ? "Saved Database" : "Proxy Settings"))}
               </span>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 min-w-0">
             {runningJob && (
-              <div className="flex items-center gap-2 text-xs text-[#0072f0] font-semibold">
-                <span>Extracting: {runningJob.target}</span>
-                <button onClick={() => stopSearch(runningJob.id)} className="text-[#dc2626] hover:underline">
+              <div className="flex items-center gap-2 text-xs text-[#0072f0] font-semibold min-w-0">
+                <span className="w-2 h-2 rounded-full bg-[#0072f0] animate-pulse shrink-0" />
+                <button
+                  onClick={() => { selectJob(runningJob.id); setActiveTab("leads"); setViewMode("app"); }}
+                  className="truncate max-w-[110px] sm:max-w-[260px] hover:underline text-left"
+                  title={runningJob.target}
+                >
+                  <span className="hidden sm:inline">Extracting: </span>{runningJob.target}
+                </button>
+                <span className="tabular-nums text-[#0f172a] shrink-0">{formatNumber(runningJob.total_saved || 0)}</span>
+                <button onClick={() => stopSearch(runningJob.id)} className="text-[#dc2626] hover:underline shrink-0">
                   Stop
                 </button>
               </div>
@@ -1034,13 +1166,13 @@ export default function Home() {
         </header>
 
         {/* Dedicated Page View Area */}
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 overflow-y-auto p-3 sm:p-4 md:p-6">
           <div className="max-w-7xl mx-auto space-y-6">
 
             {/* PAGE 1: DEDICATED SEARCH PAGE */}
             {viewMode === "app" && activeTab === "search" && (
               <div className="crm-box">
-                <div className="crm-box-header flex items-center justify-between">
+                <div className="crm-box-header flex flex-wrap items-center justify-between gap-2">
                   <h2 className="crm-box-title">Search & Extraction Parameters</h2>
                   <div className="flex items-center gap-2 text-xs">
                     <button
@@ -1058,7 +1190,7 @@ export default function Home() {
                   </div>
                 </div>
 
-                <div className="p-6">
+                <div className="p-4 sm:p-6">
                   {searchMode === "single" ? (
                     <form onSubmit={startLeadSearch} className="space-y-4">
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -1068,17 +1200,21 @@ export default function Home() {
                             type="text"
                             required
                             value={keyword}
-                            onChange={e => setKeyword(e.target.value)}
+                            onChange={e => { setKeyword(e.target.value); setShowCategoryDropdown(true); }}
                             onFocus={() => setShowCategoryDropdown(true)}
-                            placeholder="e.g. Real Estate, Dental Clinics..."
+                            onBlur={() => setTimeout(() => setShowCategoryDropdown(false), 150)}
+                            onKeyDown={e => { if (e.key === "Escape") setShowCategoryDropdown(false); }}
+                            placeholder="e.g. Dentists, Real Estate..."
+                            autoComplete="off"
                             className="crm-input"
                           />
-                          {showCategoryDropdown && (
-                            <div className="absolute left-0 right-0 top-full mt-1 z-30 bg-white border border-[#e2e8f0] rounded shadow-lg max-h-48 overflow-y-auto p-1">
-                              {POPULAR_CATEGORIES.map((cat, i) => (
+                          {showCategoryDropdown && filteredCategories.length > 0 && (
+                            <div className="absolute left-0 right-0 top-full mt-1 z-30 bg-white border border-[#e2e8f0] rounded shadow-lg max-h-56 overflow-y-auto p-1">
+                              {filteredCategories.map((cat, i) => (
                                 <button
                                   key={i}
                                   type="button"
+                                  onMouseDown={e => e.preventDefault()}
                                   onClick={() => { setKeyword(cat); setShowCategoryDropdown(false); }}
                                   className="w-full text-left px-3 py-1.5 text-xs hover:bg-[#f1f5f9] rounded text-[#0f172a]"
                                 >
@@ -1091,35 +1227,72 @@ export default function Home() {
 
                         <div>
                           <label className="crm-label">Target Location</label>
-                          <input
-                            type="text"
-                            value={location}
-                            onChange={e => setLocation(e.target.value)}
-                            placeholder="Any City, Country, or Region"
-                            className="crm-input"
-                          />
+                          {searchEngine === "2gis" ? (
+                            <select
+                              value={twoGisCity}
+                              onChange={e => setTwoGisCity(e.target.value)}
+                              className="crm-input cursor-pointer"
+                            >
+                              {TWOGIS_SUPPORTED_REGIONS.map(region => (
+                                <optgroup key={region.country} label={region.country}>
+                                  {region.cities.map(city => (
+                                    <option key={city.name} value={city.name}>{city.label}</option>
+                                  ))}
+                                </optgroup>
+                              ))}
+                            </select>
+                          ) : (
+                            <input
+                              type="text"
+                              value={location}
+                              onChange={e => setLocation(e.target.value)}
+                              placeholder="City, area or country"
+                              className="crm-input"
+                            />
+                          )}
                         </div>
 
                         <div>
                           <label className="crm-label">Leads Limit</label>
-                          <select
-                            value={leadCount}
-                            onChange={e => setLeadCount(Number(e.target.value))}
-                            className="crm-input cursor-pointer"
-                          >
-                            <option value={50}>50 Leads</option>
-                            <option value={100}>100 Leads</option>
-                            <option value={250}>250 Leads</option>
-                            <option value={500}>500 Leads</option>
-                            <option value={0}>Unlimited</option>
-                          </select>
+                          <div className="flex gap-2">
+                            <select
+                              value={limitMode === "custom" ? "custom" : String(leadCount)}
+                              onChange={e => {
+                                if (e.target.value === "custom") {
+                                  setLimitMode("custom");
+                                } else {
+                                  setLimitMode("preset");
+                                  setLeadCount(Number(e.target.value));
+                                }
+                              }}
+                              className="crm-input cursor-pointer"
+                            >
+                              {LIMIT_PRESETS.map(n => (
+                                <option key={n} value={n}>{formatNumber(n)} leads</option>
+                              ))}
+                              <option value="custom">Custom amount</option>
+                              <option value={0}>Unlimited (full sweep)</option>
+                            </select>
+                            {limitMode === "custom" && (
+                              <input
+                                type="number"
+                                min={1}
+                                step={1}
+                                inputMode="numeric"
+                                value={customLimit}
+                                onChange={e => setCustomLimit(e.target.value.replace(/[^0-9]/g, ""))}
+                                className="crm-input w-28 shrink-0"
+                                aria-label="Custom lead limit"
+                              />
+                            )}
+                          </div>
                         </div>
 
                         <div>
                           <label className="crm-label">Scraping Engine</label>
                           <select
                             value={searchEngine}
-                            onChange={e => setSearchEngine(e.target.value as any)}
+                            onChange={e => setSearchEngine(e.target.value === "2gis" ? "2gis" : "gmaps")}
                             className="crm-input cursor-pointer"
                           >
                             <option value="gmaps">Google Maps Global (Direct HTTP)</option>
@@ -1128,10 +1301,24 @@ export default function Home() {
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-3 pt-3 border-t border-[#f1f5f9]">
+                      <p className="text-xs text-[#64748b] leading-relaxed">
+                        {effectiveCap > 0
+                          ? `Stops as soon as ${formatNumber(effectiveCap)} unique leads are saved.`
+                          : searchEngine === "gmaps"
+                            ? "Unlimited: searches every neighbourhood, then sweeps the whole area on a map grid and splits busy cells into smaller ones until no new businesses appear. Large cities can take a while; you can stop at any time and keep what was found."
+                            : "Unlimited: pages through every 2GIS district until the directory runs out of results. You can stop at any time and keep what was found."}
+                      </p>
+
+                      {startError && (
+                        <div className="p-3 rounded bg-[#fef2f2] border border-[#fecaca] text-[#dc2626] text-xs font-semibold">
+                          {startError}
+                        </div>
+                      )}
+
+                      <div className="flex flex-wrap items-center gap-3 pt-3 border-t border-[#f1f5f9]">
                         <button
                           type="submit"
-                          disabled={isStarting || !keyword.trim()}
+                          disabled={isStarting || !keyword.trim() || (limitMode === "custom" && effectiveCap <= 0)}
                           className="crm-btn-primary gap-2 disabled:opacity-50"
                         >
                           <IconSearch className="w-4 h-4" />
@@ -1174,6 +1361,10 @@ export default function Home() {
                         />
                       </div>
 
+                      <p className="text-xs text-[#64748b]">
+                        Each line runs as its own extraction using the engine and limit selected in Single Search ({searchEngine === "gmaps" ? "Google Maps" : "2GIS"}, {formatCap(effectiveCap)}).
+                      </p>
+
                       <button
                         type="submit"
                         disabled={isBulkStarting || !bulkQueriesText.trim()}
@@ -1195,10 +1386,10 @@ export default function Home() {
 
             {/* PAGE 2: DEDICATED FULL DATABASE PAGE */}
             {viewMode === "app" && activeTab === "leads" && (
-              <div className="space-y-6">
-                {/* Search History Row */}
+              <div className="space-y-4 sm:space-y-6">
+                {/* Extraction history */}
                 <div className="crm-box">
-                  <div className="crm-box-header flex items-center justify-between">
+                  <div className="crm-box-header flex items-center justify-between gap-2">
                     <h2 className="crm-box-title">Extraction History</h2>
                     <button
                       onClick={() => setActiveTab("search")}
@@ -1207,36 +1398,62 @@ export default function Home() {
                       + New Search
                     </button>
                   </div>
-                  <div className="p-4 overflow-x-auto">
+                  <div className="p-3 sm:p-4 overflow-x-auto">
                     {jobs.length === 0 ? (
-                      <div className="p-6 text-center text-xs text-[#64748b]">No extractions found</div>
+                      <div className="p-6 text-center text-xs text-[#64748b]">No extractions yet. Start one from Find Leads.</div>
                     ) : (
-                      <div className="flex gap-3">
+                      <div className="flex gap-3 pb-1">
                         {jobs.map(j => {
                           const isSelected = j.id === selectedJobId;
+                          const active = isActiveStatus(j.status);
+                          const capPct = j.cap > 0 ? Math.min(100, Math.round(((j.total_saved || 0) / j.cap) * 100)) : null;
                           return (
                             <div
                               key={j.id}
-                              onClick={() => { setSelectedJobId(j.id); fetchJobDetails(j.id, token, true); }}
-                              className={`p-3 rounded border text-xs min-w-[200px] cursor-pointer transition-colors ${isSelected ? "border-[#0072f0] bg-[#0072f0]/5" : "border-[#e2e8f0] bg-white hover:border-[#cbd5e1]"}`}
+                              role="button"
+                              tabIndex={0}
+                              onClick={() => selectJob(j.id)}
+                              onKeyDown={e => { if (e.key === "Enter") selectJob(j.id); }}
+                              className={`p-3 rounded border text-xs w-[240px] shrink-0 cursor-pointer transition-colors ${isSelected ? "border-[#0072f0] bg-[#0072f0]/5" : "border-[#e2e8f0] bg-white hover:border-[#cbd5e1]"}`}
                             >
-                              <div className="font-semibold text-[#0f172a] capitalize truncate">{j.target}</div>
-                              <div className="flex items-center justify-between mt-2 text-[#64748b] text-[11px]">
-                                <span>{j.total_saved || 0} leads</span>
-                                <div className="space-x-2">
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="font-semibold text-[#0f172a] capitalize truncate" title={j.target}>{j.target}</div>
+                                <StatusBadge status={j.status} />
+                              </div>
+                              <div className="mt-1.5 text-[11px] text-[#64748b] truncate">
+                                {j.engine === "2gis" ? "2GIS" : "Google Maps"} · {j.cap > 0 ? `Max ${formatNumber(j.cap)}` : "Unlimited"} · {formatRelative(j.created_at)}
+                              </div>
+                              <div className="mt-2 font-semibold text-[#0f172a] text-sm">
+                                {formatNumber(j.total_saved || 0)} <span className="text-[11px] font-medium text-[#64748b]">leads</span>
+                              </div>
+                              <div className="mt-1.5 h-1 rounded-full bg-[#f1f5f9] overflow-hidden">
+                                <div
+                                  className={`h-full rounded-full ${active ? "bg-[#0072f0]" : j.status === "failed" ? "bg-[#dc2626]" : "bg-[#16a34a]"} ${active && capPct === null ? "animate-pulse w-full opacity-40" : ""}`}
+                                  style={capPct !== null ? { width: `${active ? capPct : 100}%` } : (active ? undefined : { width: "100%" })}
+                                />
+                              </div>
+                              <div className="flex items-center justify-end gap-3 mt-2 text-[11px]">
+                                {active && (
                                   <button
-                                    onClick={e => { e.stopPropagation(); setExportJobId(j.id); }}
-                                    className="text-[#0072f0] hover:underline font-semibold"
+                                    onClick={e => { e.stopPropagation(); stopSearch(j.id); }}
+                                    className="text-[#b45309] hover:underline font-semibold"
                                   >
-                                    Export
+                                    Stop
                                   </button>
-                                  <button
-                                    onClick={e => { e.stopPropagation(); deleteSearch(j.id); }}
-                                    className="text-[#dc2626] hover:underline font-semibold"
-                                  >
-                                    Delete
-                                  </button>
-                                </div>
+                                )}
+                                <button
+                                  onClick={e => { e.stopPropagation(); setExportJobId(j.id); }}
+                                  disabled={!j.total_saved}
+                                  className="text-[#0072f0] hover:underline font-semibold disabled:opacity-40 disabled:no-underline"
+                                >
+                                  Export
+                                </button>
+                                <button
+                                  onClick={e => { e.stopPropagation(); deleteSearch(j.id); }}
+                                  className="text-[#dc2626] hover:underline font-semibold"
+                                >
+                                  Delete
+                                </button>
                               </div>
                             </div>
                           );
@@ -1246,29 +1463,42 @@ export default function Home() {
                   </div>
                 </div>
 
-                {/* Full Width Dedicated Data Table */}
+                {/* Leads table */}
                 <div className="crm-box">
-                  <div className="crm-box-header flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                    <div className="flex items-center gap-2">
-                      <h2 className="crm-box-title">
-                        {selectedJob ? selectedJob.target : "Leads Database"}
-                      </h2>
-                      <span className="text-xs text-[#64748b]">({filteredResults.length} records)</span>
+                  <div className="crm-box-header flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <h2 className="crm-box-title truncate capitalize">
+                          {selectedJob ? selectedJob.target : "Leads Database"}
+                        </h2>
+                        {selectedJob && <StatusBadge status={selectedJob.status} />}
+                      </div>
+                      {resultsStats && resultsStats.total > 0 && (
+                        <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1 text-[11px] text-[#64748b]">
+                          <span><b className="text-[#0f172a]">{formatNumber(resultsStats.total)}</b> leads</span>
+                          <span><b className="text-[#0f172a]">{formatNumber(resultsStats.withPhone)}</b> with phone ({Math.round((resultsStats.withPhone / resultsStats.total) * 100)}%)</span>
+                          <span><b className="text-[#0f172a]">{formatNumber(resultsStats.withWebsite)}</b> with website</span>
+                          {resultsStats.withEmail > 0 && <span><b className="text-[#0f172a]">{formatNumber(resultsStats.withEmail)}</b> with email</span>}
+                        </div>
+                      )}
                     </div>
 
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="text"
-                        placeholder="Search records..."
-                        value={searchFilter}
-                        onChange={e => setSearchFilter(e.target.value)}
-                        className="crm-input h-8 text-xs w-48"
-                      />
+                    <div className="flex items-center gap-2 w-full lg:w-auto">
+                      <div className="relative flex-1 lg:flex-none">
+                        <IconSearch className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-[#94a3b8]" />
+                        <input
+                          type="search"
+                          placeholder="Search name, phone, address..."
+                          value={searchFilter}
+                          onChange={e => setSearchFilter(e.target.value)}
+                          className="crm-input h-8 text-xs pl-8 w-full lg:w-64"
+                        />
+                      </div>
                       {selectedJobId && (
                         <button
                           onClick={() => setExportJobId(selectedJobId)}
-                          disabled={filteredResults.length === 0}
-                          className="crm-btn-default h-8 text-xs gap-1.5 disabled:opacity-50"
+                          disabled={!resultsStats?.total}
+                          className="crm-btn-default h-8 text-xs gap-1.5 disabled:opacity-50 shrink-0"
                         >
                           <IconDownload className="w-3.5 h-3.5" />
                           <span>Export</span>
@@ -1277,72 +1507,155 @@ export default function Home() {
                     </div>
                   </div>
 
-                  <div className="overflow-x-auto">
-                    {loadingResults ? (
-                      <div className="p-12 text-center text-xs text-[#64748b]">Loading database records...</div>
-                    ) : filteredResults.length === 0 ? (
-                      <div className="p-12 text-center">
-                        <div className="inline-block bg-[#f0f9ff] border border-[#bae6fd] text-[#0369a1] px-6 py-3 rounded text-sm font-medium">
-                          No Data Found
+                  {loadingResults && filteredResults.length === 0 ? (
+                    <div className="p-12 text-center text-xs text-[#64748b]">Loading leads...</div>
+                  ) : filteredResults.length === 0 ? (
+                    <div className="p-12 text-center text-sm text-[#64748b]">
+                      {debouncedFilter
+                        ? `No leads match "${debouncedFilter}".`
+                        : selectedJob && isActiveStatus(selectedJob.status)
+                          ? "Searching... leads will appear here as they are found."
+                          : "No leads in this extraction."}
+                    </div>
+                  ) : (
+                    <>
+                      {/* Desktop / tablet table */}
+                      <div className={`hidden md:block overflow-x-auto transition-opacity ${loadingResults ? "opacity-60" : ""}`}>
+                        <table className="min-w-full divide-y divide-[#e2e8f0] text-left text-xs">
+                          <thead className="bg-[#f8fafc] text-[#475569] font-semibold uppercase tracking-wider sticky top-0">
+                            <tr>
+                              <th className="px-4 py-3 w-12">#</th>
+                              <th className="px-4 py-3">Business</th>
+                              <th className="px-4 py-3">Phones</th>
+                              <th className="px-4 py-3">Address</th>
+                              <th className="px-4 py-3">Rating</th>
+                              <th className="px-4 py-3">Website</th>
+                              <th className="px-4 py-3 text-right w-12"></th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-[#f1f5f9] bg-white">
+                            {filteredResults.map((lead, idx) => (
+                              <tr key={lead.id || idx} className="hover:bg-[#f8fafc] transition-colors align-top">
+                                <td className="px-4 py-3 text-[#94a3b8] tabular-nums">{resultsPage * resultsPageSize + idx + 1}</td>
+                                <td className="px-4 py-3 max-w-[260px]">
+                                  <div className="font-semibold text-[#0f172a] truncate" title={lead.title}>{lead.title || "—"}</div>
+                                  {lead.category && <div className="text-[11px] text-[#64748b] truncate">{lead.category}</div>}
+                                </td>
+                                <td className="px-4 py-3 whitespace-nowrap">
+                                  {lead.phone_1 ? (
+                                    <a href={`tel:${lead.phone_1}`} className="block text-[#0072f0] hover:underline font-mono">{lead.phone_1}</a>
+                                  ) : <span className="text-[#94a3b8]">—</span>}
+                                  {lead.phone_2 && <a href={`tel:${lead.phone_2}`} className="block text-[#64748b] hover:underline font-mono text-[11px]">{lead.phone_2}</a>}
+                                </td>
+                                <td className="px-4 py-3 text-[#475569] max-w-[280px]">
+                                  <div className="truncate" title={lead.address || ""}>{lead.address || lead.street || "—"}</div>
+                                  {(lead.city || lead.country) && (
+                                    <div className="text-[11px] text-[#94a3b8] truncate">{[lead.city, lead.country].filter(Boolean).join(", ")}</div>
+                                  )}
+                                </td>
+                                <td className="px-4 py-3 whitespace-nowrap font-medium text-[#0f172a]">
+                                  {lead.rating ? <>{lead.rating} <span className="text-[#f59e0b]">★</span> <span className="text-[#94a3b8] font-normal">({formatNumber(Number(lead.reviews) || 0)})</span></> : <span className="text-[#94a3b8]">—</span>}
+                                </td>
+                                <td className="px-4 py-3 max-w-[180px] truncate">
+                                  {lead.website ? (
+                                    <a href={lead.website} target="_blank" rel="noreferrer" className="text-[#0072f0] hover:underline" title={lead.website}>
+                                      {lead.website.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, "")}
+                                    </a>
+                                  ) : <span className="text-[#94a3b8]">—</span>}
+                                </td>
+                                <td className="px-4 py-3 text-right">
+                                  <button
+                                    onClick={() => copyToClipboard([lead.title, lead.phone_1, lead.phone_2, lead.website, lead.address].filter(Boolean).join(" | "))}
+                                    className="text-[#64748b] hover:text-[#0f172a] p-1"
+                                    title="Copy record"
+                                    aria-label="Copy record"
+                                  >
+                                    <IconCopy className="w-3.5 h-3.5" />
+                                  </button>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+
+                      {/* Mobile cards */}
+                      <ul className={`md:hidden divide-y divide-[#f1f5f9] ${loadingResults ? "opacity-60" : ""}`}>
+                        {filteredResults.map((lead, idx) => (
+                          <li key={lead.id || idx} className="p-4">
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="min-w-0">
+                                <div className="font-semibold text-sm text-[#0f172a] leading-snug">{lead.title || "—"}</div>
+                                <div className="text-[11px] text-[#64748b] mt-0.5">
+                                  {[lead.category, lead.rating ? `${lead.rating}★ (${formatNumber(Number(lead.reviews) || 0)})` : null].filter(Boolean).join(" · ")}
+                                </div>
+                              </div>
+                              <button
+                                onClick={() => copyToClipboard([lead.title, lead.phone_1, lead.phone_2, lead.website, lead.address].filter(Boolean).join(" | "))}
+                                className="text-[#64748b] p-1.5 -m-1.5 shrink-0"
+                                aria-label="Copy record"
+                              >
+                                <IconCopy className="w-4 h-4" />
+                              </button>
+                            </div>
+                            {(lead.address || lead.city) && (
+                              <div className="text-xs text-[#475569] mt-2">{lead.address || lead.city}</div>
+                            )}
+                            <div className="flex flex-wrap gap-2 mt-3">
+                              {lead.phone_1 && (
+                                <a href={`tel:${lead.phone_1}`} className="inline-flex items-center h-8 px-3 rounded-full bg-[#0072f0]/10 text-[#0072f0] text-xs font-semibold font-mono">
+                                  {lead.phone_1}
+                                </a>
+                              )}
+                              {lead.phone_2 && (
+                                <a href={`tel:${lead.phone_2}`} className="inline-flex items-center h-8 px-3 rounded-full bg-[#f1f5f9] text-[#475569] text-xs font-mono">
+                                  {lead.phone_2}
+                                </a>
+                              )}
+                              {lead.website && (
+                                <a href={lead.website} target="_blank" rel="noreferrer" className="inline-flex items-center h-8 px-3 rounded-full bg-[#f1f5f9] text-[#475569] text-xs max-w-full truncate">
+                                  {lead.website.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, "")}
+                                </a>
+                              )}
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+
+                      {/* Pagination */}
+                      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-3 border-t border-[#f1f5f9] text-xs text-[#64748b]">
+                        <div>
+                          Showing <b className="text-[#0f172a]">{formatNumber(resultsPage * resultsPageSize + 1)}–{formatNumber(Math.min(resultsTotal, (resultsPage + 1) * resultsPageSize))}</b> of <b className="text-[#0f172a]">{formatNumber(resultsTotal)}</b>
+                          {debouncedFilter && " matches"}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <select
+                            value={resultsPageSize}
+                            onChange={e => { setResultsPageSize(Number(e.target.value)); setResultsPage(0); }}
+                            className="crm-input h-8 w-auto text-xs py-0"
+                            aria-label="Rows per page"
+                          >
+                            {PAGE_SIZES.map(n => <option key={n} value={n}>{n} / page</option>)}
+                          </select>
+                          <button
+                            onClick={() => setResultsPage(p => Math.max(0, p - 1))}
+                            disabled={resultsPage === 0}
+                            className="crm-btn-default h-8 px-3 text-xs disabled:opacity-40"
+                          >
+                            Prev
+                          </button>
+                          <span className="tabular-nums whitespace-nowrap">{resultsPage + 1} / {formatNumber(totalPages)}</span>
+                          <button
+                            onClick={() => setResultsPage(p => Math.min(totalPages - 1, p + 1))}
+                            disabled={resultsPage >= totalPages - 1}
+                            className="crm-btn-default h-8 px-3 text-xs disabled:opacity-40"
+                          >
+                            Next
+                          </button>
                         </div>
                       </div>
-                    ) : (
-                      <table className="min-w-full divide-y divide-[#e2e8f0] text-left text-xs">
-                        <thead className="bg-[#f8fafc] text-[#475569] font-semibold uppercase tracking-wider">
-                          <tr>
-                            <th className="px-4 py-3">#</th>
-                            <th className="px-4 py-3">Business Name</th>
-                            <th className="px-4 py-3">Primary Phone</th>
-                            <th className="px-4 py-3">Secondary Phone</th>
-                            <th className="px-4 py-3">Address & Locality</th>
-                            <th className="px-4 py-3">Category</th>
-                            <th className="px-4 py-3">Rating</th>
-                            <th className="px-4 py-3">Website</th>
-                            <th className="px-4 py-3 text-right">Action</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-[#f1f5f9] bg-white">
-                          {filteredResults.map((lead, idx) => (
-                            <tr key={idx} className="hover:bg-[#f8fafc] transition-colors">
-                              <td className="px-4 py-3 text-[#64748b]">{idx + 1}</td>
-                              <td className="px-4 py-3 font-semibold text-[#0f172a]">{lead.title || "—"}</td>
-                              <td className="px-4 py-3">
-                                {lead.phone_1 ? (
-                                  <a href={`tel:${lead.phone_1}`} className="text-[#0072f0] hover:underline font-mono">
-                                    {lead.phone_1}
-                                  </a>
-                                ) : "—"}
-                              </td>
-                              <td className="px-4 py-3 font-mono text-[#64748b]">{lead.phone_2 || "—"}</td>
-                              <td className="px-4 py-3 text-[#475569] max-w-[240px] truncate" title={lead.address || ""}>
-                                {lead.address || lead.city || "—"}
-                              </td>
-                              <td className="px-4 py-3 text-[#64748b]">{lead.category || "—"}</td>
-                              <td className="px-4 py-3 whitespace-nowrap font-medium text-[#0f172a]">
-                                {lead.rating ? `${lead.rating} ★ (${lead.reviews || 0})` : "—"}
-                              </td>
-                              <td className="px-4 py-3 max-w-[150px] truncate">
-                                {lead.website ? (
-                                  <a href={lead.website} target="_blank" rel="noreferrer" className="text-[#0072f0] hover:underline">
-                                    {lead.website.replace(/^https?:\/\//, '')}
-                                  </a>
-                                ) : "—"}
-                              </td>
-                              <td className="px-4 py-3 text-right">
-                                <button
-                                  onClick={() => copyToClipboard(`${lead.title} | ${lead.phone_1 || ''} | ${lead.address || ''}`)}
-                                  className="text-[#64748b] hover:text-[#0f172a] p-1"
-                                  title="Copy record"
-                                >
-                                  <IconCopy className="w-3.5 h-3.5" />
-                                </button>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    )}
-                  </div>
+                    </>
+                  )}
                 </div>
               </div>
             )}
@@ -1393,10 +1706,10 @@ export default function Home() {
             {/* PAGE 4: ADMIN CONSOLE */}
             {viewMode === "admin" && (
               <div className="crm-box">
-                <div className="crm-box-header flex items-center justify-between">
-                  <div className="flex items-center gap-4">
+                <div className="crm-box-header flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex flex-wrap items-center gap-3">
                     <h2 className="crm-box-title">Admin Console</h2>
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap gap-2">
                       <button
                         onClick={() => setAdminTab("overview")}
                         className={`text-xs font-semibold px-2.5 py-1 rounded transition-colors ${adminTab === "overview" ? "bg-[#0072f0] text-white" : "text-[#64748b] hover:bg-[#f1f5f9]"}`}
@@ -1410,7 +1723,7 @@ export default function Home() {
                         Users & Team
                       </button>
                       <button
-                        onClick={() => setAdminTab("leads")}
+                        onClick={() => { setAdminTab("leads"); fetchAdminGlobalLeads(token, 0); }}
                         className={`text-xs font-semibold px-2.5 py-1 rounded transition-colors ${adminTab === "leads" ? "bg-[#0072f0] text-white" : "text-[#64748b] hover:bg-[#f1f5f9]"}`}
                       >
                         All Leads
@@ -1428,9 +1741,9 @@ export default function Home() {
                   )}
                 </div>
 
-                <div className="p-6">
+                <div className="p-4 sm:p-6">
                   {adminTab === "overview" && adminStats && (
-                    <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
                       <div className="p-4 bg-[#f8fafc] border border-[#e2e8f0] rounded">
                         <span className="crm-label">Total Users</span>
                         <span className="text-2xl font-bold text-[#0f172a]">{adminStats.totalUsers || 0}</span>
@@ -1492,7 +1805,7 @@ export default function Home() {
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-[#f1f5f9] bg-white">
-                          {adminGlobalLeads.slice(0, 100).map((l, i) => (
+                          {adminGlobalLeads.map((l, i) => (
                             <tr key={i} className="hover:bg-[#f8fafc]">
                               <td className="px-4 py-3 font-semibold text-[#0f172a]">{l.title}</td>
                               <td className="px-4 py-3 font-mono">{l.phone_1 || "—"}</td>
@@ -1503,6 +1816,29 @@ export default function Home() {
                           ))}
                         </tbody>
                       </table>
+                      <div className="flex items-center justify-between gap-3 pt-3 text-xs text-[#64748b]">
+                        <span>
+                          {adminLeadsTotal > 0
+                            ? `Showing ${formatNumber(adminLeadsPage * 100 + 1)}–${formatNumber(Math.min(adminLeadsTotal, (adminLeadsPage + 1) * 100))} of ${formatNumber(adminLeadsTotal)}`
+                            : "No leads yet"}
+                        </span>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => fetchAdminGlobalLeads(token, Math.max(0, adminLeadsPage - 1))}
+                            disabled={adminLeadsPage === 0}
+                            className="crm-btn-default h-8 px-3 text-xs disabled:opacity-40"
+                          >
+                            Prev
+                          </button>
+                          <button
+                            onClick={() => fetchAdminGlobalLeads(token, adminLeadsPage + 1)}
+                            disabled={(adminLeadsPage + 1) * 100 >= adminLeadsTotal}
+                            className="crm-btn-default h-8 px-3 text-xs disabled:opacity-40"
+                          >
+                            Next
+                          </button>
+                        </div>
+                      </div>
                     </div>
                   )}
                 </div>

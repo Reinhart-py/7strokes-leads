@@ -4,7 +4,30 @@ All notable changes, version upgrades, and development milestones for 7strokes a
 
 ---
 
-## [v2.4.0] — ERPNext-Style Android Mobile UI & Universal Crisp Icon System (Current)
+## [v2.5.0] — True Unlimited Extraction, Data Accuracy & Responsive Leads Workspace (Current)
+
+### Changed
+- **Unlimited now means unlimited**: Google Maps searches first query every named area, then sweep the whole city (or every city of a country) with an adaptive map grid. Any cell that fills all result pages is split into four smaller cells and searched again, down to ~0.5 km, until no new businesses appear.
+- **Exact lead limits**: numeric limits (presets or a custom amount) now stop at exactly that number instead of overshooting with parallel workers.
+- **2GIS**: keeps paging each district until results run out in Unlimited mode, uses the user's proxy, and the city picker now actually controls which city is searched (it previously always searched Abu Dhabi).
+
+### Fixed (data accuracy)
+- Phone numbers are read only from the real phone fields; random digit runs (IDs, coordinates, timestamps) are no longer saved as phones.
+- The same number in local and international form (`04 123 4567` / `+971 4 123 4567`) is no longer stored as both primary and secondary phone.
+- Addresses use Google's full formatted address and structured components (street, city, postal code, state, country) with a smarter fallback for US/UK formats.
+- Google redirect links are unwrapped to the real business website.
+- Leads are de-duplicated by place ID, so separate branches of the same chain are kept instead of collapsed into one.
+- Location parsing no longer treats ordinary words as cities ("pizza hut" no longer geocodes "hut"; "in" no longer matches "Berlin").
+
+### Added
+- Paginated, server-side searchable leads table (no more 1,000-row ceiling), with phone/website coverage stats.
+- Job cards with live status, lead count, progress and per-job Stop.
+- Mobile card layout for leads, sidebar backdrop, and responsive header/admin views.
+- Paginated admin "All Leads" view.
+
+---
+
+## [v2.4.0] — ERPNext-Style Android Mobile UI & Universal Crisp Icon System
 
 ### Added
 - **ERPNext-Style Persistent Bottom Navigation Bar**:

@@ -377,6 +377,17 @@ export class WorldGeo {
     return null;
   }
 
+  /** Matches only when the whole text is a country name, ISO code or alias. */
+  public static findCountryExact(text: string): CountryGeoEntry | null {
+    const clean = text.toLowerCase().replace(/[.,]/g, '').replace(/\s+/g, ' ').trim();
+    if (!clean) return null;
+    for (const c of this.COUNTRIES) {
+      if (clean === c.name.toLowerCase() || clean === c.code.toLowerCase()) return c;
+      if (c.aliases && c.aliases.some(a => a.toLowerCase() === clean)) return c;
+    }
+    return null;
+  }
+
   public static isCountry(name: string): boolean {
     return this.findCountry(name) !== null;
   }

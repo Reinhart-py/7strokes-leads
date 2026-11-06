@@ -1,5 +1,5 @@
 import { ScrapedLead } from './types';
-import { WorldGeo } from './grid/worldGeo';
+import { WorldGeo, CountryGeoEntry } from './grid/worldGeo';
 import { GeoGrid } from './grid/geoGrid';
 
 export interface SearchPartition {
@@ -252,6 +252,52 @@ export class GeographicPartitioner {
     ]
   };
 
+  private static readonly NON_PLACE_WORDS = /^(services?|center|centre|company|companies|agency|agencies|store|stores|shop|shops|clinics?|hotels?|restaurants?|cafes?|repair|near|me)$/i;
+
+  /**
+   * Splits a free-text target like "dentists in Dubai Marina, Dubai" into the
+   * business keyword and the location. Only treats a trailing word as a
+   * location when it is a known city or country, so "pizza hut" stays a keyword.
+   */
+  public static parseTarget(targetQuery: string, cityHint?: string): {
+    keyword: string;
+    location: string;
+    country: CountryGeoEntry | null;
+  } {
+    const raw = targetQuery.trim().replace(/\s+/g, ' ');
+    let keyword = raw;
+    let location = (cityHint || '').trim();
+
+    // Prefer the last " in " (the UI always builds "<keyword> in <location>").
+    const prepMatch = raw.match(/^(.*)\s+in\s+(.+)$/i) || raw.match(/^(.*?)\s+(?:at|near|around)\s+(.+)$/i);
+    if (prepMatch && prepMatch[1].trim()) {
+      keyword = prepMatch[1].trim();
+      if (!location) location = prepMatch[2].trim();
+    } else if (!location) {
+      const words = raw.split(' ');
+      for (let n = Math.min(3, words.length - 1); n >= 1; n--) {
+        const tail = words.slice(-n).join(' ');
+        if (n === 1 && this.NON_PLACE_WORDS.test(tail)) continue;
+        if (WorldGeo.findCountryExact(tail) || GeoGrid.getBoundingBoxForCity(tail) || this.findPresetKey(tail)) {
+          location = tail;
+          keyword = words.slice(0, -n).join(' ');
+          break;
+        }
+      }
+    }
+
+    location = location.replace(/^[,\s]+|[,\s]+$/g, '');
+    const country = location ? WorldGeo.findCountryExact(location) : null;
+    return { keyword: keyword || raw, location, country };
+  }
+
+  private static findPresetKey(location: string): string | null {
+    const first = location.split(',')[0];
+    const key = first.toLowerCase().trim().replace(/[\s-]+/g, '_');
+    if (!key) return null;
+    return Object.keys(this.PRESET_PARTITIONS).find(k => k === key) || null;
+  }
+
   public static async resolveSearchPartitions(
     targetQuery: string,
     cityHint?: string
@@ -259,135 +305,49 @@ export class GeographicPartitioner {
     const rawQuery = targetQuery.trim();
     if (!rawQuery) return [];
 
-    let locationCandidate = (cityHint || '').trim();
-    let baseCategory = rawQuery;
-
-    if (!locationCandidate) {
-      const prepMatch = rawQuery.match(/\b(?:in|at|near|around)\s+([a-zA-Z\s,]+)$/i);
-      if (prepMatch && prepMatch[1]) {
-        locationCandidate = prepMatch[1].trim();
-        baseCategory = rawQuery.replace(/\b(?:in|at|near|around)\s+([a-zA-Z\s,]+)$/i, '').trim() || rawQuery;
-      } else {
-        const countryMatch = WorldGeo.findCountry(rawQuery);
-        if (countryMatch) {
-          locationCandidate = countryMatch.name;
-          const countryRegex = new RegExp(`\\b${countryMatch.name}\\b`, 'i');
-          baseCategory = rawQuery.replace(countryRegex, '').replace(/\s+/g, ' ').trim() || rawQuery;
-        } else {
-          const words = rawQuery.split(/\s+/);
-          if (words.length >= 2) {
-            const lastWord = words[words.length - 1];
-            if (lastWord.length >= 3 && !/^(services|center|company|agency|store|shop|clinics|clinic|hotel|hotels)$/i.test(lastWord)) {
-              locationCandidate = lastWord;
-              baseCategory = words.slice(0, -1).join(' ');
-            }
-          }
-        }
-      }
-    }
-
-    if (!locationCandidate) {
+    const { keyword, location, country } = this.parseTarget(rawQuery, cityHint);
+    if (!location) {
       return [{ query: rawQuery }];
     }
 
-    // CASE 1: Location is a Country (e.g. "Kenya", "Germany", "Iceland", "Brazil", "India", etc.)
-    const countryEntry = WorldGeo.findCountry(locationCandidate);
-    if (countryEntry) {
-      const partitions: SearchPartition[] = [];
-      const countryCities = countryEntry.cities;
-
-      for (const city of countryCities) {
-        partitions.push({
-          query: `${baseCategory} in ${city}, ${countryEntry.name}`,
-          areaName: `${city}, ${countryEntry.name}`
-        });
-      }
-
-      if (partitions.length > 0) {
-        return [
-          { query: rawQuery, areaName: countryEntry.name },
-          ...partitions
-        ];
-      }
-    }
-
-    // CASE 2: Location is a City with Preset Localities (e.g. Dubai, Jaipur, Abu Dhabi, London, etc.)
-    const cityKey = locationCandidate.toLowerCase().replace(/[\s-]+/g, '_');
-    for (const [key, subAreas] of Object.entries(this.PRESET_PARTITIONS)) {
-      if (cityKey === key || cityKey.includes(key) || key.includes(cityKey)) {
-        const cityName = key.replace(/_/g, ' ');
-        return [
-          { query: rawQuery, areaName: cityName },
-          ...subAreas.map(area => ({
-            query: `${baseCategory} in ${area}, ${cityName}`,
-            areaName: area
-          }))
-        ];
-      }
-    }
-
-    // CASE 3: ANY Arbitrary City / Location in the World (e.g. Austin, Nairobi, Reykjavik, Munich, etc.)
-    const bbox = await GeoGrid.resolveCityBoundingBox(locationCandidate);
-    const partitions: SearchPartition[] = [];
-
-    partitions.push({ query: rawQuery, areaName: locationCandidate });
-
-    if (bbox) {
-      const midLat = (bbox.minLat + bbox.maxLat) / 2;
-      const midLon = (bbox.minLon + bbox.maxLon) / 2;
-
-      // Generate directional sectors with spatial coordinate anchors
-      const sectors = [
-        { name: 'Central', lat: midLat, lon: midLon, zoom: 14 },
-        { name: 'Downtown', lat: midLat, lon: midLon, zoom: 14 },
-        { name: 'North', lat: midLat + (bbox.maxLat - midLat) * 0.6, lon: midLon, zoom: 13 },
-        { name: 'South', lat: midLat - (midLat - bbox.minLat) * 0.6, lon: midLon, zoom: 13 },
-        { name: 'East', lat: midLat, lon: midLon + (bbox.maxLon - midLon) * 0.6, zoom: 13 },
-        { name: 'West', lat: midLat, lon: midLon - (midLon - bbox.minLon) * 0.6, zoom: 13 },
-        { name: 'Business District', lat: midLat, lon: midLon, zoom: 14 },
-        { name: 'Commercial Hub', lat: midLat, lon: midLon, zoom: 14 },
-        { name: 'Industrial Area', lat: midLat - (midLat - bbox.minLat) * 0.4, lon: midLon + (bbox.maxLon - midLon) * 0.4, zoom: 13 },
-        { name: 'Main Market', lat: midLat, lon: midLon, zoom: 14 }
+    // CASE 1: whole location is a country -> one query per major city
+    if (country) {
+      return [
+        { query: `${keyword} in ${country.name}`, areaName: country.name },
+        ...country.cities.map(city => ({
+          query: `${keyword} in ${city}, ${country.name}`,
+          areaName: `${city}, ${country.name}`
+        }))
       ];
-
-      for (const sec of sectors) {
-        partitions.push({
-          query: `${baseCategory} in ${sec.name} ${locationCandidate}`,
-          lat: sec.lat,
-          lon: sec.lon,
-          zoom: sec.zoom,
-          areaName: `${sec.name} ${locationCandidate}`
-        });
-      }
-
-      // Also generate adaptive grid cells for complete geographic coverage
-      const cells = GeoGrid.generateCells(bbox, 3.5);
-      const cellSamples = cells.slice(0, 10);
-      for (let i = 0; i < cellSamples.length; i++) {
-        const cell = cellSamples[i];
-        partitions.push({
-          query: `${baseCategory} in ${locationCandidate}`,
-          lat: cell.lat,
-          lon: cell.lon,
-          zoom: 14,
-          areaName: `Sector ${i + 1} (${locationCandidate})`
-        });
-      }
-
-      return partitions;
     }
 
-    // Fallback if geocoder gave no bbox
-    return [
-      { query: rawQuery },
-      { query: `${baseCategory} in Central ${locationCandidate}` },
-      { query: `${baseCategory} in North ${locationCandidate}` },
-      { query: `${baseCategory} in South ${locationCandidate}` },
-      { query: `${baseCategory} in East ${locationCandidate}` },
-      { query: `${baseCategory} in West ${locationCandidate}` },
-      { query: `${baseCategory} in Downtown ${locationCandidate}` },
-      { query: `${baseCategory} in Business District ${locationCandidate}` }
-    ];
+    // CASE 2: a city with curated neighbourhood list
+    const presetKey = this.findPresetKey(location);
+    if (presetKey) {
+      const cityName = presetKey.replace(/_/g, ' ');
+      return [
+        { query: `${keyword} in ${location}`, areaName: cityName },
+        ...this.PRESET_PARTITIONS[presetKey].map(area => ({
+          query: `${keyword} in ${area}, ${cityName}`,
+          areaName: area
+        }))
+      ];
+    }
+
+    // CASE 3: any other place -> the plain query plus the city centre viewport.
+    // Full-area coverage is handled by the adaptive geo grid in ScraperManager.
+    const partitions: SearchPartition[] = [{ query: `${keyword} in ${location}`, areaName: location }];
+    const bbox = await GeoGrid.resolveCityBoundingBox(location);
+    if (bbox) {
+      partitions.push({
+        query: keyword,
+        lat: (bbox.minLat + bbox.maxLat) / 2,
+        lon: (bbox.minLon + bbox.maxLon) / 2,
+        zoom: 13,
+        areaName: `${location} centre`
+      });
+    }
+    return partitions;
   }
 
   public static getSubQueries(targetQuery: string, cityHint?: string): string[] {

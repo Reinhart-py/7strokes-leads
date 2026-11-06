@@ -2,6 +2,7 @@ import { ProxyAgent } from 'undici';
 import { IScraperProvider, ScrapedLead, ScraperOptions, ScraperControl } from '../types';
 import { GmapsParser } from './gmapsParser';
 import { GeoGrid } from '../grid/geoGrid';
+import { leadKey } from '../leadUtils';
 
 export class GmapsHttpProvider implements IScraperProvider {
   public readonly name = 'GoogleMaps-DirectHTTP';
@@ -88,13 +89,21 @@ export class GmapsHttpProvider implements IScraperProvider {
   }
 
   public async search(options: ScraperOptions, control: ScraperControl): Promise<ScrapedLead[]> {
-    const {
-      query,
-      cap = 0,
-      maxPagesPerCell = 5,
-      seenKeys
-    } = options;
-    const { checkCancelled, log, updateProgress, saveLead } = control;
+    return (await this.searchArea(options, control)).leads;
+  }
+
+  /**
+   * Pages through one search viewport. `rawCount` is how many distinct places
+   * Google returned (including ones already saved elsewhere) and `saturated`
+   * is true when every page was full, i.e. the area likely holds more results
+   * than one query can return and should be split into smaller cells.
+   */
+  public async searchArea(
+    options: ScraperOptions,
+    control: ScraperControl
+  ): Promise<{ leads: ScrapedLead[]; rawCount: number; saturated: boolean }> {
+    const { query, maxPagesPerCell = 6, seenKeys } = options;
+    const { checkCancelled, saveLead } = control;
 
     let targetLat = options.lat;
     let targetLon = options.lon;
@@ -107,7 +116,7 @@ export class GmapsHttpProvider implements IScraperProvider {
         if (box) {
           targetLat = (box.minLat + box.maxLat) / 2;
           targetLon = (box.minLon + box.maxLon) / 2;
-          targetZoom = 13;
+          targetZoom = 12;
         }
       }
     }
@@ -116,81 +125,65 @@ export class GmapsHttpProvider implements IScraperProvider {
     const results: ScrapedLead[] = [];
     const localSeen = new Set<string>();
     const pageSize = 20;
+    let saturated = false;
+
+    const consume = async (batch: ScrapedLead[]): Promise<number> => {
+      let locallyNew = 0;
+      for (const lead of batch) {
+        const key = leadKey(lead);
+        if (localSeen.has(key)) continue;
+        localSeen.add(key);
+        locallyNew++;
+        if (seenKeys && seenKeys.has(key)) continue;
+        if (await checkCancelled()) break;
+        await saveLead(lead);
+        results.push(lead);
+      }
+      return locallyNew;
+    };
 
     for (let page = 0; page < maxPagesPerCell; page++) {
       if (await checkCancelled()) break;
-      if (cap > 0 && results.length >= cap) break;
 
       const start = page * pageSize;
       const psi = Math.random().toString(36).substring(2, 9) + `.${Date.now()}.1`;
-      let url: string;
-
-      if (targetLat !== undefined && targetLon !== undefined) {
-        const pb = this.buildProtobufParam(targetLat, targetLon, targetZoom, pageSize, start);
-        url = `https://www.google.com/search?tbm=map&authuser=0&hl=en&gl=us&pb=${pb}&q=${encodeURIComponent(query)}&tch=1&ech=1&psi=${psi}`;
-      } else {
-        url = `https://www.google.com/search?tbm=map&authuser=0&hl=en&gl=us&q=${encodeURIComponent(query)}&tch=1&ech=1&psi=${psi}`;
-      }
+      const base = `https://www.google.com/search?tbm=map&authuser=0&hl=en&gl=us`;
+      const url = targetLat !== undefined && targetLon !== undefined
+        ? `${base}&pb=${this.buildProtobufParam(targetLat, targetLon, targetZoom, pageSize, start)}&q=${encodeURIComponent(query)}&tch=1&ech=1&psi=${psi}`
+        : `${base}&q=${encodeURIComponent(query)}&tch=1&ech=1&psi=${psi}`;
 
       let rawText = '';
-      try {
-        rawText = await this.fetchEndpoint(url, dispatcher);
-      } catch (err: any) {
-        if (page === 0 && !options.lat) {
-          const fallbackUrl = `https://www.google.com/maps/search/${encodeURIComponent(query)}?hl=en`;
-          rawText = await this.fetchEndpoint(fallbackUrl, dispatcher).catch(() => '');
-        } else {
+      let attempt = 0;
+      while (attempt < 3) {
+        try {
+          rawText = await this.fetchEndpoint(url, dispatcher);
           break;
+        } catch (err: any) {
+          attempt++;
+          // Back off on throttling / transient errors, give up on hard failures.
+          if (attempt >= 3 || !/HTTP (429|5\d\d)|abort|ECONNRESET|ETIMEDOUT/i.test(String(err?.message))) break;
+          await new Promise(r => setTimeout(r, 800 * attempt));
         }
       }
 
-      const batch = GmapsParser.parseSearchResponse(rawText, query);
-      if (batch.length === 0) {
-        if (page === 0 && !options.lat) {
-          const fallbackUrl = `https://www.google.com/maps/search/${encodeURIComponent(query)}?hl=en`;
-          try {
-            rawText = await this.fetchEndpoint(fallbackUrl, dispatcher);
-            const fallbackBatch = GmapsParser.parseSearchResponse(rawText, query);
-            for (const lead of fallbackBatch) {
-              if (await checkCancelled()) break;
-              if (cap > 0 && results.length >= cap) break;
-              const leadKey = (lead.phone_1 || lead.title).toLowerCase().trim();
-              if (!localSeen.has(leadKey) && (!seenKeys || !seenKeys.has(leadKey))) {
-                localSeen.add(leadKey);
-                await saveLead(lead);
-                if (seenKeys) seenKeys.add(leadKey);
-                results.push(lead);
-                await updateProgress(1, results.length);
-              }
-            }
-          } catch {}
-        }
+      let batch = GmapsParser.parseSearchResponse(rawText, query);
+      if (batch.length === 0 && page === 0 && targetLat === undefined) {
+        const fallbackUrl = `https://www.google.com/maps/search/${encodeURIComponent(query)}?hl=en`;
+        const fallbackText = await this.fetchEndpoint(fallbackUrl, dispatcher).catch(() => '');
+        batch = GmapsParser.parseSearchResponse(fallbackText, query);
+        await consume(batch);
         break;
       }
+      if (batch.length === 0) break;
 
-      let newCount = 0;
-      for (const lead of batch) {
-        if (await checkCancelled()) break;
-        if (cap > 0 && results.length >= cap) break;
-
-        const leadKey = (lead.phone_1 || lead.title).toLowerCase().trim();
-        if (!localSeen.has(leadKey) && (!seenKeys || !seenKeys.has(leadKey))) {
-          localSeen.add(leadKey);
-          await saveLead(lead);
-          if (seenKeys) seenKeys.add(leadKey);
-          results.push(lead);
-          newCount++;
-          await updateProgress(page + 1, results.length);
-        }
-      }
-
-      if (batch.length < pageSize || newCount === 0) {
-        break;
-      }
+      const locallyNew = await consume(batch);
+      // Google repeats the last page once a query is exhausted.
+      if (locallyNew === 0 || batch.length < pageSize) break;
+      if (page === maxPagesPerCell - 1) saturated = true;
 
       await new Promise(r => setTimeout(r, 120));
     }
 
-    return results;
+    return { leads: results, rawCount: localSeen.size, saturated };
   }
 }

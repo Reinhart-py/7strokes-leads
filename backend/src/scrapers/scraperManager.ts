@@ -1,4 +1,5 @@
-import { IScraperProvider, ScrapedLead, ScraperOptions, ScraperControl, GridCell } from './types';
+import { ScrapedLead, ScraperOptions, ScraperControl, GridBoundingBox } from './types';
+import { leadKey, runWorkQueue } from './leadUtils';
 import { GmapsHttpProvider } from './http/gmapsHttpProvider';
 import { TwoGisHttpProvider } from './http/twoGisHttpProvider';
 import { SerpApiGmapsProvider } from './external/serpApiProvider';
@@ -15,35 +16,32 @@ export class ScraperManager {
   private twoGisHttp = new TwoGisHttpProvider();
   private twoGisPlaywright = new TwoGisPlaywrightFallback();
 
-  private async getGridCells(options: ScraperOptions): Promise<GridCell[]> {
-    if (options.bbox) {
-      return GeoGrid.generateCells(options.bbox, options.cellSizeKm || 3.0);
-    }
+  /** Bounding boxes that the adaptive grid should cover for this target. */
+  private async getSweepAreas(options: ScraperOptions): Promise<{ name: string; bbox: GridBoundingBox }[]> {
+    if (options.bbox) return [{ name: 'custom area', bbox: options.bbox }];
 
-    let cityCandidate = options.city || '';
-    if (!cityCandidate) {
-      const inMatch = options.query.match(/\b(?:in|at|near|around)\s+([a-zA-Z\s,]+)$/i);
-      if (inMatch && inMatch[1]) {
-        cityCandidate = inMatch[1].trim();
-      } else {
-        const words = options.query.trim().split(/\s+/);
-        if (words.length >= 2) {
-          const lastWord = words[words.length - 1];
-          if (GeoGrid.getBoundingBoxForCity(lastWord)) {
-            cityCandidate = lastWord;
-          }
-        }
+    const { location, country } = GeographicPartitioner.parseTarget(options.query, options.city);
+    if (!location) return [];
+
+    if (country) {
+      const areas: { name: string; bbox: GridBoundingBox }[] = [];
+      for (const city of country.cities) {
+        const bbox = await GeoGrid.resolveCityBoundingBox(`${city}, ${country.name}`)
+          || await GeoGrid.resolveCityBoundingBox(city);
+        if (bbox) areas.push({ name: city, bbox });
       }
+      return areas;
     }
 
-    if (cityCandidate) {
-      const detectedBbox = await GeoGrid.resolveCityBoundingBox(cityCandidate);
-      if (detectedBbox) {
-        return GeoGrid.generateCells(detectedBbox, options.cellSizeKm || 3.2);
-      }
-    }
+    const bbox = await GeoGrid.resolveCityBoundingBox(location);
+    return bbox ? [{ name: location, bbox }] : [];
+  }
 
-    return [];
+  /** Map zoom whose 1280px-wide viewport roughly covers a cell of `sizeKm`. */
+  private static zoomForCell(sizeKm: number, lat: number): number {
+    const cosLat = Math.max(Math.cos((lat * Math.PI) / 180), 0.05);
+    const z = Math.log2((156543.03 * cosLat * 1280) / (sizeKm * 1000 * 1.3));
+    return Math.min(18, Math.max(11, Math.round(z)));
   }
 
   public async run(
@@ -51,160 +49,169 @@ export class ScraperManager {
     options: ScraperOptions,
     control: ScraperControl
   ): Promise<ScrapedLead[]> {
-    const { query, cap = 0 } = options;
+    const { query } = options;
+    const cap = options.cap && options.cap > 0 ? Math.floor(options.cap) : 0;
     const { checkCancelled, log, updateProgress, saveLead } = control;
 
     const allLeads: ScrapedLead[] = [];
-    const seenTitles = new Set<string>();
+    const seenKeys = new Set<string>();
+    let areasScanned = 0;
+
+    // Cancellation hits the DB, so only check it once a second.
+    let cancelled = false;
+    let lastCancelCheck = 0;
+    const isCancelled = async () => {
+      if (cancelled) return true;
+      const now = Date.now();
+      if (now - lastCancelCheck > 1000) {
+        lastCancelCheck = now;
+        cancelled = await checkCancelled().catch(() => false);
+      }
+      return cancelled;
+    };
+    const capReached = () => cap > 0 && allLeads.length >= cap;
+    const shouldStop = async () => capReached() || (await isCancelled());
 
     let lastProgressTime = 0;
-    const handleSave = async (lead: ScrapedLead) => {
-      const normalizedKey = (lead.phone_1 || lead.title).toLowerCase().trim();
-      if (!seenTitles.has(normalizedKey)) {
-        seenTitles.add(normalizedKey);
-        await saveLead(lead);
-        allLeads.push(lead);
-        const now = Date.now();
-        if (now - lastProgressTime > 1000 || allLeads.length % 20 === 0) {
-          lastProgressTime = now;
-          await updateProgress(allLeads.length, allLeads.length);
-        }
+    const reportProgress = async (force = false) => {
+      const now = Date.now();
+      if (force || now - lastProgressTime > 1000) {
+        lastProgressTime = now;
+        await updateProgress(areasScanned, allLeads.length).catch(() => {});
       }
     };
 
+    const handleSave = async (lead: ScrapedLead) => {
+      if (capReached()) return;
+      const key = leadKey(lead);
+      if (seenKeys.has(key)) return;
+      // Reserve the slot synchronously so concurrent workers never overshoot the cap.
+      seenKeys.add(key);
+      allLeads.push(lead);
+      await saveLead(lead);
+      await reportProgress();
+    };
+
+    const subControl: ScraperControl = {
+      checkCancelled: shouldStop,
+      log: async () => {},
+      updateProgress: async () => {},
+      saveLead: handleSave
+    };
+
+    const concurrency = options.concurrency && options.concurrency > 0 ? options.concurrency : 4;
+
     if (engine === 'gmaps') {
+      // Phase 1: named-area queries (city, neighbourhoods, or a country's cities)
       const partitions: SearchPartition[] = await GeographicPartitioner.resolveSearchPartitions(query, options.city);
-      await log(`[Partition Engine] Expanded target into ${partitions.length} locality search partitions`);
+      await log(`[Phase 1] Searching ${partitions.length} named areas`);
 
-      const concurrency = options.concurrency && options.concurrency > 0 ? options.concurrency : 4;
-
-      for (let idx = 0; idx < partitions.length; idx += concurrency) {
-        if (await checkCancelled()) break;
-        if (cap > 0 && allLeads.length >= cap) break;
-
-        const batch = partitions.slice(idx, idx + concurrency);
-        await Promise.all(
-          batch.map(async (partition) => {
-            if (await checkCancelled()) return;
-            if (cap > 0 && allLeads.length >= cap) return;
-
-            try {
-              const subLeads = await this.gmapsHttp.search(
-                {
-                  ...options,
-                  query: partition.query,
-                  lat: partition.lat !== undefined ? partition.lat : options.lat,
-                  lon: partition.lon !== undefined ? partition.lon : options.lon,
-                  zoom: partition.zoom !== undefined ? partition.zoom : options.zoom,
-                  maxPagesPerCell: 5,
-                  seenKeys: seenTitles
-                },
-                {
-                  checkCancelled,
-                  log: async () => {},
-                  updateProgress: async () => {},
-                  saveLead: handleSave
-                }
-              );
-
-              if (subLeads.length === 0 && !(await checkCancelled()) && this.gmapsExternal.isAvailable()) {
-                try {
-                  await this.gmapsExternal.search(
-                    { ...options, query: partition.query, seenKeys: seenTitles },
-                    {
-                      checkCancelled,
-                      log: async () => {},
-                      updateProgress: async () => {},
-                      saveLead: handleSave
-                    }
-                  );
-                } catch {}
-              }
-            } catch (err: any) {
-              await log(`[HTTP Error] ${partition.query}: ${err.message}`);
-            }
-          })
-        );
-      }
-
-      if (allLeads.length === 0 && !(await checkCancelled())) {
+      await runWorkQueue(partitions, concurrency, async (partition) => {
         try {
-          await this.gmapsPlaywright.search(
-            { ...options, query, seenKeys: seenTitles },
+          const { leads } = await this.gmapsHttp.searchArea(
             {
-              checkCancelled,
-              log,
-              updateProgress: async () => {},
-              saveLead: handleSave
-            }
+              ...options,
+              query: partition.query,
+              lat: partition.lat,
+              lon: partition.lon,
+              zoom: partition.zoom,
+              maxPagesPerCell: 6,
+              seenKeys
+            },
+            subControl
           );
+
+          if (leads.length === 0 && !(await shouldStop()) && this.gmapsExternal.isAvailable()) {
+            await this.gmapsExternal.search({ ...options, query: partition.query, seenKeys }, subControl).catch(() => {});
+          }
+        } catch (err: any) {
+          await log(`[HTTP Error] ${partition.query}: ${err.message}`);
+        } finally {
+          areasScanned++;
+          await reportProgress();
+        }
+      }, shouldStop);
+
+      if (allLeads.length === 0 && !(await shouldStop())) {
+        try {
+          await this.gmapsPlaywright.search({ ...options, query, seenKeys }, { ...subControl, log });
         } catch (pwErr: any) {
           await log(`[Playwright Fallback Failed] ${pwErr.message}`);
         }
       }
 
-      if ((cap === 0 || allLeads.length < cap) && !(await checkCancelled())) {
-        const cells = await this.getGridCells(options);
-        if (cells.length > 0) {
-          await log(`[Geo Grid] Sweeping ${cells.length} geographic coordinate cells in parallel`);
-          const gridConcurrency = Math.min(concurrency + 2, 8);
-          for (let i = 0; i < cells.length; i += gridConcurrency) {
-            if (await checkCancelled()) break;
-            if (cap > 0 && allLeads.length >= cap) break;
+      // Phase 2: adaptive geo grid. Google returns at most ~120 places per
+      // viewport, so any cell that fills every page is split into four smaller
+      // cells and searched again, until results stop growing.
+      if (!(await shouldStop())) {
+        const { keyword } = GeographicPartitioner.parseTarget(query, options.city);
+        const areas = await this.getSweepAreas(options);
+        const initialSizeKm = options.cellSizeKm && options.cellSizeKm > 0 ? options.cellSizeKm : 4;
+        const minSizeKm = 0.5;
 
-            const batch = cells.slice(i, i + gridConcurrency);
-            await Promise.all(
-              batch.map(async (cell) => {
-                if (await checkCancelled()) return;
-                if (cap > 0 && allLeads.length >= cap) return;
-
-                try {
-                  await this.gmapsHttp.search(
-                    {
-                      ...options,
-                      lat: cell.lat,
-                      lon: cell.lon,
-                      zoom: 14,
-                      maxPagesPerCell: 3,
-                      seenKeys: seenTitles
-                    },
-                    {
-                      checkCancelled,
-                      log: async () => {},
-                      updateProgress: async () => {},
-                      saveLead: handleSave
-                    }
-                  );
-                } catch {}
-              })
-            );
+        type Cell = { lat: number; lon: number; sizeKm: number };
+        const cells: Cell[] = [];
+        for (const area of areas) {
+          for (const c of GeoGrid.generateCells(area.bbox, initialSizeKm)) {
+            cells.push({ lat: c.lat, lon: c.lon, sizeKm: initialSizeKm });
           }
+        }
+
+        if (cells.length > 0) {
+          await log(`[Phase 2] Sweeping ${cells.length} grid cells across ${areas.length} area(s); dense cells are subdivided automatically`);
+          const gridConcurrency = Math.min(concurrency + 2, 10);
+          let splits = 0;
+
+          await runWorkQueue<Cell>(cells, gridConcurrency, async (cell, enqueue) => {
+            try {
+              const { saturated } = await this.gmapsHttp.searchArea(
+                {
+                  ...options,
+                  query: keyword,
+                  lat: cell.lat,
+                  lon: cell.lon,
+                  zoom: ScraperManager.zoomForCell(cell.sizeKm, cell.lat),
+                  maxPagesPerCell: 6,
+                  seenKeys
+                },
+                subControl
+              );
+
+              const half = cell.sizeKm / 2;
+              if (saturated && half >= minSizeKm) {
+                splits++;
+                const dLat = half / 2 / 111.32;
+                const dLon = half / 2 / (111.32 * Math.max(Math.cos((cell.lat * Math.PI) / 180), 0.05));
+                enqueue(
+                  { lat: cell.lat + dLat, lon: cell.lon - dLon, sizeKm: half },
+                  { lat: cell.lat + dLat, lon: cell.lon + dLon, sizeKm: half },
+                  { lat: cell.lat - dLat, lon: cell.lon - dLon, sizeKm: half },
+                  { lat: cell.lat - dLat, lon: cell.lon + dLon, sizeKm: half }
+                );
+              }
+            } finally {
+              areasScanned++;
+              await reportProgress();
+            }
+          }, shouldStop);
+
+          await log(`[Phase 2] Grid done: ${areasScanned} areas scanned, ${splits} dense cells subdivided`);
         }
       }
     } else {
       try {
-        await this.twoGisHttp.search(options, {
-          checkCancelled,
-          log,
-          updateProgress: async () => {},
-          saveLead: handleSave
-        });
+        await this.twoGisHttp.search(options, { ...subControl, log });
       } catch (httpErr: any) {
         await log(`[2GIS HTTP Error] ${httpErr.message}. Trying browser fallback...`);
         try {
-          await this.twoGisPlaywright.search(options, {
-            checkCancelled,
-            log,
-            updateProgress: async () => {},
-            saveLead: handleSave
-          });
+          await this.twoGisPlaywright.search(options, { ...subControl, log });
         } catch (pwErr: any) {
           await log(`[2GIS Fallback Failed] ${pwErr.message}`);
         }
       }
     }
 
-    await updateProgress(allLeads.length, allLeads.length);
+    await reportProgress(true);
     await log(`Extraction finished. Total unique leads collected: ${allLeads.length}`);
     return allLeads;
   }
