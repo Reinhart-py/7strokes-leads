@@ -116,14 +116,14 @@ function NavList({
               }`}
             >
               {(selfActive || groupActive) && (
-                <span className="absolute left-0 top-2 bottom-2 w-[3px] rounded-r-full bg-[#d9b26a]" aria-hidden="true" />
+                <span className="absolute left-0 top-2 bottom-2 w-[3px] rounded-r-full bg-[#12a594]" aria-hidden="true" />
               )}
-              <span className={`shrink-0 ${selfActive || groupActive ? "text-[#d9b26a]" : ""}`}>{item.icon}</span>
+              <span className={`shrink-0 ${selfActive || groupActive ? "text-[#12a594]" : ""}`}>{item.icon}</span>
               {expanded && (
                 <>
                   <span className="flex-1 text-left truncate">{item.label}</span>
                   {item.badge !== undefined && item.badge !== 0 && (
-                    <span className="min-w-5 h-5 px-1.5 rounded-full bg-[#d9b26a]/20 text-[#d9b26a] text-[10px] font-bold inline-flex items-center justify-center tabular-nums">
+                    <span className="min-w-5 h-5 px-1.5 rounded-full bg-[#12a594]/20 text-[#12a594] text-[10px] font-bold inline-flex items-center justify-center tabular-nums">
                       {item.badge}
                     </span>
                   )}
@@ -147,7 +147,7 @@ function NavList({
                             tabIndex={open ? 0 : -1}
                             onClick={() => { child.onSelect(); onNavigate(); }}
                             className={`w-full flex items-center gap-2 h-8 px-2.5 rounded-lg text-[12.5px] text-left transition-colors ${
-                              active ? "bg-[#d9b26a]/15 text-[#d9b26a] font-semibold" : "text-white/60 hover:text-white hover:bg-white/[0.05]"
+                              active ? "bg-[#12a594]/15 text-[#12a594] font-semibold" : "text-white/60 hover:text-white hover:bg-white/[0.05]"
                             }`}
                           >
                             <span className="flex-1 truncate">{child.label}</span>
@@ -249,7 +249,7 @@ export default function Sidebar({
         <aside
           onMouseEnter={handleEnter}
           onMouseLeave={handleLeave}
-          className={`absolute inset-y-0 left-0 z-40 overflow-hidden transition-[width,box-shadow] duration-200 ease-out ${hoverMode ? "shadow-[12px_0_40px_-12px_rgba(15,31,51,0.55)]" : ""}`}
+          className={`absolute inset-y-0 left-0 z-40 overflow-hidden transition-[width,box-shadow] duration-200 ease-out ${hoverMode ? "shadow-[12px_0_40px_-12px_rgba(11,42,74,0.55)]" : ""}`}
           style={{ width: expanded ? FULL_WIDTH : RAIL_WIDTH }}
         >
           <div className="h-full" style={{ width: expanded ? FULL_WIDTH : RAIL_WIDTH }}>
@@ -261,7 +261,7 @@ export default function Sidebar({
       {/* Mobile drawer */}
       <div className={`md:hidden fixed inset-0 z-50 ${mobileOpen ? "" : "pointer-events-none"}`} aria-hidden={!mobileOpen}>
         <div
-          className={`absolute inset-0 bg-[#0f1f33]/45 transition-opacity duration-200 ${mobileOpen ? "opacity-100" : "opacity-0"}`}
+          className={`absolute inset-0 bg-[#0b2a4a]/45 transition-opacity duration-200 ${mobileOpen ? "opacity-100" : "opacity-0"}`}
           onClick={onCloseMobile}
         />
         <aside

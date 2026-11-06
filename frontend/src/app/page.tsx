@@ -48,11 +48,11 @@ const PAGE_SIZES = [25, 50, 100, 250];
 type JobStatus = "pending" | "running" | "completed" | "stopped" | "failed";
 
 const STATUS_STYLES: Record<string, string> = {
-  pending: "bg-[#f5f0e8] text-[#0f1f33]/70 ring-1 ring-inset ring-[#0f1f33]/10",
-  running: "bg-[#d9b26a]/20 text-[#0f1f33] ring-1 ring-inset ring-[#d9b26a]/60",
-  completed: "bg-[#0f1f33] text-white",
-  stopped: "bg-white text-[#0f1f33]/70 ring-1 ring-inset ring-[#0f1f33]/15",
-  failed: "bg-[#0f1f33]/10 text-[#0f1f33] ring-1 ring-inset ring-[#0f1f33]/25"
+  pending: "bg-[#eef6f4] text-[#0b2a4a]/70 ring-1 ring-inset ring-[#0b2a4a]/10",
+  running: "bg-[#12a594]/20 text-[#0b2a4a] ring-1 ring-inset ring-[#12a594]/60",
+  completed: "bg-[#0b2a4a] text-white",
+  stopped: "bg-white text-[#0b2a4a]/70 ring-1 ring-inset ring-[#0b2a4a]/15",
+  failed: "bg-[#0b2a4a]/10 text-[#0b2a4a] ring-1 ring-inset ring-[#0b2a4a]/25"
 };
 
 const isActiveStatus = (status?: string) => status === "running" || status === "pending";
@@ -283,7 +283,7 @@ const IconArrowRight = ({ className = "w-4 h-4" }: { className?: string }) => (
 
 const BrandMark = ({ size = 36 }: { size?: number }) => (
   <span
-    className="inline-flex items-center justify-center rounded-[10px] bg-white text-[#0f1f33] font-extrabold shrink-0 ring-1 ring-[#d9b26a]/60"
+    className="inline-flex items-center justify-center rounded-[10px] bg-white text-[#0b2a4a] font-extrabold shrink-0 ring-1 ring-[#12a594]/60"
     style={{ width: size, height: size, fontSize: size * 0.42 }}
     aria-hidden="true"
   >
@@ -295,8 +295,8 @@ const PageHeader = ({ eyebrow, title, subtitle, actions }: { eyebrow?: string; t
   <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4">
     <div className="min-w-0">
       {eyebrow && <div className="crm-eyebrow mb-1.5">{eyebrow}</div>}
-      <h1 className="text-[26px] sm:text-[30px] leading-tight font-extrabold tracking-[-0.02em] text-[#0f1f33]">{title}</h1>
-      {subtitle && <p className="text-sm text-[#0f1f33]/60 mt-1">{subtitle}</p>}
+      <h1 className="text-[26px] sm:text-[30px] leading-tight font-extrabold tracking-[-0.02em] text-[#0b2a4a]">{title}</h1>
+      {subtitle && <p className="text-sm text-[#0b2a4a]/60 mt-1">{subtitle}</p>}
     </div>
     {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
   </div>
@@ -994,7 +994,7 @@ export default function Home() {
   // ----------------------------------------------------
   if (!token || !user) {
     return (
-      <div className="min-h-screen grid lg:grid-cols-[1.05fr_1fr] bg-[#f5f0e8] text-[#0f1f33]">
+      <div className="min-h-screen grid lg:grid-cols-[1.05fr_1fr] bg-[#eef6f4] text-[#0b2a4a]">
         <div className="crm-sidebar hidden lg:flex flex-col justify-between p-12 text-white">
           <div className="flex items-center gap-3">
             <BrandMark size={40} />
@@ -1004,7 +1004,7 @@ export default function Home() {
             </div>
           </div>
           <div className="max-w-md">
-            <div className="crm-eyebrow !text-[#d9b26a] mb-3">Lead intelligence</div>
+            <div className="crm-eyebrow !text-[#12a594] mb-3">Lead intelligence</div>
             <h2 className="text-4xl font-extrabold leading-[1.1] tracking-[-0.02em]">Every business in the city, in one clean list.</h2>
             <p className="text-white/60 mt-4 text-sm leading-relaxed">Search Google Maps and 2GIS, sweep entire areas, and export verified phones, websites and addresses.</p>
           </div>
@@ -1015,17 +1015,17 @@ export default function Home() {
           <div className="mb-6">
             <div className="lg:hidden mb-4"><BrandMark size={40} /></div>
             <div className="crm-eyebrow mb-1">Welcome back</div>
-            <h1 className="text-2xl font-extrabold tracking-[-0.02em] text-[#0f1f33]">Sign in to your workspace</h1>
+            <h1 className="text-2xl font-extrabold tracking-[-0.02em] text-[#0b2a4a]">Sign in to your workspace</h1>
           </div>
 
           {!isServerOnline && (
-            <div className="mb-4 p-3 rounded bg-[#d9b26a]/15 border border-[#d9b26a]/60 text-[#0f1f33] text-xs font-semibold">
+            <div className="mb-4 p-3 rounded bg-[#12a594]/15 border border-[#12a594]/60 text-[#0b2a4a] text-xs font-semibold">
               Backend service is offline on port 4000.
             </div>
           )}
 
           {authError && (
-            <div className="mb-4 p-3 rounded bg-[#d9b26a]/15 border border-[#d9b26a]/60 text-[#0f1f33] text-xs font-semibold">
+            <div className="mb-4 p-3 rounded bg-[#12a594]/15 border border-[#12a594]/60 text-[#0b2a4a] text-xs font-semibold">
               {authError}
             </div>
           )}
@@ -1069,21 +1069,21 @@ export default function Home() {
   // AUTHENTICATED DASHBOARD (Clean CRM Workspace)
   // ----------------------------------------------------
   return (
-    <div className="flex h-screen w-full bg-[#f5f0e8] text-[#0f1f33] font-sans overflow-hidden">
+    <div className="flex h-screen w-full bg-[#eef6f4] text-[#0b2a4a] font-sans overflow-hidden">
       {/* Toast Alert */}
       {copyToast && (
-        <div className="fixed bottom-6 right-6 z-50 bg-[#0f1f33] text-white text-xs font-semibold px-4 py-2.5 rounded shadow-lg">
+        <div className="fixed bottom-6 right-6 z-50 bg-[#0b2a4a] text-white text-xs font-semibold px-4 py-2.5 rounded shadow-lg">
           {copyToast}
         </div>
       )}
 
       {/* EXPORT MODAL */}
       {exportJobId && (
-        <div className="fixed inset-0 z-50 bg-[#0f1f33]/45 backdrop-blur-[2px] flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl border border-[#0f1f33]/10 w-full max-w-lg shadow-xl p-6">
-            <div className="flex items-center justify-between border-b border-[#0f1f33]/[0.07] pb-3 mb-4">
-              <h3 className="text-sm font-bold text-[#0f1f33]">Export Leads Data</h3>
-              <button onClick={() => setExportJobId(null)} className="text-[#0f1f33]/60 hover:text-[#0f1f33]">✕</button>
+        <div className="fixed inset-0 z-50 bg-[#0b2a4a]/45 backdrop-blur-[2px] flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl border border-[#0b2a4a]/10 w-full max-w-lg shadow-xl p-6">
+            <div className="flex items-center justify-between border-b border-[#0b2a4a]/[0.07] pb-3 mb-4">
+              <h3 className="text-sm font-bold text-[#0b2a4a]">Export Leads Data</h3>
+              <button onClick={() => setExportJobId(null)} className="text-[#0b2a4a]/60 hover:text-[#0b2a4a]">✕</button>
             </div>
 
             <div className="space-y-4">
@@ -1095,7 +1095,7 @@ export default function Home() {
                       key={fmt}
                       type="button"
                       onClick={() => setExportFormat(fmt)}
-                      className={`py-2 rounded text-xs font-semibold uppercase border transition-colors ${exportFormat === fmt ? "bg-[#0f1f33] text-white border-[#d9b26a]" : "bg-white text-[#0f1f33]/75 border-[#0f1f33]/20 hover:bg-[#f5f0e8]/60"}`}
+                      className={`py-2 rounded text-xs font-semibold uppercase border transition-colors ${exportFormat === fmt ? "bg-[#0b2a4a] text-white border-[#12a594]" : "bg-white text-[#0b2a4a]/75 border-[#0b2a4a]/20 hover:bg-[#eef6f4]/60"}`}
                     >
                       {fmt}
                     </button>
@@ -1105,9 +1105,9 @@ export default function Home() {
 
               <div>
                 <label className="crm-label">Select Columns to Include</label>
-                <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto p-2 border border-[#0f1f33]/10 rounded">
+                <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto p-2 border border-[#0b2a4a]/10 rounded">
                   {EXPORT_COLUMNS.map(col => (
-                    <label key={col.key} className="flex items-center gap-2 text-xs text-[#0f1f33] cursor-pointer">
+                    <label key={col.key} className="flex items-center gap-2 text-xs text-[#0b2a4a] cursor-pointer">
                       <input
                         type="checkbox"
                         checked={selectedCols.includes(col.key)}
@@ -1118,7 +1118,7 @@ export default function Home() {
                             setSelectedCols(selectedCols.filter(c => c !== col.key));
                           }
                         }}
-                        className="rounded border-[#0f1f33]/20 text-[#0f1f33] focus:ring-0"
+                        className="rounded border-[#0b2a4a]/20 text-[#0b2a4a] focus:ring-0"
                       />
                       <span>{col.label}</span>
                     </label>
@@ -1126,7 +1126,7 @@ export default function Home() {
                 </div>
               </div>
 
-              <div className="flex justify-end gap-2 pt-3 border-t border-[#0f1f33]/[0.07]">
+              <div className="flex justify-end gap-2 pt-3 border-t border-[#0b2a4a]/[0.07]">
                 <button onClick={() => setExportJobId(null)} className="crm-btn-default">Cancel</button>
                 <button onClick={handleDownloadExport} className="crm-btn-primary">Download File</button>
               </div>
@@ -1137,15 +1137,15 @@ export default function Home() {
 
       {/* CREATE USER MODAL (Admin & Manager) */}
       {showCreateUserModal && (
-        <div className="fixed inset-0 z-50 bg-[#0f1f33]/45 backdrop-blur-[2px] flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl border border-[#0f1f33]/10 w-full max-w-md shadow-xl p-6">
-            <div className="flex items-center justify-between border-b border-[#0f1f33]/[0.07] pb-3 mb-4">
-              <h3 className="text-sm font-bold text-[#0f1f33]">Create New User Account</h3>
-              <button onClick={() => setShowCreateUserModal(false)} className="text-[#0f1f33]/60 hover:text-[#0f1f33]">✕</button>
+        <div className="fixed inset-0 z-50 bg-[#0b2a4a]/45 backdrop-blur-[2px] flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl border border-[#0b2a4a]/10 w-full max-w-md shadow-xl p-6">
+            <div className="flex items-center justify-between border-b border-[#0b2a4a]/[0.07] pb-3 mb-4">
+              <h3 className="text-sm font-bold text-[#0b2a4a]">Create New User Account</h3>
+              <button onClick={() => setShowCreateUserModal(false)} className="text-[#0b2a4a]/60 hover:text-[#0b2a4a]">✕</button>
             </div>
 
             {createUserMsg && (
-              <div className="mb-4 p-2.5 rounded bg-[#d9b26a]/15 text-[#0f1f33] text-xs">{createUserMsg}</div>
+              <div className="mb-4 p-2.5 rounded bg-[#12a594]/15 text-[#0b2a4a] text-xs">{createUserMsg}</div>
             )}
 
             <form onSubmit={handleCreateUser} className="space-y-3.5">
@@ -1208,7 +1208,7 @@ export default function Home() {
                 </div>
               )}
 
-              <div className="flex justify-end gap-2 pt-3 border-t border-[#0f1f33]/[0.07]">
+              <div className="flex justify-end gap-2 pt-3 border-t border-[#0b2a4a]/[0.07]">
                 <button type="button" onClick={() => setShowCreateUserModal(false)} className="crm-btn-default">Cancel</button>
                 <button type="submit" className="crm-btn-primary">Create Account</button>
               </div>
@@ -1219,15 +1219,15 @@ export default function Home() {
 
       {/* PROFILE MODAL */}
       {showProfileModal && (
-        <div className="fixed inset-0 z-50 bg-[#0f1f33]/45 backdrop-blur-[2px] flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl border border-[#0f1f33]/10 w-full max-w-md shadow-xl p-6">
-            <div className="flex items-center justify-between border-b border-[#0f1f33]/[0.07] pb-3 mb-4">
-              <h3 className="text-sm font-bold text-[#0f1f33]">My Profile</h3>
-              <button onClick={() => setShowProfileModal(false)} className="text-[#0f1f33]/60 hover:text-[#0f1f33]">✕</button>
+        <div className="fixed inset-0 z-50 bg-[#0b2a4a]/45 backdrop-blur-[2px] flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl border border-[#0b2a4a]/10 w-full max-w-md shadow-xl p-6">
+            <div className="flex items-center justify-between border-b border-[#0b2a4a]/[0.07] pb-3 mb-4">
+              <h3 className="text-sm font-bold text-[#0b2a4a]">My Profile</h3>
+              <button onClick={() => setShowProfileModal(false)} className="text-[#0b2a4a]/60 hover:text-[#0b2a4a]">✕</button>
             </div>
 
             {profileMsg && (
-              <div className={`mb-4 p-2.5 rounded text-xs ${profileMsg.type === "success" ? "bg-[#0f1f33]/[0.06] text-[#0f1f33]" : "bg-[#d9b26a]/15 text-[#0f1f33]"}`}>
+              <div className={`mb-4 p-2.5 rounded text-xs ${profileMsg.type === "success" ? "bg-[#0b2a4a]/[0.06] text-[#0b2a4a]" : "bg-[#12a594]/15 text-[#0b2a4a]"}`}>
                 {profileMsg.text}
               </div>
             )}
@@ -1253,7 +1253,7 @@ export default function Home() {
                 />
               </div>
 
-              <div className="pt-2 border-t border-[#0f1f33]/[0.07]">
+              <div className="pt-2 border-t border-[#0b2a4a]/[0.07]">
                 <label className="crm-label">Change Password (Optional)</label>
                 <input
                   type="password"
@@ -1271,7 +1271,7 @@ export default function Home() {
                 />
               </div>
 
-              <div className="flex justify-end gap-2 pt-3 border-t border-[#0f1f33]/[0.07]">
+              <div className="flex justify-end gap-2 pt-3 border-t border-[#0b2a4a]/[0.07]">
                 <button type="button" onClick={() => setShowProfileModal(false)} className="crm-btn-default">Close</button>
                 <button type="submit" className="crm-btn-primary">Save Changes</button>
               </div>
@@ -1304,7 +1304,7 @@ export default function Home() {
               className={`flex items-center gap-2.5 min-w-0 rounded-lg hover:bg-white/[0.06] ${expanded ? "flex-1 p-1.5" : "p-1"}`}
               title="My profile"
             >
-              <span className="w-8 h-8 rounded-full bg-[#d9b26a] text-[#0f1f33] text-xs font-bold inline-flex items-center justify-center shrink-0">
+              <span className="w-8 h-8 rounded-full bg-[#12a594] text-[#0b2a4a] text-xs font-bold inline-flex items-center justify-center shrink-0">
                 {initialsOf(user.name || user.username)}
               </span>
               {expanded && (
@@ -1328,17 +1328,17 @@ export default function Home() {
 
       {/* MAIN VIEW CONTENT AREA */}
       <main className="flex-1 flex flex-col h-screen overflow-hidden min-w-0">
-        <header className="h-16 shrink-0 flex items-center gap-2 sm:gap-3 px-3 sm:px-6 border-b border-[#0f1f33]/[0.07] bg-[#f5f0e8]">
+        <header className="h-16 shrink-0 flex items-center gap-2 sm:gap-3 px-3 sm:px-6 border-b border-[#0b2a4a]/[0.07] bg-[#eef6f4]">
           <button
             onClick={() => setSidebarOpen(true)}
-            className="md:hidden w-10 h-10 rounded-[10px] bg-white ring-1 ring-[#0f1f33]/10 inline-flex items-center justify-center shrink-0"
+            className="md:hidden w-10 h-10 rounded-[10px] bg-white ring-1 ring-[#0b2a4a]/10 inline-flex items-center justify-center shrink-0"
             aria-label="Open menu"
           >
             <IconMenu className="w-5 h-5" />
           </button>
 
           <form onSubmit={submitGlobalSearch} className="relative flex-1 max-w-xl min-w-0">
-            <IconSearch className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-[#0f1f33]/45" />
+            <IconSearch className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-[#0b2a4a]/45" />
             <input
               ref={globalSearchRef}
               type="search"
@@ -1348,7 +1348,7 @@ export default function Home() {
               className="crm-input h-10 pl-10 pr-16 rounded-full bg-white"
               aria-label="Search leads"
             />
-            <kbd className="hidden sm:inline-flex absolute right-3 top-1/2 -translate-y-1/2 items-center h-6 px-2 rounded-md border border-[#0f1f33]/15 text-[10px] font-semibold text-[#0f1f33]/60 bg-[#f5f0e8]">Ctrl K</kbd>
+            <kbd className="hidden sm:inline-flex absolute right-3 top-1/2 -translate-y-1/2 items-center h-6 px-2 rounded-md border border-[#0b2a4a]/15 text-[10px] font-semibold text-[#0b2a4a]/60 bg-[#eef6f4]">Ctrl K</kbd>
           </form>
 
           <button onClick={() => { setSearchMode("single"); goApp("search"); }} className="crm-btn-primary h-10 shrink-0 px-3 sm:px-4">
@@ -1357,8 +1357,8 @@ export default function Home() {
           </button>
 
           {runningJob && (
-            <div className="hidden lg:flex items-center gap-2 h-10 pl-3 pr-1.5 rounded-full bg-white ring-1 ring-[#d9b26a]/60 min-w-0 max-w-[340px]">
-              <span className="w-2 h-2 rounded-full bg-[#d9b26a] animate-pulse shrink-0" />
+            <div className="hidden lg:flex items-center gap-2 h-10 pl-3 pr-1.5 rounded-full bg-white ring-1 ring-[#12a594]/60 min-w-0 max-w-[340px]">
+              <span className="w-2 h-2 rounded-full bg-[#12a594] animate-pulse shrink-0" />
               <button
                 onClick={() => { selectJob(runningJob.id); goApp("leads"); }}
                 className="text-xs font-semibold truncate hover:underline text-left"
@@ -1369,7 +1369,7 @@ export default function Home() {
               <span className="text-xs font-bold tabular-nums shrink-0">{formatNumber(runningJob.total_saved || 0)}</span>
               <button
                 onClick={() => stopSearch(runningJob.id)}
-                className="h-7 px-2.5 rounded-full bg-[#0f1f33] text-white text-[11px] font-semibold shrink-0"
+                className="h-7 px-2.5 rounded-full bg-[#0b2a4a] text-white text-[11px] font-semibold shrink-0"
               >
                 Stop
               </button>
@@ -1378,19 +1378,19 @@ export default function Home() {
 
           <button
             onClick={() => setShowProfileModal(true)}
-            className="hidden md:flex items-center gap-2.5 h-10 pl-1.5 pr-3 rounded-full bg-white ring-1 ring-[#0f1f33]/10 hover:ring-[#0f1f33]/20 shrink-0 ml-auto"
+            className="hidden md:flex items-center gap-2.5 h-10 pl-1.5 pr-3 rounded-full bg-white ring-1 ring-[#0b2a4a]/10 hover:ring-[#0b2a4a]/20 shrink-0 ml-auto"
           >
-            <span className="w-7 h-7 rounded-full bg-[#0f1f33] text-white text-[11px] font-bold inline-flex items-center justify-center">
+            <span className="w-7 h-7 rounded-full bg-[#0b2a4a] text-white text-[11px] font-bold inline-flex items-center justify-center">
               {initialsOf(user.name || user.username)}
             </span>
             <span className="text-left leading-tight">
               <span className="block text-[12.5px] font-semibold max-w-[140px] truncate">{user.name || user.username}</span>
-              <span className="block text-[10.5px] text-[#0f1f33]/55 capitalize">{user.role}</span>
+              <span className="block text-[10.5px] text-[#0b2a4a]/55 capitalize">{user.role}</span>
             </span>
           </button>
           <button
             onClick={logout}
-            className="hidden md:inline-flex w-10 h-10 rounded-full items-center justify-center text-[#0f1f33]/60 hover:text-[#0f1f33] hover:bg-white shrink-0"
+            className="hidden md:inline-flex w-10 h-10 rounded-full items-center justify-center text-[#0b2a4a]/60 hover:text-[#0b2a4a] hover:bg-white shrink-0"
             title="Sign out"
             aria-label="Sign out"
           >
@@ -1432,16 +1432,16 @@ export default function Home() {
                     { label: "Running now", value: formatNumber((summary?.jobs.byStatus.running || 0) + (summary?.jobs.byStatus.pending || 0)), sub: runningJob ? runningJob.target : "Nothing in progress", icon: <IconActivity className="w-[18px] h-[18px]" />, live: !!runningJob }
                   ].map((card, idx, all) => (
                     <div key={card.label} className={`crm-box p-4 sm:p-5 relative overflow-hidden ${idx === all.length - 1 ? "col-span-2 xl:col-span-1" : ""}`}>
-                      <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-[#d9b26a]/0 via-[#d9b26a]/70 to-[#d9b26a]/0" />
+                      <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-[#12a594]/0 via-[#12a594]/70 to-[#12a594]/0" />
                       <div className="flex flex-col sm:flex-row items-start gap-3 sm:gap-3.5">
                         <span className="crm-icon-tile">{card.icon}</span>
                         <div className="min-w-0">
                           <div className="crm-label !mb-1 flex items-center gap-1.5">
                             {card.label}
-                            {card.live && <span className="w-1.5 h-1.5 rounded-full bg-[#d9b26a] animate-pulse" />}
+                            {card.live && <span className="w-1.5 h-1.5 rounded-full bg-[#12a594] animate-pulse" />}
                           </div>
                           <div className="text-[22px] sm:text-[26px] leading-none font-extrabold tracking-[-0.02em] tabular-nums">{card.value}</div>
-                          <div className="text-xs text-[#0f1f33]/60 mt-2 truncate" title={card.sub}>{card.sub}</div>
+                          <div className="text-xs text-[#0b2a4a]/60 mt-2 truncate" title={card.sub}>{card.sub}</div>
                         </div>
                       </div>
                     </div>
@@ -1454,29 +1454,29 @@ export default function Home() {
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div>
                         <h2 className="crm-box-title">Leads collected</h2>
-                        <p className="text-xs text-[#0f1f33]/60 mt-1">Last 14 days · {formatNumber(leadsLast14)} leads · {formatNumber((summary?.daily || []).reduce((a, d) => a + d.withPhone, 0))} with phone</p>
+                        <p className="text-xs text-[#0b2a4a]/60 mt-1">Last 14 days · {formatNumber(leadsLast14)} leads · {formatNumber((summary?.daily || []).reduce((a, d) => a + d.withPhone, 0))} with phone</p>
                       </div>
-                      <div className="flex items-center gap-4 text-xs text-[#0f1f33]/70">
-                        <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-[3px] bg-[#0f1f33]" />Leads</span>
-                        <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-[3px] bg-[#d9b26a]" />With phone</span>
+                      <div className="flex items-center gap-4 text-xs text-[#0b2a4a]/70">
+                        <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-[3px] bg-[#0b2a4a]" />Leads</span>
+                        <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-[3px] bg-[#12a594]" />With phone</span>
                       </div>
                     </div>
 
                     <div className="mt-6 flex gap-3">
-                      <div className="flex flex-col justify-between h-56 xl:h-[336px] text-[10px] text-[#0f1f33]/45 tabular-nums text-right w-8 shrink-0 -mt-1.5 pb-5">
+                      <div className="flex flex-col justify-between h-56 xl:h-[336px] text-[10px] text-[#0b2a4a]/45 tabular-nums text-right w-8 shrink-0 -mt-1.5 pb-5">
                         {chartTicks.map(t => <span key={t}>{t >= 1000 ? `${Math.round(t / 100) / 10}k` : t}</span>)}
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="relative h-52 xl:h-[312px]">
                           {chartTicks.map((t, i) => (
-                            <div key={t} className="absolute inset-x-0 border-t border-dashed border-[#0f1f33]/[0.08]" style={{ top: `${(i / 4) * 100}%` }} />
+                            <div key={t} className="absolute inset-x-0 border-t border-dashed border-[#0b2a4a]/[0.08]" style={{ top: `${(i / 4) * 100}%` }} />
                           ))}
                           <div className="absolute inset-0 flex items-end justify-between gap-1 sm:gap-2">
                             {(summary?.daily || []).map(d => (
                               <div key={d.day} className="group relative flex-1 h-full flex items-end justify-center gap-[3px]">
-                                <div className="w-full max-w-[14px] rounded-t-[4px] bg-[#0f1f33] transition-[height] duration-500" style={{ height: `${(d.total / chartTop) * 100}%` }} />
-                                <div className="w-full max-w-[14px] rounded-t-[4px] bg-[#d9b26a] transition-[height] duration-500" style={{ height: `${(d.withPhone / chartTop) * 100}%` }} />
-                                <div className="pointer-events-none absolute bottom-full mb-2 left-1/2 -translate-x-1/2 hidden group-hover:block whitespace-nowrap rounded-lg bg-[#0f1f33] text-white text-[11px] px-2.5 py-1.5 shadow-lg z-10">
+                                <div className="w-full max-w-[14px] rounded-t-[4px] bg-[#0b2a4a] transition-[height] duration-500" style={{ height: `${(d.total / chartTop) * 100}%` }} />
+                                <div className="w-full max-w-[14px] rounded-t-[4px] bg-[#12a594] transition-[height] duration-500" style={{ height: `${(d.withPhone / chartTop) * 100}%` }} />
+                                <div className="pointer-events-none absolute bottom-full mb-2 left-1/2 -translate-x-1/2 hidden group-hover:block whitespace-nowrap rounded-lg bg-[#0b2a4a] text-white text-[11px] px-2.5 py-1.5 shadow-lg z-10">
                                   <div className="font-semibold">{new Date(d.day + "T00:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</div>
                                   <div>{formatNumber(d.total)} leads · {formatNumber(d.withPhone)} with phone</div>
                                 </div>
@@ -1484,9 +1484,9 @@ export default function Home() {
                             ))}
                           </div>
                         </div>
-                        <div className="flex justify-between gap-1 sm:gap-2 mt-2 text-[10px] text-[#0f1f33]/50">
+                        <div className="flex justify-between gap-1 sm:gap-2 mt-2 text-[10px] text-[#0b2a4a]/50">
                           {(summary?.daily || []).map((d, i, arr) => (
-                            <span key={d.day} className={`flex-1 text-center ${i === arr.length - 1 ? "font-bold text-[#0f1f33]" : ""} ${i % 2 === 1 && i !== arr.length - 1 ? "invisible sm:visible" : ""}`}>
+                            <span key={d.day} className={`flex-1 text-center ${i === arr.length - 1 ? "font-bold text-[#0b2a4a]" : ""} ${i % 2 === 1 && i !== arr.length - 1 ? "invisible sm:visible" : ""}`}>
                               {new Date(d.day + "T00:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
                             </span>
                           ))}
@@ -1499,11 +1499,11 @@ export default function Home() {
                   <div className="crm-box p-5 sm:p-6">
                     <div className="flex items-center justify-between">
                       <h2 className="crm-box-title">Data quality</h2>
-                      <button onClick={() => goApp("leads")} className="text-xs font-semibold text-[#0f1f33]/70 hover:text-[#0f1f33] inline-flex items-center gap-1">
+                      <button onClick={() => goApp("leads")} className="text-xs font-semibold text-[#0b2a4a]/70 hover:text-[#0b2a4a] inline-flex items-center gap-1">
                         All leads <IconArrowRight className="w-3.5 h-3.5" />
                       </button>
                     </div>
-                    <p className="text-xs text-[#0f1f33]/60 mt-1">How complete your saved leads are</p>
+                    <p className="text-xs text-[#0b2a4a]/60 mt-1">How complete your saved leads are</p>
                     <div className="mt-5 space-y-4">
                       {[
                         { label: "Phone number", value: summaryTotals?.withPhone || 0, gold: false },
@@ -1516,23 +1516,23 @@ export default function Home() {
                             <span className="font-medium">{row.label}</span>
                             <span className="font-bold tabular-nums">{pct(row.value, summaryTotals?.leads || 0)}%</span>
                           </div>
-                          <div className="mt-1.5 h-2 rounded-full bg-[#f5f0e8] overflow-hidden">
-                            <div className={`h-full rounded-full ${row.gold ? "bg-[#d9b26a]" : "bg-[#0f1f33]"}`} style={{ width: `${pct(row.value, summaryTotals?.leads || 0)}%` }} />
+                          <div className="mt-1.5 h-2 rounded-full bg-[#eef6f4] overflow-hidden">
+                            <div className={`h-full rounded-full ${row.gold ? "bg-[#12a594]" : "bg-[#0b2a4a]"}`} style={{ width: `${pct(row.value, summaryTotals?.leads || 0)}%` }} />
                           </div>
                         </div>
                       ))}
                     </div>
-                    <div className="mt-6 pt-4 border-t border-[#0f1f33]/[0.07]">
+                    <div className="mt-6 pt-4 border-t border-[#0b2a4a]/[0.07]">
                       <div className="crm-label">Top categories</div>
                       {(summary?.topCategories || []).length === 0 ? (
-                        <p className="text-xs text-[#0f1f33]/50">No leads yet.</p>
+                        <p className="text-xs text-[#0b2a4a]/50">No leads yet.</p>
                       ) : (
                         <ul className="space-y-2.5">
                           {summary!.topCategories.slice(0, 5).map((c, i) => (
                             <li key={c.name} className="flex items-center gap-3 text-[13px]">
                               <span className="flex-1 min-w-0 truncate" title={c.name}>{c.name}</span>
-                              <span className="w-20 h-1.5 rounded-full bg-[#f5f0e8] overflow-hidden shrink-0">
-                                <span className={`block h-full rounded-full ${i % 2 ? "bg-[#d9b26a]" : "bg-[#0f1f33]"}`} style={{ width: `${(c.count / categoryMax) * 100}%` }} />
+                              <span className="w-20 h-1.5 rounded-full bg-[#eef6f4] overflow-hidden shrink-0">
+                                <span className={`block h-full rounded-full ${i % 2 ? "bg-[#12a594]" : "bg-[#0b2a4a]"}`} style={{ width: `${(c.count / categoryMax) * 100}%` }} />
                               </span>
                               <span className="w-12 text-right font-semibold tabular-nums">{formatNumber(c.count)}</span>
                             </li>
@@ -1548,34 +1548,34 @@ export default function Home() {
                   <div className="crm-box xl:col-span-2 overflow-hidden">
                     <div className="crm-box-header flex items-center justify-between">
                       <h2 className="crm-box-title">Recent extractions</h2>
-                      <button onClick={() => goApp("leads")} className="text-xs font-semibold text-[#0f1f33]/70 hover:text-[#0f1f33] inline-flex items-center gap-1">
+                      <button onClick={() => goApp("leads")} className="text-xs font-semibold text-[#0b2a4a]/70 hover:text-[#0b2a4a] inline-flex items-center gap-1">
                         View all <IconArrowRight className="w-3.5 h-3.5" />
                       </button>
                     </div>
                     {jobs.length === 0 ? (
                       <div className="p-10 text-center">
-                        <p className="text-sm text-[#0f1f33]/60">No extractions yet.</p>
+                        <p className="text-sm text-[#0b2a4a]/60">No extractions yet.</p>
                         <button onClick={() => goApp("search")} className="crm-btn-primary mt-4"><IconPlus className="w-4 h-4" /> Start your first search</button>
                       </div>
                     ) : (
-                      <ul className="divide-y divide-[#0f1f33]/[0.06]">
+                      <ul className="divide-y divide-[#0b2a4a]/[0.06]">
                         {jobs.slice(0, 6).map(j => (
                           <li key={j.id}>
                             <button
                               onClick={() => { selectJob(j.id); goApp("leads"); }}
-                              className="w-full flex items-center gap-4 px-5 py-3.5 text-left hover:bg-[#f5f0e8]/60 transition-colors"
+                              className="w-full flex items-center gap-4 px-5 py-3.5 text-left hover:bg-[#eef6f4]/60 transition-colors"
                             >
                               <span className="crm-icon-tile !w-9 !h-9 !rounded-[10px]">
                                 {j.engine === "2gis" ? <IconLayers className="w-4 h-4" /> : <IconGlobe className="w-4 h-4" />}
                               </span>
                               <span className="flex-1 min-w-0">
                                 <span className="block text-[13.5px] font-semibold capitalize truncate">{j.target}</span>
-                                <span className="block text-[11.5px] text-[#0f1f33]/55">{j.engine === "2gis" ? "2GIS" : "Google Maps"} · {j.cap > 0 ? `Max ${formatNumber(j.cap)}` : "Unlimited"} · {formatRelative(j.created_at)}</span>
+                                <span className="block text-[11.5px] text-[#0b2a4a]/55">{j.engine === "2gis" ? "2GIS" : "Google Maps"} · {j.cap > 0 ? `Max ${formatNumber(j.cap)}` : "Unlimited"} · {formatRelative(j.created_at)}</span>
                               </span>
                               <span className="hidden sm:block"><StatusBadge status={j.status} /></span>
                               <span className="w-20 text-right">
                                 <span className="block text-[15px] font-bold tabular-nums">{formatNumber(j.total_saved || 0)}</span>
-                                <span className="block text-[10.5px] text-[#0f1f33]/50">leads</span>
+                                <span className="block text-[10.5px] text-[#0b2a4a]/50">leads</span>
                               </span>
                             </button>
                           </li>
@@ -1587,9 +1587,9 @@ export default function Home() {
                   {/* Top cities */}
                   <div className="crm-box p-5 sm:p-6">
                     <h2 className="crm-box-title">Top cities</h2>
-                    <p className="text-xs text-[#0f1f33]/60 mt-1">Where your leads are located</p>
+                    <p className="text-xs text-[#0b2a4a]/60 mt-1">Where your leads are located</p>
                     {(summary?.topCities || []).length === 0 ? (
-                      <p className="text-xs text-[#0f1f33]/50 mt-5">No leads yet.</p>
+                      <p className="text-xs text-[#0b2a4a]/50 mt-5">No leads yet.</p>
                     ) : (
                       <ul className="mt-5 space-y-4">
                         {summary!.topCities.map((c, i) => (
@@ -1598,8 +1598,8 @@ export default function Home() {
                               <span className="font-medium truncate" title={c.name}>{c.name}</span>
                               <span className="font-bold tabular-nums">{formatNumber(c.count)}</span>
                             </div>
-                            <div className="mt-1.5 h-2 rounded-full bg-[#f5f0e8] overflow-hidden">
-                              <div className={`h-full rounded-full ${i % 2 ? "bg-[#d9b26a]" : "bg-[#0f1f33]"}`} style={{ width: `${(c.count / cityMax) * 100}%` }} />
+                            <div className="mt-1.5 h-2 rounded-full bg-[#eef6f4] overflow-hidden">
+                              <div className={`h-full rounded-full ${i % 2 ? "bg-[#12a594]" : "bg-[#0b2a4a]"}`} style={{ width: `${(c.count / cityMax) * 100}%` }} />
                             </div>
                           </li>
                         ))}
@@ -1624,13 +1624,13 @@ export default function Home() {
                   <div className="flex items-center gap-2 text-xs">
                     <button
                       onClick={() => setSearchMode("single")}
-                      className={`px-3 py-1 rounded font-semibold transition-colors ${searchMode === "single" ? "bg-[#0f1f33] text-white" : "text-[#0f1f33]/60 hover:bg-[#f5f0e8]"}`}
+                      className={`px-3 py-1 rounded font-semibold transition-colors ${searchMode === "single" ? "bg-[#0b2a4a] text-white" : "text-[#0b2a4a]/60 hover:bg-[#eef6f4]"}`}
                     >
                       Single Search
                     </button>
                     <button
                       onClick={() => setSearchMode("bulk")}
-                      className={`px-3 py-1 rounded font-semibold transition-colors ${searchMode === "bulk" ? "bg-[#0f1f33] text-white" : "text-[#0f1f33]/60 hover:bg-[#f5f0e8]"}`}
+                      className={`px-3 py-1 rounded font-semibold transition-colors ${searchMode === "bulk" ? "bg-[#0b2a4a] text-white" : "text-[#0b2a4a]/60 hover:bg-[#eef6f4]"}`}
                     >
                       Bulk File Search
                     </button>
@@ -1656,14 +1656,14 @@ export default function Home() {
                             className="crm-input"
                           />
                           {showCategoryDropdown && filteredCategories.length > 0 && (
-                            <div className="absolute left-0 right-0 top-full mt-1 z-30 bg-white border border-[#0f1f33]/10 rounded shadow-lg max-h-56 overflow-y-auto p-1">
+                            <div className="absolute left-0 right-0 top-full mt-1 z-30 bg-white border border-[#0b2a4a]/10 rounded shadow-lg max-h-56 overflow-y-auto p-1">
                               {filteredCategories.map((cat, i) => (
                                 <button
                                   key={i}
                                   type="button"
                                   onMouseDown={e => e.preventDefault()}
                                   onClick={() => { setKeyword(cat); setShowCategoryDropdown(false); }}
-                                  className="w-full text-left px-3 py-1.5 text-xs hover:bg-[#f5f0e8] rounded text-[#0f1f33]"
+                                  className="w-full text-left px-3 py-1.5 text-xs hover:bg-[#eef6f4] rounded text-[#0b2a4a]"
                                 >
                                   {cat}
                                 </button>
@@ -1748,7 +1748,7 @@ export default function Home() {
                         </div>
                       </div>
 
-                      <p className="text-xs text-[#0f1f33]/60 leading-relaxed">
+                      <p className="text-xs text-[#0b2a4a]/60 leading-relaxed">
                         {effectiveCap > 0
                           ? `Stops as soon as ${formatNumber(effectiveCap)} unique leads are saved.`
                           : searchEngine === "gmaps"
@@ -1757,12 +1757,12 @@ export default function Home() {
                       </p>
 
                       {startError && (
-                        <div className="p-3 rounded bg-[#d9b26a]/15 border border-[#d9b26a]/60 text-[#0f1f33] text-xs font-semibold">
+                        <div className="p-3 rounded bg-[#12a594]/15 border border-[#12a594]/60 text-[#0b2a4a] text-xs font-semibold">
                           {startError}
                         </div>
                       )}
 
-                      <div className="flex flex-wrap items-center gap-3 pt-3 border-t border-[#0f1f33]/[0.07]">
+                      <div className="flex flex-wrap items-center gap-3 pt-3 border-t border-[#0b2a4a]/[0.07]">
                         <button
                           type="submit"
                           disabled={isStarting || !keyword.trim() || (limitMode === "custom" && effectiveCap <= 0)}
@@ -1782,7 +1782,7 @@ export default function Home() {
                     </form>
                   ) : (
                     <form onSubmit={startBulkSearch} className="space-y-4">
-                      <div className="border border-dashed border-[#0f1f33]/20 rounded p-6 text-center bg-[#f5f0e8]">
+                      <div className="border border-dashed border-[#0b2a4a]/20 rounded p-6 text-center bg-[#eef6f4]">
                         <input
                           type="file"
                           accept=".txt,.csv"
@@ -1791,7 +1791,7 @@ export default function Home() {
                           id="bulk-file-input"
                         />
                         <label htmlFor="bulk-file-input" className="cursor-pointer block">
-                          <span className="text-xs font-semibold text-[#0f1f33]">
+                          <span className="text-xs font-semibold text-[#0b2a4a]">
                             {bulkFileName ? `File: ${bulkFileName}` : "Upload .txt or .csv queries file"}
                           </span>
                         </label>
@@ -1808,7 +1808,7 @@ export default function Home() {
                         />
                       </div>
 
-                      <p className="text-xs text-[#0f1f33]/60">
+                      <p className="text-xs text-[#0b2a4a]/60">
                         Each line runs as its own extraction using the engine and limit selected in Single Search ({searchEngine === "gmaps" ? "Google Maps" : "2GIS"}, {formatCap(effectiveCap)}).
                       </p>
 
@@ -1821,7 +1821,7 @@ export default function Home() {
                       </button>
 
                       {bulkStatusMsg && (
-                        <div className="p-3 bg-[#f5f0e8] text-[#0f1f33] text-xs rounded-[10px] border border-[#d9b26a]/50">
+                        <div className="p-3 bg-[#eef6f4] text-[#0b2a4a] text-xs rounded-[10px] border border-[#12a594]/50">
                           {bulkStatusMsg}
                         </div>
                       )}
@@ -1854,11 +1854,11 @@ export default function Home() {
                 <div className="crm-box">
                   <div className="crm-box-header flex items-center justify-between gap-2">
                     <h2 className="crm-box-title">Extraction history</h2>
-                    <span className="text-xs text-[#0f1f33]/55">{formatNumber(jobs.length)} total</span>
+                    <span className="text-xs text-[#0b2a4a]/55">{formatNumber(jobs.length)} total</span>
                   </div>
                   <div className="p-3 sm:p-4 overflow-x-auto">
                     {jobs.length === 0 ? (
-                      <div className="p-6 text-center text-xs text-[#0f1f33]/60">No extractions yet. Start one from Find Leads.</div>
+                      <div className="p-6 text-center text-xs text-[#0b2a4a]/60">No extractions yet. Start one from Find Leads.</div>
                     ) : (
                       <div className="flex gap-3 pb-1">
                         {jobs.map(j => {
@@ -1872,21 +1872,21 @@ export default function Home() {
                               tabIndex={0}
                               onClick={() => selectJob(j.id)}
                               onKeyDown={e => { if (e.key === "Enter") selectJob(j.id); }}
-                              className={`p-3 rounded border text-xs w-[240px] shrink-0 cursor-pointer transition-colors ${isSelected ? "border-[#d9b26a] bg-[#d9b26a]/10" : "border-[#0f1f33]/10 bg-white hover:border-[#0f1f33]/20"}`}
+                              className={`p-3 rounded border text-xs w-[240px] shrink-0 cursor-pointer transition-colors ${isSelected ? "border-[#12a594] bg-[#12a594]/10" : "border-[#0b2a4a]/10 bg-white hover:border-[#0b2a4a]/20"}`}
                             >
                               <div className="flex items-start justify-between gap-2">
-                                <div className="font-semibold text-[#0f1f33] capitalize truncate" title={j.target}>{j.target}</div>
+                                <div className="font-semibold text-[#0b2a4a] capitalize truncate" title={j.target}>{j.target}</div>
                                 <StatusBadge status={j.status} />
                               </div>
-                              <div className="mt-1.5 text-[11px] text-[#0f1f33]/60 truncate">
+                              <div className="mt-1.5 text-[11px] text-[#0b2a4a]/60 truncate">
                                 {j.engine === "2gis" ? "2GIS" : "Google Maps"} · {j.cap > 0 ? `Max ${formatNumber(j.cap)}` : "Unlimited"} · {formatRelative(j.created_at)}
                               </div>
-                              <div className="mt-2 font-semibold text-[#0f1f33] text-sm">
-                                {formatNumber(j.total_saved || 0)} <span className="text-[11px] font-medium text-[#0f1f33]/60">leads</span>
+                              <div className="mt-2 font-semibold text-[#0b2a4a] text-sm">
+                                {formatNumber(j.total_saved || 0)} <span className="text-[11px] font-medium text-[#0b2a4a]/60">leads</span>
                               </div>
-                              <div className="mt-1.5 h-1 rounded-full bg-[#f5f0e8] overflow-hidden">
+                              <div className="mt-1.5 h-1 rounded-full bg-[#eef6f4] overflow-hidden">
                                 <div
-                                  className={`h-full rounded-full ${active ? "bg-[#d9b26a]" : j.status === "failed" ? "bg-[#0f1f33]/30" : "bg-[#0f1f33]"} ${active && capPct === null ? "animate-pulse w-full opacity-40" : ""}`}
+                                  className={`h-full rounded-full ${active ? "bg-[#12a594]" : j.status === "failed" ? "bg-[#0b2a4a]/30" : "bg-[#0b2a4a]"} ${active && capPct === null ? "animate-pulse w-full opacity-40" : ""}`}
                                   style={capPct !== null ? { width: `${active ? capPct : 100}%` } : (active ? undefined : { width: "100%" })}
                                 />
                               </div>
@@ -1894,7 +1894,7 @@ export default function Home() {
                                 {active && (
                                   <button
                                     onClick={e => { e.stopPropagation(); stopSearch(j.id); }}
-                                    className="text-[#0f1f33] hover:underline font-semibold"
+                                    className="text-[#0b2a4a] hover:underline font-semibold"
                                   >
                                     Stop
                                   </button>
@@ -1902,13 +1902,13 @@ export default function Home() {
                                 <button
                                   onClick={e => { e.stopPropagation(); setExportJobId(j.id); }}
                                   disabled={!j.total_saved}
-                                  className="text-[#0f1f33] hover:underline font-semibold disabled:opacity-40 disabled:no-underline"
+                                  className="text-[#0b2a4a] hover:underline font-semibold disabled:opacity-40 disabled:no-underline"
                                 >
                                   Export
                                 </button>
                                 <button
                                   onClick={e => { e.stopPropagation(); deleteSearch(j.id); }}
-                                  className="text-[#0f1f33]/70 hover:underline font-semibold"
+                                  className="text-[#0b2a4a]/70 hover:underline font-semibold"
                                 >
                                   Delete
                                 </button>
@@ -1932,18 +1932,18 @@ export default function Home() {
                         {selectedJob && <StatusBadge status={selectedJob.status} />}
                       </div>
                       {resultsStats && resultsStats.total > 0 && (
-                        <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1 text-[11px] text-[#0f1f33]/60">
-                          <span><b className="text-[#0f1f33]">{formatNumber(resultsStats.total)}</b> leads</span>
-                          <span><b className="text-[#0f1f33]">{formatNumber(resultsStats.withPhone)}</b> with phone ({Math.round((resultsStats.withPhone / resultsStats.total) * 100)}%)</span>
-                          <span><b className="text-[#0f1f33]">{formatNumber(resultsStats.withWebsite)}</b> with website</span>
-                          {resultsStats.withEmail > 0 && <span><b className="text-[#0f1f33]">{formatNumber(resultsStats.withEmail)}</b> with email</span>}
+                        <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1 text-[11px] text-[#0b2a4a]/60">
+                          <span><b className="text-[#0b2a4a]">{formatNumber(resultsStats.total)}</b> leads</span>
+                          <span><b className="text-[#0b2a4a]">{formatNumber(resultsStats.withPhone)}</b> with phone ({Math.round((resultsStats.withPhone / resultsStats.total) * 100)}%)</span>
+                          <span><b className="text-[#0b2a4a]">{formatNumber(resultsStats.withWebsite)}</b> with website</span>
+                          {resultsStats.withEmail > 0 && <span><b className="text-[#0b2a4a]">{formatNumber(resultsStats.withEmail)}</b> with email</span>}
                         </div>
                       )}
                     </div>
 
                     <div className="flex items-center gap-2 w-full lg:w-auto">
                       <div className="relative flex-1 lg:flex-none">
-                        <IconSearch className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-[#0f1f33]/45" />
+                        <IconSearch className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-[#0b2a4a]/45" />
                         <input
                           type="search"
                           placeholder="Search name, phone, address..."
@@ -1966,9 +1966,9 @@ export default function Home() {
                   </div>
 
                   {loadingResults && filteredResults.length === 0 ? (
-                    <div className="p-12 text-center text-xs text-[#0f1f33]/60">Loading leads...</div>
+                    <div className="p-12 text-center text-xs text-[#0b2a4a]/60">Loading leads...</div>
                   ) : filteredResults.length === 0 ? (
-                    <div className="p-12 text-center text-sm text-[#0f1f33]/60">
+                    <div className="p-12 text-center text-sm text-[#0b2a4a]/60">
                       {debouncedFilter
                         ? `No leads match "${debouncedFilter}".`
                         : selectedJob && isActiveStatus(selectedJob.status)
@@ -1979,8 +1979,8 @@ export default function Home() {
                     <>
                       {/* Desktop / tablet table */}
                       <div className={`hidden md:block overflow-x-auto transition-opacity ${loadingResults ? "opacity-60" : ""}`}>
-                        <table className="min-w-full divide-y divide-[#0f1f33]/10 text-left text-xs">
-                          <thead className="bg-[#f5f0e8] text-[#0f1f33]/75 font-semibold uppercase tracking-wider sticky top-0">
+                        <table className="min-w-full divide-y divide-[#0b2a4a]/10 text-left text-xs">
+                          <thead className="bg-[#eef6f4] text-[#0b2a4a]/75 font-semibold uppercase tracking-wider sticky top-0">
                             <tr>
                               <th className="px-4 py-3 w-12">#</th>
                               <th className="px-4 py-3">Business</th>
@@ -1991,40 +1991,40 @@ export default function Home() {
                               <th className="px-4 py-3 text-right w-12"></th>
                             </tr>
                           </thead>
-                          <tbody className="divide-y divide-[#0f1f33]/[0.06] bg-white">
+                          <tbody className="divide-y divide-[#0b2a4a]/[0.06] bg-white">
                             {filteredResults.map((lead, idx) => (
-                              <tr key={lead.id || idx} className="hover:bg-[#f5f0e8]/60 transition-colors align-top">
-                                <td className="px-4 py-3 text-[#0f1f33]/45 tabular-nums">{resultsPage * resultsPageSize + idx + 1}</td>
+                              <tr key={lead.id || idx} className="hover:bg-[#eef6f4]/60 transition-colors align-top">
+                                <td className="px-4 py-3 text-[#0b2a4a]/45 tabular-nums">{resultsPage * resultsPageSize + idx + 1}</td>
                                 <td className="px-4 py-3 max-w-[260px]">
-                                  <div className="font-semibold text-[#0f1f33] truncate" title={lead.title}>{lead.title || "—"}</div>
-                                  {lead.category && <div className="text-[11px] text-[#0f1f33]/60 truncate">{lead.category}</div>}
+                                  <div className="font-semibold text-[#0b2a4a] truncate" title={lead.title}>{lead.title || "—"}</div>
+                                  {lead.category && <div className="text-[11px] text-[#0b2a4a]/60 truncate">{lead.category}</div>}
                                 </td>
                                 <td className="px-4 py-3 whitespace-nowrap">
                                   {lead.phone_1 ? (
-                                    <a href={`tel:${lead.phone_1}`} className="block text-[#0f1f33] hover:underline font-mono">{lead.phone_1}</a>
-                                  ) : <span className="text-[#0f1f33]/45">—</span>}
-                                  {lead.phone_2 && <a href={`tel:${lead.phone_2}`} className="block text-[#0f1f33]/60 hover:underline font-mono text-[11px]">{lead.phone_2}</a>}
+                                    <a href={`tel:${lead.phone_1}`} className="block text-[#0b2a4a] hover:underline font-mono">{lead.phone_1}</a>
+                                  ) : <span className="text-[#0b2a4a]/45">—</span>}
+                                  {lead.phone_2 && <a href={`tel:${lead.phone_2}`} className="block text-[#0b2a4a]/60 hover:underline font-mono text-[11px]">{lead.phone_2}</a>}
                                 </td>
-                                <td className="px-4 py-3 text-[#0f1f33]/75 max-w-[280px]">
+                                <td className="px-4 py-3 text-[#0b2a4a]/75 max-w-[280px]">
                                   <div className="truncate" title={lead.address || ""}>{lead.address || lead.street || "—"}</div>
                                   {(lead.city || lead.country) && (
-                                    <div className="text-[11px] text-[#0f1f33]/45 truncate">{[lead.city, lead.country].filter(Boolean).join(", ")}</div>
+                                    <div className="text-[11px] text-[#0b2a4a]/45 truncate">{[lead.city, lead.country].filter(Boolean).join(", ")}</div>
                                   )}
                                 </td>
-                                <td className="px-4 py-3 whitespace-nowrap font-medium text-[#0f1f33]">
-                                  {lead.rating ? <>{lead.rating} <span className="text-[#d9b26a]">★</span> <span className="text-[#0f1f33]/45 font-normal">({formatNumber(Number(lead.reviews) || 0)})</span></> : <span className="text-[#0f1f33]/45">—</span>}
+                                <td className="px-4 py-3 whitespace-nowrap font-medium text-[#0b2a4a]">
+                                  {lead.rating ? <>{lead.rating} <span className="text-[#12a594]">★</span> <span className="text-[#0b2a4a]/45 font-normal">({formatNumber(Number(lead.reviews) || 0)})</span></> : <span className="text-[#0b2a4a]/45">—</span>}
                                 </td>
                                 <td className="px-4 py-3 max-w-[180px] truncate">
                                   {lead.website ? (
-                                    <a href={lead.website} target="_blank" rel="noreferrer" className="text-[#0f1f33] hover:underline" title={lead.website}>
+                                    <a href={lead.website} target="_blank" rel="noreferrer" className="text-[#0b2a4a] hover:underline" title={lead.website}>
                                       {lead.website.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, "")}
                                     </a>
-                                  ) : <span className="text-[#0f1f33]/45">—</span>}
+                                  ) : <span className="text-[#0b2a4a]/45">—</span>}
                                 </td>
                                 <td className="px-4 py-3 text-right">
                                   <button
                                     onClick={() => copyToClipboard([lead.title, lead.phone_1, lead.phone_2, lead.website, lead.address].filter(Boolean).join(" | "))}
-                                    className="text-[#0f1f33]/60 hover:text-[#0f1f33] p-1"
+                                    className="text-[#0b2a4a]/60 hover:text-[#0b2a4a] p-1"
                                     title="Copy record"
                                     aria-label="Copy record"
                                   >
@@ -2038,40 +2038,40 @@ export default function Home() {
                       </div>
 
                       {/* Mobile cards */}
-                      <ul className={`md:hidden divide-y divide-[#0f1f33]/[0.06] ${loadingResults ? "opacity-60" : ""}`}>
+                      <ul className={`md:hidden divide-y divide-[#0b2a4a]/[0.06] ${loadingResults ? "opacity-60" : ""}`}>
                         {filteredResults.map((lead, idx) => (
                           <li key={lead.id || idx} className="p-4">
                             <div className="flex items-start justify-between gap-3">
                               <div className="min-w-0">
-                                <div className="font-semibold text-sm text-[#0f1f33] leading-snug">{lead.title || "—"}</div>
-                                <div className="text-[11px] text-[#0f1f33]/60 mt-0.5">
+                                <div className="font-semibold text-sm text-[#0b2a4a] leading-snug">{lead.title || "—"}</div>
+                                <div className="text-[11px] text-[#0b2a4a]/60 mt-0.5">
                                   {[lead.category, lead.rating ? `${lead.rating}★ (${formatNumber(Number(lead.reviews) || 0)})` : null].filter(Boolean).join(" · ")}
                                 </div>
                               </div>
                               <button
                                 onClick={() => copyToClipboard([lead.title, lead.phone_1, lead.phone_2, lead.website, lead.address].filter(Boolean).join(" | "))}
-                                className="text-[#0f1f33]/60 p-1.5 -m-1.5 shrink-0"
+                                className="text-[#0b2a4a]/60 p-1.5 -m-1.5 shrink-0"
                                 aria-label="Copy record"
                               >
                                 <IconCopy className="w-4 h-4" />
                               </button>
                             </div>
                             {(lead.address || lead.city) && (
-                              <div className="text-xs text-[#0f1f33]/75 mt-2">{lead.address || lead.city}</div>
+                              <div className="text-xs text-[#0b2a4a]/75 mt-2">{lead.address || lead.city}</div>
                             )}
                             <div className="flex flex-wrap gap-2 mt-3">
                               {lead.phone_1 && (
-                                <a href={`tel:${lead.phone_1}`} className="inline-flex items-center h-8 px-3 rounded-full bg-[#d9b26a]/15 text-[#0f1f33] text-xs font-semibold font-mono">
+                                <a href={`tel:${lead.phone_1}`} className="inline-flex items-center h-8 px-3 rounded-full bg-[#12a594]/15 text-[#0b2a4a] text-xs font-semibold font-mono">
                                   {lead.phone_1}
                                 </a>
                               )}
                               {lead.phone_2 && (
-                                <a href={`tel:${lead.phone_2}`} className="inline-flex items-center h-8 px-3 rounded-full bg-[#f5f0e8] text-[#0f1f33]/75 text-xs font-mono">
+                                <a href={`tel:${lead.phone_2}`} className="inline-flex items-center h-8 px-3 rounded-full bg-[#eef6f4] text-[#0b2a4a]/75 text-xs font-mono">
                                   {lead.phone_2}
                                 </a>
                               )}
                               {lead.website && (
-                                <a href={lead.website} target="_blank" rel="noreferrer" className="inline-flex items-center h-8 px-3 rounded-full bg-[#f5f0e8] text-[#0f1f33]/75 text-xs max-w-full truncate">
+                                <a href={lead.website} target="_blank" rel="noreferrer" className="inline-flex items-center h-8 px-3 rounded-full bg-[#eef6f4] text-[#0b2a4a]/75 text-xs max-w-full truncate">
                                   {lead.website.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, "")}
                                 </a>
                               )}
@@ -2081,9 +2081,9 @@ export default function Home() {
                       </ul>
 
                       {/* Pagination */}
-                      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-3 border-t border-[#0f1f33]/[0.07] text-xs text-[#0f1f33]/60">
+                      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-3 border-t border-[#0b2a4a]/[0.07] text-xs text-[#0b2a4a]/60">
                         <div>
-                          Showing <b className="text-[#0f1f33]">{formatNumber(resultsPage * resultsPageSize + 1)}–{formatNumber(Math.min(resultsTotal, (resultsPage + 1) * resultsPageSize))}</b> of <b className="text-[#0f1f33]">{formatNumber(resultsTotal)}</b>
+                          Showing <b className="text-[#0b2a4a]">{formatNumber(resultsPage * resultsPageSize + 1)}–{formatNumber(Math.min(resultsTotal, (resultsPage + 1) * resultsPageSize))}</b> of <b className="text-[#0b2a4a]">{formatNumber(resultsTotal)}</b>
                           {debouncedFilter && " matches"}
                         </div>
                         <div className="flex items-center gap-2">
@@ -2180,19 +2180,19 @@ export default function Home() {
                     <div className="flex flex-wrap gap-2">
                       <button
                         onClick={() => setAdminTab("overview")}
-                        className={`text-xs font-semibold px-2.5 py-1 rounded transition-colors ${adminTab === "overview" ? "bg-[#0f1f33] text-white" : "text-[#0f1f33]/60 hover:bg-[#f5f0e8]"}`}
+                        className={`text-xs font-semibold px-2.5 py-1 rounded transition-colors ${adminTab === "overview" ? "bg-[#0b2a4a] text-white" : "text-[#0b2a4a]/60 hover:bg-[#eef6f4]"}`}
                       >
                         Overview
                       </button>
                       <button
                         onClick={() => setAdminTab("users")}
-                        className={`text-xs font-semibold px-2.5 py-1 rounded transition-colors ${adminTab === "users" ? "bg-[#0f1f33] text-white" : "text-[#0f1f33]/60 hover:bg-[#f5f0e8]"}`}
+                        className={`text-xs font-semibold px-2.5 py-1 rounded transition-colors ${adminTab === "users" ? "bg-[#0b2a4a] text-white" : "text-[#0b2a4a]/60 hover:bg-[#eef6f4]"}`}
                       >
                         Users & Team
                       </button>
                       <button
                         onClick={() => { setAdminTab("leads"); fetchAdminGlobalLeads(token, 0); }}
-                        className={`text-xs font-semibold px-2.5 py-1 rounded transition-colors ${adminTab === "leads" ? "bg-[#0f1f33] text-white" : "text-[#0f1f33]/60 hover:bg-[#f5f0e8]"}`}
+                        className={`text-xs font-semibold px-2.5 py-1 rounded transition-colors ${adminTab === "leads" ? "bg-[#0b2a4a] text-white" : "text-[#0b2a4a]/60 hover:bg-[#eef6f4]"}`}
                       >
                         All Leads
                       </button>
@@ -2212,29 +2212,29 @@ export default function Home() {
                 <div className="p-4 sm:p-6">
                   {adminTab === "overview" && adminStats && (
                     <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-                      <div className="p-4 bg-[#f5f0e8] border border-[#0f1f33]/10 rounded">
+                      <div className="p-4 bg-[#eef6f4] border border-[#0b2a4a]/10 rounded">
                         <span className="crm-label">Total Users</span>
-                        <span className="text-2xl font-bold text-[#0f1f33]">{adminStats.totalUsers || 0}</span>
+                        <span className="text-2xl font-bold text-[#0b2a4a]">{adminStats.totalUsers || 0}</span>
                       </div>
-                      <div className="p-4 bg-[#f5f0e8] border border-[#0f1f33]/10 rounded">
+                      <div className="p-4 bg-[#eef6f4] border border-[#0b2a4a]/10 rounded">
                         <span className="crm-label">Total Extractions</span>
-                        <span className="text-2xl font-bold text-[#0f1f33]">{adminStats.totalJobs || 0}</span>
+                        <span className="text-2xl font-bold text-[#0b2a4a]">{adminStats.totalJobs || 0}</span>
                       </div>
-                      <div className="p-4 bg-[#f5f0e8] border border-[#0f1f33]/10 rounded">
+                      <div className="p-4 bg-[#eef6f4] border border-[#0b2a4a]/10 rounded">
                         <span className="crm-label">Total Stored Leads</span>
-                        <span className="text-2xl font-bold text-[#0f1f33]">{adminStats.totalLeads || 0}</span>
+                        <span className="text-2xl font-bold text-[#0b2a4a]">{adminStats.totalLeads || 0}</span>
                       </div>
-                      <div className="p-4 bg-[#f5f0e8] border border-[#0f1f33]/10 rounded">
+                      <div className="p-4 bg-[#eef6f4] border border-[#0b2a4a]/10 rounded">
                         <span className="crm-label">Running Tasks</span>
-                        <span className="text-2xl font-bold text-[#0f1f33]">{adminStats.runningJobs || 0}</span>
+                        <span className="text-2xl font-bold text-[#0b2a4a]">{adminStats.runningJobs || 0}</span>
                       </div>
                     </div>
                   )}
 
                   {adminTab === "users" && (
                     <div className="overflow-x-auto">
-                      <table className="min-w-full divide-y divide-[#0f1f33]/10 text-left text-xs">
-                        <thead className="bg-[#f5f0e8] text-[#0f1f33]/75 font-semibold uppercase tracking-wider">
+                      <table className="min-w-full divide-y divide-[#0b2a4a]/10 text-left text-xs">
+                        <thead className="bg-[#eef6f4] text-[#0b2a4a]/75 font-semibold uppercase tracking-wider">
                           <tr>
                             <th className="px-4 py-3">Name</th>
                             <th className="px-4 py-3">Username</th>
@@ -2244,15 +2244,15 @@ export default function Home() {
                             <th className="px-4 py-3">Created</th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-[#0f1f33]/[0.06] bg-white">
+                        <tbody className="divide-y divide-[#0b2a4a]/[0.06] bg-white">
                           {adminUsers.map(u => (
-                            <tr key={u.id} className="hover:bg-[#f5f0e8]/60">
-                              <td className="px-4 py-3 font-semibold text-[#0f1f33]">{u.name}</td>
-                              <td className="px-4 py-3 font-mono text-[#0f1f33]/60">@{u.username}</td>
+                            <tr key={u.id} className="hover:bg-[#eef6f4]/60">
+                              <td className="px-4 py-3 font-semibold text-[#0b2a4a]">{u.name}</td>
+                              <td className="px-4 py-3 font-mono text-[#0b2a4a]/60">@{u.username}</td>
                               <td className="px-4 py-3">{u.email}</td>
                               <td className="px-4 py-3 font-semibold uppercase">{u.role}</td>
                               <td className="px-4 py-3">{u.status}</td>
-                              <td className="px-4 py-3 text-[#0f1f33]/60">{new Date(u.created_at).toLocaleDateString()}</td>
+                              <td className="px-4 py-3 text-[#0b2a4a]/60">{new Date(u.created_at).toLocaleDateString()}</td>
                             </tr>
                           ))}
                         </tbody>
@@ -2262,8 +2262,8 @@ export default function Home() {
 
                   {adminTab === "leads" && (
                     <div className="overflow-x-auto">
-                      <table className="min-w-full divide-y divide-[#0f1f33]/10 text-left text-xs">
-                        <thead className="bg-[#f5f0e8] text-[#0f1f33]/75 font-semibold uppercase tracking-wider">
+                      <table className="min-w-full divide-y divide-[#0b2a4a]/10 text-left text-xs">
+                        <thead className="bg-[#eef6f4] text-[#0b2a4a]/75 font-semibold uppercase tracking-wider">
                           <tr>
                             <th className="px-4 py-3">Title</th>
                             <th className="px-4 py-3">Phone</th>
@@ -2272,19 +2272,19 @@ export default function Home() {
                             <th className="px-4 py-3">Rating</th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-[#0f1f33]/[0.06] bg-white">
+                        <tbody className="divide-y divide-[#0b2a4a]/[0.06] bg-white">
                           {adminGlobalLeads.map((l, i) => (
-                            <tr key={i} className="hover:bg-[#f5f0e8]/60">
-                              <td className="px-4 py-3 font-semibold text-[#0f1f33]">{l.title}</td>
+                            <tr key={i} className="hover:bg-[#eef6f4]/60">
+                              <td className="px-4 py-3 font-semibold text-[#0b2a4a]">{l.title}</td>
                               <td className="px-4 py-3 font-mono">{l.phone_1 || "—"}</td>
-                              <td className="px-4 py-3 text-[#0f1f33]/75 max-w-[200px] truncate">{l.address || "—"}</td>
-                              <td className="px-4 py-3 text-[#0f1f33]/60">{l.category || "—"}</td>
+                              <td className="px-4 py-3 text-[#0b2a4a]/75 max-w-[200px] truncate">{l.address || "—"}</td>
+                              <td className="px-4 py-3 text-[#0b2a4a]/60">{l.category || "—"}</td>
                               <td className="px-4 py-3">{l.rating || "—"}</td>
                             </tr>
                           ))}
                         </tbody>
                       </table>
-                      <div className="flex items-center justify-between gap-3 pt-3 text-xs text-[#0f1f33]/60">
+                      <div className="flex items-center justify-between gap-3 pt-3 text-xs text-[#0b2a4a]/60">
                         <span>
                           {adminLeadsTotal > 0
                             ? `Showing ${formatNumber(adminLeadsPage * 100 + 1)}–${formatNumber(Math.min(adminLeadsTotal, (adminLeadsPage + 1) * 100))} of ${formatNumber(adminLeadsTotal)}`
