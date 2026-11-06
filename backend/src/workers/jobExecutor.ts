@@ -4,8 +4,8 @@ import { ScrapedLead } from '../scrapers/types';
 
 const scraperManager = new ScraperManager();
 
-export async function executeJob(data: { jobId: string; engine: string; target: string; cap: number; proxy?: string }, onProgress?: (saved: number) => Promise<void>) {
-  const { jobId, engine, target, cap, proxy } = data;
+export async function executeJob(data: { jobId: string; engine: string; target: string; cap: number; proxy?: string; scope?: 'exact' | 'extended' }, onProgress?: (saved: number) => Promise<void>) {
+  const { jobId, engine, target, cap, proxy, scope } = data;
 
   try {
     await query('UPDATE jobs SET status = $1 WHERE id = $2', ['running', jobId]);
@@ -141,7 +141,7 @@ export async function executeJob(data: { jobId: string; engine: string; target: 
 
     await scraperManager.run(
       engine as 'gmaps' | '2gis',
-      { query: target, cap, jobId, proxy, concurrency },
+      { query: target, cap, jobId, proxy, concurrency, scope },
       { checkCancelled, log, updateProgress, saveLead }
     );
 

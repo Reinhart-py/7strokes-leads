@@ -4,7 +4,20 @@ All notable changes, version upgrades, and development milestones for 7strokes a
 
 ---
 
-## [v2.5.0] — True Unlimited Extraction, Data Accuracy & Responsive Leads Workspace (Current)
+## [v2.6.0] — Exact vs Extended Location Search (Current)
+
+### Added
+- **Search area option** on Find Leads (single and bulk): *Exact location* keeps only businesses inside the typed place; *Extended area* also includes the surroundings (about 3 km around a building or street, the whole city for a city). The choice is saved on each extraction and shown on its card.
+- Precise place lookup: the typed location is pinned via Google Maps first, then OpenStreetMap, and classified as a country, city, neighbourhood or single building.
+
+### Fixed
+- Searching a building such as "Regal Tower, Dubai" no longer sweeps the whole of Dubai: the location used to be matched to the city because the text ended in "Dubai".
+- In Exact mode every lead is checked against the place: its address must name the building/area, or (when the address does not) its map pin must be within ~80 m of the building or inside the neighbourhood.
+- 2GIS no longer writes the searched district in as a business's address when the listing has none.
+
+---
+
+## [v2.5.0] — True Unlimited Extraction, Data Accuracy & Responsive Leads Workspace
 
 ### Changed
 - **Unlimited now means unlimited**: Google Maps searches first query every named area, then sweep the whole city (or every city of a country) with an adaptive map grid. Any cell that fills all result pages is split into four smaller cells and searched again, down to ~0.5 km, until no new businesses appear.

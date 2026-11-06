@@ -95,6 +95,12 @@ export class GeoGrid {
     tokyo: { minLat: 35.50, minLon: 139.50, maxLat: 35.85, maxLon: 139.95 }
   };
 
+  /** Exact city-name match only (no "dubai_marina" -> "dubai" style widening). */
+  public static getKnownCityExact(cityName: string): GridBoundingBox | null {
+    const key = cityName.toLowerCase().trim().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+    return key ? this.KNOWN_CITY_BBOX[key] || null : null;
+  }
+
   public static getBoundingBoxForCity(cityName: string): GridBoundingBox | null {
     const key = cityName.toLowerCase().trim().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
     if (!key) return null;

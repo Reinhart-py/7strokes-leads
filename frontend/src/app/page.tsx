@@ -68,6 +68,56 @@ const formatNumber = (n: number) => new Intl.NumberFormat("en-US").format(n || 0
 
 const formatCap = (cap?: number) => (cap && cap > 0 ? formatNumber(cap) : "Unlimited");
 
+const scopeLabel = (scope?: string) => (scope === "exact" ? "Exact" : "Extended");
+
+const ScopeToggle = ({
+  value,
+  onChange,
+  locationLabel
+}: {
+  value: "exact" | "extended";
+  onChange: (v: "exact" | "extended") => void;
+  locationLabel: string;
+}) => (
+  <div>
+    <label className="crm-label">Search area</label>
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2" role="radiogroup" aria-label="Search area">
+      {([
+        {
+          key: "exact" as const,
+          title: "Exact location",
+          body: `Only businesses inside ${locationLabel}. Nearby buildings and streets are left out.`
+        },
+        {
+          key: "extended" as const,
+          title: "Extended area",
+          body: `${locationLabel.charAt(0).toUpperCase() + locationLabel.slice(1)} plus the surrounding area (about 3 km for a building or street, the whole city for a city).`
+        }
+      ]).map(opt => {
+        const active = value === opt.key;
+        return (
+          <button
+            key={opt.key}
+            type="button"
+            role="radio"
+            aria-checked={active}
+            onClick={() => onChange(opt.key)}
+            className={`text-left rounded-xl border p-3.5 transition-colors ${active ? "border-[#12a594] bg-[#12a594]/[0.07] ring-1 ring-[#12a594]" : "border-[#0b2a4a]/12 bg-white hover:border-[#0b2a4a]/25"}`}
+          >
+            <span className="flex items-center gap-2">
+              <span className={`w-4 h-4 rounded-full border-2 inline-flex items-center justify-center shrink-0 ${active ? "border-[#12a594]" : "border-[#0b2a4a]/25"}`}>
+                {active && <span className="w-2 h-2 rounded-full bg-[#12a594]" />}
+              </span>
+              <span className="text-[13px] font-bold">{opt.title}</span>
+            </span>
+            <span className="block text-xs text-[#0b2a4a]/60 mt-1.5 leading-relaxed">{opt.body}</span>
+          </button>
+        );
+      })}
+    </div>
+  </div>
+);
+
 const parseServerDate = (value?: string) => {
   if (!value) return null;
   // SQLite returns "YYYY-MM-DD HH:MM:SS" in UTC without a zone marker.
@@ -420,6 +470,7 @@ export default function Home() {
   const [profileMsg, setProfileMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   const [searchMode, setSearchMode] = useState<"single" | "bulk">("single");
+  const [searchScope, setSearchScope] = useState<"exact" | "extended">("exact");
   const [bulkQueriesText, setBulkQueriesText] = useState("");
   const [bulkFileName, setBulkFileName] = useState("");
   const [isBulkStarting, setIsBulkStarting] = useState(false);
@@ -691,6 +742,7 @@ export default function Home() {
           engine: searchEngine,
           target: targetQuery,
           cap: effectiveCap,
+          scope: searchScope,
           proxy: userProxy.trim()
         })
       });
@@ -751,6 +803,7 @@ export default function Home() {
           engine: searchEngine,
           queries,
           cap: effectiveCap,
+          scope: searchScope,
           proxy: userProxy.trim() || undefined
         })
       });
@@ -1570,7 +1623,7 @@ export default function Home() {
                               </span>
                               <span className="flex-1 min-w-0">
                                 <span className="block text-[13.5px] font-semibold capitalize truncate">{j.target}</span>
-                                <span className="block text-[11.5px] text-[#0b2a4a]/55">{j.engine === "2gis" ? "2GIS" : "Google Maps"} · {j.cap > 0 ? `Max ${formatNumber(j.cap)}` : "Unlimited"} · {formatRelative(j.created_at)}</span>
+                                <span className="block text-[11.5px] text-[#0b2a4a]/55">{j.engine === "2gis" ? "2GIS" : "Google Maps"} · {scopeLabel(j.scope)} · {j.cap > 0 ? `Max ${formatNumber(j.cap)}` : "Unlimited"} · {formatRelative(j.created_at)}</span>
                               </span>
                               <span className="hidden sm:block"><StatusBadge status={j.status} /></span>
                               <span className="w-20 text-right">
@@ -1748,6 +1801,12 @@ export default function Home() {
                         </div>
                       </div>
 
+                      <ScopeToggle
+                        value={searchScope}
+                        onChange={setSearchScope}
+                        locationLabel={(searchEngine === "2gis" ? twoGisCity : location).trim() ? `"${(searchEngine === "2gis" ? twoGisCity : location).trim()}"` : "the location you enter"}
+                      />
+
                       <p className="text-xs text-[#0b2a4a]/60 leading-relaxed">
                         {effectiveCap > 0
                           ? `Stops as soon as ${formatNumber(effectiveCap)} unique leads are saved.`
@@ -1807,6 +1866,8 @@ export default function Home() {
                           className="crm-input h-auto py-2 font-mono"
                         />
                       </div>
+
+                      <ScopeToggle value={searchScope} onChange={setSearchScope} locationLabel="each line's location" />
 
                       <p className="text-xs text-[#0b2a4a]/60">
                         Each line runs as its own extraction using the engine and limit selected in Single Search ({searchEngine === "gmaps" ? "Google Maps" : "2GIS"}, {formatCap(effectiveCap)}).
@@ -1879,7 +1940,7 @@ export default function Home() {
                                 <StatusBadge status={j.status} />
                               </div>
                               <div className="mt-1.5 text-[11px] text-[#0b2a4a]/60 truncate">
-                                {j.engine === "2gis" ? "2GIS" : "Google Maps"} · {j.cap > 0 ? `Max ${formatNumber(j.cap)}` : "Unlimited"} · {formatRelative(j.created_at)}
+                                {j.engine === "2gis" ? "2GIS" : "Google Maps"} · {scopeLabel(j.scope)} · {j.cap > 0 ? `Max ${formatNumber(j.cap)}` : "Unlimited"} · {formatRelative(j.created_at)}
                               </div>
                               <div className="mt-2 font-semibold text-[#0b2a4a] text-sm">
                                 {formatNumber(j.total_saved || 0)} <span className="text-[11px] font-medium text-[#0b2a4a]/60">leads</span>

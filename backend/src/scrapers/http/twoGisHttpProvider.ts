@@ -180,7 +180,8 @@ export class TwoGisHttpProvider implements IScraperProvider {
 
     const cityKey = region.city.toLowerCase();
     const availableDistricts = REGION_DISTRICTS[region.citySlug] || REGION_DISTRICTS[cityKey] || [];
-    const targetAreas = [''].concat(availableDistricts);
+    // A specific building/area: search "<keyword> <place>" only, not every district of the city.
+    const targetAreas = options.placeName ? [options.placeName] : [''].concat(availableDistricts);
 
     for (const district of targetAreas) {
       if (await checkCancelled()) break;
@@ -288,9 +289,9 @@ export class TwoGisHttpProvider implements IScraperProvider {
               if (addressMatch && addressMatch[1]) {
                 street = addressMatch[1].trim();
                 fullAddress = `${street}, ${region.city}, ${region.country}`;
-              } else if (district) {
-                fullAddress = `${district}, ${region.city}, ${region.country}`;
-                street = district;
+              } else {
+                // No address on the page: don't pretend the business is in the searched district.
+                fullAddress = `${region.city}, ${region.country}`;
               }
 
               let category = cleanKeyword;

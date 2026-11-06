@@ -12,8 +12,14 @@ const pgPool = new Pool({
   connectionTimeoutMillis: 2000
 });
 
-pgPool.connect().then(client => {
+pgPool.connect().then(async client => {
   isPgHealthy = true;
+  try {
+    await client.query('ALTER TABLE jobs ADD COLUMN IF NOT EXISTS proxy_url TEXT');
+    await client.query("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS scope VARCHAR(20) DEFAULT 'extended'");
+  } catch (err: any) {
+    console.log(`PostgreSQL migration skipped: ${err.message}`);
+  }
   client.release();
   console.log('Connected to PostgreSQL database');
 }).catch(() => {
@@ -103,6 +109,7 @@ function initSqlite() {
     sqliteDb?.run('ALTER TABLE users ADD COLUMN manager_id TEXT', () => {});
     sqliteDb?.run("UPDATE users SET username = 'admin' WHERE id = 'admin-001' AND (username IS NULL OR username = '')", () => {});
     sqliteDb?.run('ALTER TABLE jobs ADD COLUMN proxy_url TEXT', () => {});
+    sqliteDb?.run("ALTER TABLE jobs ADD COLUMN scope TEXT DEFAULT 'extended'", () => {});
     sqliteDb?.run(`
       CREATE TABLE IF NOT EXISTS settings (
         key TEXT PRIMARY KEY,

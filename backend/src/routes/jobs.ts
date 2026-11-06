@@ -76,11 +76,16 @@ function normalizeEngine(raw: any): 'gmaps' | '2gis' {
   return raw === '2gis' ? '2gis' : 'gmaps';
 }
 
+function normalizeScope(raw: any): 'exact' | 'extended' {
+  return raw === 'exact' ? 'exact' : 'extended';
+}
+
 router.post('/', async (req: AuthRequest, res) => {
   try {
     const { proxy } = req.body;
     const engine = normalizeEngine(req.body.engine);
     const cap = normalizeCap(req.body.cap);
+    const scope = normalizeScope(req.body.scope);
     const target = typeof req.body.target === 'string' ? req.body.target.trim() : '';
     if (!target) return res.status(400).json({ error: 'Search target is required' });
     const userId = req.user?.id;
@@ -106,12 +111,12 @@ router.post('/', async (req: AuthRequest, res) => {
     }
 
     const result = await query(
-      'INSERT INTO jobs (user_id, engine, target, cap, proxy_url) VALUES ($1, $2, $3, $4, $5) RETURNING *',
-      [userId, engine, target, cap, effectiveProxy || null]
+      'INSERT INTO jobs (user_id, engine, target, cap, proxy_url, scope) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+      [userId, engine, target, cap, effectiveProxy || null, scope]
     );
     const job = result.rows[0];
 
-    await addScraperJob(job.id, engine, target, cap, userId as string, effectiveProxy || undefined);
+    await addScraperJob(job.id, engine, target, cap, userId as string, effectiveProxy || undefined, scope);
 
     res.json(job);
   } catch (err) {
@@ -125,6 +130,7 @@ router.post('/batch', async (req: AuthRequest, res) => {
     const { queries, proxy } = req.body;
     const engine = normalizeEngine(req.body.engine);
     const cap = normalizeCap(req.body.cap);
+    const scope = normalizeScope(req.body.scope);
     const userId = req.user?.id;
 
     if (!Array.isArray(queries) || queries.length === 0) {
@@ -157,11 +163,11 @@ router.post('/batch', async (req: AuthRequest, res) => {
       if (!trimmed) continue;
 
       const result = await query(
-        'INSERT INTO jobs (user_id, engine, target, cap, proxy_url) VALUES ($1, $2, $3, $4, $5) RETURNING *',
-        [userId, engine, trimmed, cap, effectiveProxy || null]
+        'INSERT INTO jobs (user_id, engine, target, cap, proxy_url, scope) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+        [userId, engine, trimmed, cap, effectiveProxy || null, scope]
       );
       const job = result.rows[0];
-      await addScraperJob(job.id, engine, trimmed, cap, userId as string, effectiveProxy || undefined);
+      await addScraperJob(job.id, engine, trimmed, cap, userId as string, effectiveProxy || undefined, scope);
       createdJobs.push(job);
     }
 

@@ -88,6 +88,34 @@ export class GmapsHttpProvider implements IScraperProvider {
     return '';
   }
 
+  /**
+   * Looks a place up on Google Maps ("Regal Tower, Dubai") and returns the best
+   * match with its exact coordinates. Used to pin Exact-mode searches.
+   */
+  public async lookupPlace(text: string, proxy?: string) {
+    const dispatcher = this.getDispatcher(proxy);
+    const urls = [
+      `https://www.google.com/search?tbm=map&authuser=0&hl=en&gl=us&q=${encodeURIComponent(text)}&tch=1&ech=1`,
+      `https://www.google.com/maps/search/${encodeURIComponent(text)}?hl=en`
+    ];
+    for (const url of urls) {
+      const raw = await this.fetchEndpoint(url, dispatcher).catch(() => '');
+      const hit = GmapsParser.parseSearchResponse(raw, text).find(
+        l => typeof l.latitude === 'number' && typeof l.longitude === 'number'
+      );
+      if (hit) {
+        return {
+          title: hit.title,
+          lat: hit.latitude as number,
+          lon: hit.longitude as number,
+          categories: hit.categories || (hit.category ? [hit.category] : []),
+          address: hit.address
+        };
+      }
+    }
+    return null;
+  }
+
   public async search(options: ScraperOptions, control: ScraperControl): Promise<ScrapedLead[]> {
     return (await this.searchArea(options, control)).leads;
   }

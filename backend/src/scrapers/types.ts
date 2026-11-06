@@ -57,6 +57,10 @@ export interface ScraperOptions {
   proxy?: string;
   seenKeys?: Set<string>;
   concurrency?: number;
+  /** 'exact' keeps only leads inside the typed place; 'extended' also includes the surroundings. */
+  scope?: 'exact' | 'extended';
+  /** Exact building/area name for providers that search by text (2GIS). */
+  placeName?: string;
 }
 
 export interface ScraperControl {
