@@ -40,6 +40,23 @@ export interface GridCell {
   lon: number;
 }
 
+export type SearchScope = 'exact' | 'extended' | 'map';
+
+export interface GeoCenter {
+  lat: number;
+  lon: number;
+  label?: string;
+  kind?: 'country' | 'city' | 'area' | 'point';
+  bbox?: GridBoundingBox;
+}
+
+/** Location settings stored on a job and handed to the scraper. */
+export interface JobGeo {
+  keyword?: string;
+  center?: GeoCenter;
+  radiusKm?: number;
+}
+
 export interface ScraperOptions {
   query: string;
   city?: string;
@@ -57,8 +74,18 @@ export interface ScraperOptions {
   proxy?: string;
   seenKeys?: Set<string>;
   concurrency?: number;
-  /** 'exact' keeps only leads inside the typed place; 'extended' also includes the surroundings. */
-  scope?: 'exact' | 'extended';
+  /**
+   * exact    - only leads inside the typed place
+   * extended - leads within `radiusKm` of the place
+   * map      - leads within `radiusKm` of a pin dropped on the map
+   */
+  scope?: SearchScope;
+  /** Business keyword, when the client sends it separately from the target text. */
+  keyword?: string;
+  /** A point the user picked (location suggestion or map pin). Skips geocoding. */
+  center?: GeoCenter;
+  /** Search radius for 'extended' and 'map'. */
+  radiusKm?: number;
   /** Exact building/area name for providers that search by text (2GIS). */
   placeName?: string;
 }

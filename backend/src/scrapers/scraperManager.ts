@@ -7,7 +7,8 @@ import { GmapsPlaywrightFallback } from './playwright/gmapsPlaywrightFallback';
 import { TwoGisPlaywrightFallback } from './playwright/twoGisPlaywrightFallback';
 import { GeographicPartitioner, SearchPartition } from './partitioner';
 import { GeoGrid } from './grid/geoGrid';
-import { LocationResolver, ResolvedPlace } from './locationResolver';
+import { LocationResolver, ResolvedPlace, distanceKm } from './locationResolver';
+import { SearchScope } from './types';
 
 export class ScraperManager {
   private gmapsHttp = new GmapsHttpProvider();
@@ -85,6 +86,23 @@ export class ScraperManager {
     return [{ query }, { query: `${keyword} ${place.full}` }];
   }
 
+  /** Phase-1 queries around a point for radius / map-pin searches. */
+  private buildRadiusPartitions(keyword: string, place: ResolvedPlace, radiusKm: number, scope: SearchScope): SearchPartition[] {
+    const at = { lat: place.lat!, lon: place.lon! };
+    const zoom = ScraperManager.zoomForCell(radiusKm * 2, place.lat!);
+    const parts: SearchPartition[] = [
+      { query: keyword, ...at, zoom },
+      { query: keyword, ...at, zoom: Math.min(19, zoom + 1) }
+    ];
+    if (scope === 'extended' && place.source !== 'map-pin') {
+      parts.unshift(
+        { query: `${keyword} in ${place.full}`, ...at, zoom },
+        { query: `${keyword} near ${place.full}`, ...at, zoom }
+      );
+    }
+    return parts;
+  }
+
   /** Map zoom whose 1280px-wide viewport roughly covers a cell of `sizeKm`. */
   private static zoomForCell(sizeKm: number, lat: number): number {
     const cosLat = Math.max(Math.cos((lat * Math.PI) / 180), 0.05);
@@ -129,16 +147,47 @@ export class ScraperManager {
       }
     };
 
-    const scope: 'exact' | 'extended' = options.scope === 'extended' ? 'extended' : 'exact';
-    const { keyword, location } = GeographicPartitioner.parseTarget(query, options.city);
+    let scope: SearchScope = options.scope === 'extended' || options.scope === 'map' ? options.scope : 'exact';
+    const parsed = GeographicPartitioner.parseTarget(query, options.city);
+    const keyword = (options.keyword || '').trim() || parsed.keyword;
+    const location = options.center?.label?.trim() || parsed.location;
     let place: ResolvedPlace | null = null;
-    if (location) {
+
+    if (options.center && Number.isFinite(options.center.lat) && Number.isFinite(options.center.lon)) {
+      // The user picked this exact point (a suggestion or a map pin): no geocoding guesswork.
+      const label = options.center.label?.trim() || `${options.center.lat.toFixed(5)}, ${options.center.lon.toFixed(5)}`;
+      const [first, ...rest] = label.split(',');
+      place = {
+        kind: options.center.kind || 'point',
+        name: first.trim(),
+        context: rest.join(',').trim(),
+        full: label,
+        lat: options.center.lat,
+        lon: options.center.lon,
+        bbox: options.center.bbox,
+        source: scope === 'map' ? 'map-pin' : 'suggestion'
+      };
+    } else if (location) {
       place = await LocationResolver.resolve(location, (text) => this.gmapsHttp.lookupPlace(text, options.proxy));
-      await log(`[Location] ${LocationResolver.describe(place)} | scope: ${scope}`);
     }
 
-    // Exact mode: every candidate must actually be inside the typed place.
-    const insidePlace = scope === 'exact' && place ? LocationResolver.buildExactFilter(place) : null;
+    const radiusKm = Math.min(100, Math.max(0.05, options.radiusKm && options.radiusKm > 0 ? options.radiusKm : 3));
+    if (scope !== 'exact' && (!place || place.lat === undefined)) {
+      await log(`[Location] Could not pin "${location}" on the map, so a radius can't be measured: using Exact matching instead`);
+      scope = 'exact';
+    }
+    if (place) {
+      await log(`[Location] ${LocationResolver.describe(place)} | scope: ${scope}${scope === 'exact' ? '' : ` | radius ${radiusKm < 1 ? `${Math.round(radiusKm * 1000)} m` : `${radiusKm} km`}`}`);
+    }
+
+    // Exact: the lead must be inside the typed place.
+    // Extended / map: the lead's pin must be within the chosen radius of the point.
+    const insidePlace: ((lead: ScrapedLead) => boolean) | null =
+      scope === 'exact'
+        ? (place ? LocationResolver.buildExactFilter(place) : null)
+        : (lead: ScrapedLead) =>
+            typeof lead.latitude === 'number' && typeof lead.longitude === 'number' &&
+            distanceKm(lead.latitude, lead.longitude, place!.lat!, place!.lon!) <= radiusKm;
     const rejectedKeys = new Set<string>();
 
     const handleSave = async (lead: ScrapedLead) => {
@@ -167,7 +216,9 @@ export class ScraperManager {
 
     if (engine === 'gmaps') {
       // Phase 1: named-area queries (country cities, city neighbourhoods, or the exact place)
-      const partitions = await this.buildPartitions(options, keyword, place, scope);
+      const partitions = scope === 'exact'
+        ? await this.buildPartitions(options, keyword, place, 'exact')
+        : this.buildRadiusPartitions(keyword, place!, radiusKm, scope);
       await log(`[Phase 1] Searching ${partitions.length} targeted queries`);
 
       await runWorkQueue(partitions, concurrency, async (partition) => {
@@ -208,7 +259,9 @@ export class ScraperManager {
       // viewport, so any cell that fills every page is split into four smaller
       // cells and searched again, until results stop growing.
       if (!(await shouldStop())) {
-        const areas = await this.getSweepAreas(options, place, scope);
+        const areas = scope === 'exact'
+          ? await this.getSweepAreas(options, place, 'exact')
+          : [{ name: place!.full, bbox: GeoGrid.getBoundingBoxFromCenter(place!.lat!, place!.lon!, radiusKm) }];
         // Cell size follows the area: ~4 km for cities, a few hundred metres around a single tower.
         const widestKm = Math.max(0, ...areas.map(a => (a.bbox.maxLat - a.bbox.minLat) * 111.32));
         const initialSizeKm = options.cellSizeKm && options.cellSizeKm > 0
@@ -220,6 +273,8 @@ export class ScraperManager {
         const cells: Cell[] = [];
         for (const area of areas) {
           for (const c of GeoGrid.generateCells(area.bbox, initialSizeKm)) {
+            // Radius searches: skip cells entirely outside the circle.
+            if (scope !== 'exact' && distanceKm(c.lat, c.lon, place!.lat!, place!.lon!) > radiusKm + initialSizeKm * 0.71) continue;
             cells.push({ lat: c.lat, lon: c.lon, sizeKm: initialSizeKm });
           }
         }
@@ -280,8 +335,9 @@ export class ScraperManager {
     }
 
     await reportProgress(true);
-    if (insidePlace) {
-      await log(`[Exact] Kept ${allLeads.length} leads inside "${place!.full}", skipped ${rejectedKeys.size} nearby businesses outside it`);
+    if (insidePlace && place) {
+      const where = scope === 'exact' ? `inside "${place.full}"` : `within ${radiusKm < 1 ? `${Math.round(radiusKm * 1000)} m` : `${radiusKm} km`} of "${place.full}"`;
+      await log(`[${scope === 'exact' ? 'Exact' : 'Radius'}] Kept ${allLeads.length} leads ${where}, skipped ${rejectedKeys.size} businesses outside it`);
     }
     await log(`Extraction finished. Total unique leads collected: ${allLeads.length}`);
     return allLeads;

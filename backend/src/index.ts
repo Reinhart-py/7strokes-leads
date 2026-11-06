@@ -4,6 +4,8 @@ import dotenv from 'dotenv';
 import authRoutes from './routes/auth';
 import jobsRoutes from './routes/jobs';
 import adminRoutes from './routes/admin';
+import placesRoutes from './routes/places';
+import leadsRoutes from './routes/leads';
 
 process.env.UV_THREADPOOL_SIZE = process.env.UV_THREADPOOL_SIZE || '16';
 
@@ -31,6 +33,8 @@ app.use(express.json());
 app.use('/api/auth', authRoutes);
 app.use('/api/jobs', jobsRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/places', placesRoutes);
+app.use('/api/leads', leadsRoutes);
 
 app.get('/', (req, res) => {
   res.setHeader('Content-Type', 'text/html; charset=utf-8');

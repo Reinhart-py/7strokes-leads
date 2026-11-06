@@ -22,6 +22,11 @@ CREATE TABLE IF NOT EXISTS jobs (
     last_step INTEGER DEFAULT 0,
     proxy_url TEXT,
     scope VARCHAR(20) DEFAULT 'exact',
+    radius_m INTEGER,
+    center_lat DOUBLE PRECISION,
+    center_lon DOUBLE PRECISION,
+    center_label TEXT,
+    keyword TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );

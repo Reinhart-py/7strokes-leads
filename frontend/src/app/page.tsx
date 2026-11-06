@@ -3,6 +3,19 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
 import Sidebar, { NavItem } from "./Sidebar";
+import dynamic from "next/dynamic";
+import LocationSearch, { PlaceSuggestion } from "./LocationSearch";
+import RadiusPicker, { formatRadius } from "./RadiusPicker";
+import NewListings from "./NewListings";
+import type { LatLon } from "./MapPicker";
+
+// Leaflet needs the browser; load the map only on the client.
+const MapPicker = dynamic(() => import("./MapPicker"), {
+  ssr: false,
+  loading: () => <div className="h-[340px] rounded-xl bg-[#eef6f4] ring-1 ring-[#0b2a4a]/10 flex items-center justify-center text-xs text-[#0b2a4a]/60">Loading map...</div>
+});
+
+const DEFAULT_PIN: LatLon = { lat: 25.2048, lon: 55.2708 };
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 const LOGO_IMG = "https://ik.imagekit.io/Reinhart/nox/7strokeslogo.png";
@@ -68,55 +81,64 @@ const formatNumber = (n: number) => new Intl.NumberFormat("en-US").format(n || 0
 
 const formatCap = (cap?: number) => (cap && cap > 0 ? formatNumber(cap) : "Unlimited");
 
-const scopeLabel = (scope?: string) => (scope === "exact" ? "Exact" : "Extended");
+type Scope = "exact" | "extended" | "map";
+
+const scopeLabel = (job: { scope?: string; radius_m?: number | null }) =>
+  job.scope === "map"
+    ? `Map pin · ${formatRadius(job.radius_m || 3000)}`
+    : job.scope === "extended"
+      ? `${formatRadius(job.radius_m || 3000)} radius`
+      : "Exact";
 
 const ScopeToggle = ({
   value,
   onChange,
-  locationLabel
+  locationLabel,
+  allowMap = true,
+  allowRadius = true
 }: {
-  value: "exact" | "extended";
-  onChange: (v: "exact" | "extended") => void;
+  value: Scope;
+  onChange: (v: Scope) => void;
   locationLabel: string;
-}) => (
-  <div>
-    <label className="crm-label">Search area</label>
-    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2" role="radiogroup" aria-label="Search area">
-      {([
-        {
-          key: "exact" as const,
-          title: "Exact location",
-          body: `Only businesses inside ${locationLabel}. Nearby buildings and streets are left out.`
-        },
-        {
-          key: "extended" as const,
-          title: "Extended area",
-          body: `${locationLabel.charAt(0).toUpperCase() + locationLabel.slice(1)} plus the surrounding area (about 3 km for a building or street, the whole city for a city).`
-        }
-      ]).map(opt => {
-        const active = value === opt.key;
-        return (
-          <button
-            key={opt.key}
-            type="button"
-            role="radio"
-            aria-checked={active}
-            onClick={() => onChange(opt.key)}
-            className={`text-left rounded-xl border p-3.5 transition-colors ${active ? "border-[#12a594] bg-[#12a594]/[0.07] ring-1 ring-[#12a594]" : "border-[#0b2a4a]/12 bg-white hover:border-[#0b2a4a]/25"}`}
-          >
-            <span className="flex items-center gap-2">
-              <span className={`w-4 h-4 rounded-full border-2 inline-flex items-center justify-center shrink-0 ${active ? "border-[#12a594]" : "border-[#0b2a4a]/25"}`}>
-                {active && <span className="w-2 h-2 rounded-full bg-[#12a594]" />}
+  allowMap?: boolean;
+  allowRadius?: boolean;
+}) => {
+  const options: { key: Scope; title: string; body: string; disabled?: string }[] = [
+    { key: "exact", title: "Exact location", body: `Only businesses inside ${locationLabel}. Nothing from nearby buildings or streets.` },
+    { key: "extended", title: "Radius around location", body: `Everything within the distance you choose from ${locationLabel}.`, disabled: allowRadius ? undefined : "Google Maps only" },
+    { key: "map", title: "Pin on the map", body: "Drag a pin anywhere and search within the distance you choose.", disabled: allowMap ? undefined : "Google Maps only" }
+  ];
+  return (
+    <div>
+      <label className="crm-label">Search area</label>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-2" role="radiogroup" aria-label="Search area">
+        {options.map(opt => {
+          const active = value === opt.key;
+          return (
+            <button
+              key={opt.key}
+              type="button"
+              role="radio"
+              aria-checked={active}
+              disabled={!!opt.disabled}
+              onClick={() => onChange(opt.key)}
+              className={`text-left rounded-xl border p-3.5 transition-colors disabled:opacity-45 disabled:cursor-not-allowed ${active ? "border-[#12a594] bg-[#12a594]/[0.07] ring-1 ring-[#12a594]" : "border-[#0b2a4a]/12 bg-white hover:border-[#0b2a4a]/25"}`}
+            >
+              <span className="flex items-center gap-2">
+                <span className={`w-4 h-4 rounded-full border-2 inline-flex items-center justify-center shrink-0 ${active ? "border-[#12a594]" : "border-[#0b2a4a]/25"}`}>
+                  {active && <span className="w-2 h-2 rounded-full bg-[#12a594]" />}
+                </span>
+                <span className="text-[13px] font-bold">{opt.title}</span>
+                {opt.disabled && <span className="ml-auto text-[10px] font-semibold text-[#0b2a4a]/50">{opt.disabled}</span>}
               </span>
-              <span className="text-[13px] font-bold">{opt.title}</span>
-            </span>
-            <span className="block text-xs text-[#0b2a4a]/60 mt-1.5 leading-relaxed">{opt.body}</span>
-          </button>
-        );
-      })}
+              <span className="block text-xs text-[#0b2a4a]/60 mt-1.5 leading-relaxed">{opt.body}</span>
+            </button>
+          );
+        })}
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 const parseServerDate = (value?: string) => {
   if (!value) return null;
@@ -400,7 +422,7 @@ export default function Home() {
   const [authError, setAuthError] = useState("");
 
   const [viewMode, setViewMode] = useState<"app" | "admin">("app");
-  const [activeTab, setActiveTab] = useState<"dashboard" | "search" | "leads" | "settings">("dashboard");
+  const [activeTab, setActiveTab] = useState<"dashboard" | "search" | "leads" | "changes" | "settings">("dashboard");
   const [adminTab, setAdminTab] = useState<"overview" | "users" | "leads">("overview");
 
   const [jobs, setJobs] = useState<any[]>([]);
@@ -470,7 +492,10 @@ export default function Home() {
   const [profileMsg, setProfileMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   const [searchMode, setSearchMode] = useState<"single" | "bulk">("single");
-  const [searchScope, setSearchScope] = useState<"exact" | "extended">("exact");
+  const [searchScope, setSearchScope] = useState<Scope>("exact");
+  const [selectedPlace, setSelectedPlace] = useState<PlaceSuggestion | null>(null);
+  const [radiusM, setRadiusM] = useState(1000);
+  const [mapPin, setMapPin] = useState<LatLon | null>(null);
   const [bulkQueriesText, setBulkQueriesText] = useState("");
   const [bulkFileName, setBulkFileName] = useState("");
   const [isBulkStarting, setIsBulkStarting] = useState(false);
@@ -576,6 +601,24 @@ export default function Home() {
     }, 350);
     return () => clearTimeout(t);
   }, [searchFilter]);
+
+  const fetchPlaceSuggestions = useCallback(async (q: string): Promise<PlaceSuggestion[]> => {
+    try {
+      const res = await apiFetch(`/api/places/suggest?q=${encodeURIComponent(q)}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (!res.ok) return [];
+      const data = await res.json();
+      return Array.isArray(data.items) ? data.items : [];
+    } catch {
+      return [];
+    }
+  }, [token]);
+
+  const authedRequest = useCallback(
+    (path: string) => apiFetch(path, { headers: { Authorization: `Bearer ${token}` } }),
+    [token]
+  );
 
   const fetchSummary = useCallback(async (authToken: string) => {
     try {
@@ -728,8 +771,17 @@ export default function Home() {
 
     setIsStarting(true);
     setStartError("");
+    const scope: Scope = searchEngine === "2gis" ? "exact" : searchScope;
     const chosenLocation = searchEngine === "2gis" ? twoGisCity : location;
-    const targetQuery = chosenLocation.trim() ? `${keyword.trim()} in ${chosenLocation.trim()}` : keyword.trim();
+    const pin = scope === "map" ? (mapPin || (selectedPlace ? { lat: selectedPlace.lat, lon: selectedPlace.lon } : DEFAULT_PIN)) : null;
+    const targetQuery = scope === "map"
+      ? `${keyword.trim()} within ${formatRadius(radiusM)} of ${selectedPlace && pin && pin.lat === selectedPlace.lat && pin.lon === selectedPlace.lon ? selectedPlace.name : `pin ${pin!.lat.toFixed(4)}, ${pin!.lon.toFixed(4)}`}`
+      : chosenLocation.trim() ? `${keyword.trim()} in ${chosenLocation.trim()}` : keyword.trim();
+    const center = scope === "map"
+      ? { lat: pin!.lat, lon: pin!.lon, label: selectedPlace && pin!.lat === selectedPlace.lat && pin!.lon === selectedPlace.lon ? selectedPlace.label : "Dropped pin", kind: "point" }
+      : searchEngine === "gmaps" && selectedPlace && selectedPlace.label === location
+        ? { lat: selectedPlace.lat, lon: selectedPlace.lon, label: selectedPlace.label, kind: selectedPlace.kind, bbox: selectedPlace.bbox }
+        : undefined;
 
     try {
       const res = await apiFetch("/api/jobs", {
@@ -741,8 +793,11 @@ export default function Home() {
         body: JSON.stringify({
           engine: searchEngine,
           target: targetQuery,
+          keyword: keyword.trim(),
           cap: effectiveCap,
-          scope: searchScope,
+          scope,
+          radius_m: scope === "exact" ? undefined : radiusM,
+          center,
           proxy: userProxy.trim()
         })
       });
@@ -803,7 +858,8 @@ export default function Home() {
           engine: searchEngine,
           queries,
           cap: effectiveCap,
-          scope: searchScope,
+          scope: searchScope === "extended" ? "extended" : "exact",
+          radius_m: searchScope === "extended" ? radiusM : undefined,
           proxy: userProxy.trim() || undefined
         })
       });
@@ -955,7 +1011,7 @@ export default function Home() {
   const totalPages = Math.max(1, Math.ceil(resultsTotal / resultsPageSize));
   const filteredCategories = POPULAR_CATEGORIES.filter(c => !keyword.trim() || c.toLowerCase().includes(keyword.trim().toLowerCase()));
 
-  const goApp = (tab: "dashboard" | "search" | "leads" | "settings") => {
+  const goApp = (tab: "dashboard" | "search" | "leads" | "changes" | "settings") => {
     setViewMode("app");
     setActiveTab(tab);
   };
@@ -990,6 +1046,7 @@ export default function Home() {
       badge: runningJob ? "live" : jobs.length,
       children: [
         { key: "leads:all", label: "All extractions", meta: String(jobs.length), onSelect: () => goApp("leads") },
+        { key: "changes", label: "New listings", onSelect: () => goApp("changes") },
         ...recentJobs.map(j => ({
           key: `job:${j.id}`,
           label: j.target,
@@ -1623,7 +1680,7 @@ export default function Home() {
                               </span>
                               <span className="flex-1 min-w-0">
                                 <span className="block text-[13.5px] font-semibold capitalize truncate">{j.target}</span>
-                                <span className="block text-[11.5px] text-[#0b2a4a]/55">{j.engine === "2gis" ? "2GIS" : "Google Maps"} · {scopeLabel(j.scope)} · {j.cap > 0 ? `Max ${formatNumber(j.cap)}` : "Unlimited"} · {formatRelative(j.created_at)}</span>
+                                <span className="block text-[11.5px] text-[#0b2a4a]/55">{j.engine === "2gis" ? "2GIS" : "Google Maps"} · {scopeLabel(j)} · {j.cap > 0 ? `Max ${formatNumber(j.cap)}` : "Unlimited"} · {formatRelative(j.created_at)}</span>
                               </span>
                               <span className="hidden sm:block"><StatusBadge status={j.status} /></span>
                               <span className="w-20 text-right">
@@ -1742,12 +1799,16 @@ export default function Home() {
                               ))}
                             </select>
                           ) : (
-                            <input
-                              type="text"
+                            <LocationSearch
                               value={location}
-                              onChange={e => setLocation(e.target.value)}
-                              placeholder="City, area or country"
-                              className="crm-input"
+                              onChange={setLocation}
+                              selected={selectedPlace}
+                              onSelect={place => {
+                                setSelectedPlace(place);
+                                if (place) setMapPin({ lat: place.lat, lon: place.lon });
+                              }}
+                              fetchSuggestions={fetchPlaceSuggestions}
+                              placeholder={searchScope === "map" ? "Jump the pin to a place (optional)" : "Building, area, city or country"}
                             />
                           )}
                         </div>
@@ -1802,10 +1863,40 @@ export default function Home() {
                       </div>
 
                       <ScopeToggle
-                        value={searchScope}
-                        onChange={setSearchScope}
+                        value={searchEngine === "2gis" ? "exact" : searchScope}
+                        onChange={v => {
+                          setSearchScope(v);
+                          if (v === "map" && !mapPin) setMapPin(selectedPlace ? { lat: selectedPlace.lat, lon: selectedPlace.lon } : DEFAULT_PIN);
+                        }}
+                        allowMap={searchEngine === "gmaps"}
+                        allowRadius={searchEngine === "gmaps"}
                         locationLabel={(searchEngine === "2gis" ? twoGisCity : location).trim() ? `"${(searchEngine === "2gis" ? twoGisCity : location).trim()}"` : "the location you enter"}
                       />
+
+                      {searchEngine === "gmaps" && searchScope !== "exact" && (
+                        <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)] gap-4 items-start">
+                          <div className="space-y-3">
+                            <RadiusPicker valueM={radiusM} onChange={setRadiusM} />
+                            {searchScope === "extended" && !selectedPlace && (
+                              <p className="text-xs text-[#0b2a4a]/70 bg-[#12a594]/[0.08] rounded-lg px-3 py-2">
+                                Pick a place from the suggestions so the radius is measured from its exact position. Typed text is located automatically otherwise.
+                              </p>
+                            )}
+                            {searchScope === "map" && (
+                              <p className="text-xs text-[#0b2a4a]/70 bg-[#12a594]/[0.08] rounded-lg px-3 py-2">
+                                Drag the pin or click anywhere on the map. Pin: <b className="font-mono">{(mapPin || DEFAULT_PIN).lat.toFixed(5)}, {(mapPin || DEFAULT_PIN).lon.toFixed(5)}</b>
+                              </p>
+                            )}
+                          </div>
+                          {(searchScope === "map" || selectedPlace) && (
+                            <MapPicker
+                              center={searchScope === "map" ? (mapPin || DEFAULT_PIN) : { lat: selectedPlace!.lat, lon: selectedPlace!.lon }}
+                              radiusM={radiusM}
+                              onMove={p => { setMapPin(p); setSearchScope("map"); }}
+                            />
+                          )}
+                        </div>
+                      )}
 
                       <p className="text-xs text-[#0b2a4a]/60 leading-relaxed">
                         {effectiveCap > 0
@@ -1832,7 +1923,7 @@ export default function Home() {
                         </button>
                         <button
                           type="button"
-                          onClick={() => { setKeyword(""); setLocation(""); }}
+                          onClick={() => { setKeyword(""); setLocation(""); setSelectedPlace(null); }}
                           className="crm-btn-default"
                         >
                           Reset
@@ -1867,7 +1958,14 @@ export default function Home() {
                         />
                       </div>
 
-                      <ScopeToggle value={searchScope} onChange={setSearchScope} locationLabel="each line's location" />
+                      <ScopeToggle
+                        value={searchScope === "map" ? "exact" : searchScope}
+                        onChange={setSearchScope}
+                        allowMap={false}
+                        allowRadius={searchEngine === "gmaps"}
+                        locationLabel="each line's location"
+                      />
+                      {searchScope === "extended" && searchEngine === "gmaps" && <RadiusPicker valueM={radiusM} onChange={setRadiusM} />}
 
                       <p className="text-xs text-[#0b2a4a]/60">
                         Each line runs as its own extraction using the engine and limit selected in Single Search ({searchEngine === "gmaps" ? "Google Maps" : "2GIS"}, {formatCap(effectiveCap)}).
@@ -1940,7 +2038,7 @@ export default function Home() {
                                 <StatusBadge status={j.status} />
                               </div>
                               <div className="mt-1.5 text-[11px] text-[#0b2a4a]/60 truncate">
-                                {j.engine === "2gis" ? "2GIS" : "Google Maps"} · {scopeLabel(j.scope)} · {j.cap > 0 ? `Max ${formatNumber(j.cap)}` : "Unlimited"} · {formatRelative(j.created_at)}
+                                {j.engine === "2gis" ? "2GIS" : "Google Maps"} · {scopeLabel(j)} · {j.cap > 0 ? `Max ${formatNumber(j.cap)}` : "Unlimited"} · {formatRelative(j.created_at)}
                               </div>
                               <div className="mt-2 font-semibold text-[#0b2a4a] text-sm">
                                 {formatNumber(j.total_saved || 0)} <span className="text-[11px] font-medium text-[#0b2a4a]/60">leads</span>
@@ -2176,6 +2274,18 @@ export default function Home() {
                     </>
                   )}
                 </div>
+              </div>
+            )}
+
+            {/* PAGE: NEW LISTINGS */}
+            {viewMode === "app" && activeTab === "changes" && (
+              <div className="space-y-6">
+                <PageHeader
+                  eyebrow="Leads"
+                  title="New listings"
+                  subtitle="Businesses that appeared since your earlier searches, from Google Maps and 2GIS."
+                />
+                <NewListings jobs={jobs} request={authedRequest} onCopy={copyToClipboard} />
               </div>
             )}
 

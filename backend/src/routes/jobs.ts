@@ -3,12 +3,13 @@ import * as XLSX from 'xlsx';
 import { query } from '../db';
 import { AuthRequest, authMiddleware } from '../middlewares/auth';
 import { addScraperJob } from '../queue';
+import { JobGeo, SearchScope, GeoCenter } from '../scrapers/types';
 
 const router = Router();
 
 router.use(authMiddleware);
 
-const COLUMN_DEFINITIONS: Record<string, string> = {
+export const COLUMN_DEFINITIONS: Record<string, string> = {
   title: 'Business Name',
   category: 'Category',
   categories: 'All Categories',
@@ -76,10 +77,45 @@ function normalizeEngine(raw: any): 'gmaps' | '2gis' {
   return raw === '2gis' ? '2gis' : 'gmaps';
 }
 
-function normalizeScope(raw: any): 'exact' | 'extended' {
+function normalizeScope(raw: any): SearchScope {
   // Older clients (and the Telegram bot) don't send a scope: default to accurate results.
-  return raw === 'extended' ? 'extended' : 'exact';
+  return raw === 'extended' || raw === 'map' ? raw : 'exact';
 }
+
+const num = (v: any) => (typeof v === 'number' ? v : typeof v === 'string' && v.trim() !== '' ? Number(v) : NaN);
+
+/** Validates the location settings sent with a search. */
+function parseGeo(body: any, scope: SearchScope): { geo: JobGeo; radiusM: number | null; error?: string } {
+  const geo: JobGeo = {};
+  if (typeof body.keyword === 'string' && body.keyword.trim()) geo.keyword = body.keyword.trim().slice(0, 200);
+
+  const c = body.center;
+  if (c && typeof c === 'object') {
+    const lat = num(c.lat);
+    const lon = num(c.lon);
+    if (Number.isFinite(lat) && Number.isFinite(lon) && Math.abs(lat) <= 90 && Math.abs(lon) <= 180) {
+      const center: GeoCenter = { lat, lon };
+      if (typeof c.label === 'string' && c.label.trim()) center.label = c.label.trim().slice(0, 200);
+      if (['country', 'city', 'area', 'point'].includes(c.kind)) center.kind = c.kind;
+      const bb = c.bbox;
+      if (bb && [bb.minLat, bb.minLon, bb.maxLat, bb.maxLon].every((v: any) => Number.isFinite(num(v)))) {
+        center.bbox = { minLat: num(bb.minLat), minLon: num(bb.minLon), maxLat: num(bb.maxLat), maxLon: num(bb.maxLon) };
+      }
+      geo.center = center;
+    }
+  }
+
+  let radiusM: number | null = null;
+  if (scope !== 'exact') {
+    const r = Math.round(num(body.radius_m));
+    radiusM = Number.isFinite(r) && r > 0 ? Math.min(Math.max(r, 50), 100_000) : 3000;
+    geo.radiusKm = radiusM / 1000;
+  }
+  if (scope === 'map' && !geo.center) return { geo, radiusM, error: 'Drop a pin on the map first' };
+  return { geo, radiusM };
+}
+
+const formatRadius = (m: number) => (m < 1000 ? `${m} m` : `${Math.round(m / 100) / 10} km`);
 
 router.post('/', async (req: AuthRequest, res) => {
   try {
@@ -87,7 +123,13 @@ router.post('/', async (req: AuthRequest, res) => {
     const engine = normalizeEngine(req.body.engine);
     const cap = normalizeCap(req.body.cap);
     const scope = normalizeScope(req.body.scope);
-    const target = typeof req.body.target === 'string' ? req.body.target.trim() : '';
+    const { geo, radiusM, error: geoError } = parseGeo(req.body, scope);
+    if (geoError) return res.status(400).json({ error: geoError });
+    if (engine === '2gis' && scope === 'map') return res.status(400).json({ error: 'Map pin search is available for Google Maps only' });
+    let target = typeof req.body.target === 'string' ? req.body.target.trim() : '';
+    if (!target && geo.keyword && geo.center) {
+      target = `${geo.keyword} within ${formatRadius(radiusM || 3000)} of ${geo.center.label || `${geo.center.lat.toFixed(5)}, ${geo.center.lon.toFixed(5)}`}`;
+    }
     if (!target) return res.status(400).json({ error: 'Search target is required' });
     const userId = req.user?.id;
 
@@ -112,12 +154,14 @@ router.post('/', async (req: AuthRequest, res) => {
     }
 
     const result = await query(
-      'INSERT INTO jobs (user_id, engine, target, cap, proxy_url, scope) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
-      [userId, engine, target, cap, effectiveProxy || null, scope]
+      `INSERT INTO jobs (user_id, engine, target, cap, proxy_url, scope, radius_m, center_lat, center_lon, center_label, keyword)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *`,
+      [userId, engine, target, cap, effectiveProxy || null, scope, radiusM,
+       geo.center?.lat ?? null, geo.center?.lon ?? null, geo.center?.label ?? null, geo.keyword ?? null]
     );
     const job = result.rows[0];
 
-    await addScraperJob(job.id, engine, target, cap, userId as string, effectiveProxy || undefined, scope);
+    await addScraperJob(job.id, engine, target, cap, userId as string, effectiveProxy || undefined, scope, geo);
 
     res.json(job);
   } catch (err) {
@@ -131,7 +175,8 @@ router.post('/batch', async (req: AuthRequest, res) => {
     const { queries, proxy } = req.body;
     const engine = normalizeEngine(req.body.engine);
     const cap = normalizeCap(req.body.cap);
-    const scope = normalizeScope(req.body.scope);
+    const scope: SearchScope = normalizeScope(req.body.scope) === 'extended' ? 'extended' : 'exact';
+    const { geo: batchGeo, radiusM: batchRadiusM } = parseGeo({ radius_m: req.body.radius_m }, scope);
     const userId = req.user?.id;
 
     if (!Array.isArray(queries) || queries.length === 0) {
@@ -164,11 +209,11 @@ router.post('/batch', async (req: AuthRequest, res) => {
       if (!trimmed) continue;
 
       const result = await query(
-        'INSERT INTO jobs (user_id, engine, target, cap, proxy_url, scope) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
-        [userId, engine, trimmed, cap, effectiveProxy || null, scope]
+        'INSERT INTO jobs (user_id, engine, target, cap, proxy_url, scope, radius_m) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
+        [userId, engine, trimmed, cap, effectiveProxy || null, scope, batchRadiusM]
       );
       const job = result.rows[0];
-      await addScraperJob(job.id, engine, trimmed, cap, userId as string, effectiveProxy || undefined, scope);
+      await addScraperJob(job.id, engine, trimmed, cap, userId as string, effectiveProxy || undefined, scope, batchGeo);
       createdJobs.push(job);
     }
 

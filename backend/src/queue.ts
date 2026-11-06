@@ -1,6 +1,7 @@
 import { Queue } from 'bullmq';
 import { connection, isRedisConnected } from './redis';
 import { executeJob } from './workers/jobExecutor';
+import { JobGeo, SearchScope } from './scrapers/types';
 
 let scraperQueue: Queue | null = null;
 
@@ -18,17 +19,17 @@ function getQueue(): Queue | null {
   return scraperQueue;
 }
 
-export async function addScraperJob(jobId: string, engine: string, target: string, cap: number, userId: string, proxy?: string, scope: 'exact' | 'extended' = 'exact') {
+export async function addScraperJob(jobId: string, engine: string, target: string, cap: number, userId: string, proxy?: string, scope: SearchScope = 'exact', geo: JobGeo = {}) {
   const queue = getQueue();
   if (queue) {
     try {
-      await queue.add('scrape', { jobId, engine, target, cap, userId, proxy, scope }, { jobId });
+      await queue.add('scrape', { jobId, engine, target, cap, userId, proxy, scope, geo }, { jobId });
       return;
     } catch {}
   }
 
   setImmediate(() => {
-    executeJob({ jobId, engine, target, cap, proxy, scope }).catch((err) => {
+    executeJob({ jobId, engine, target, cap, proxy, scope, geo }).catch((err) => {
       console.error(`Local execution failed for job ${jobId}:`, err);
     });
   });

@@ -17,6 +17,12 @@ pgPool.connect().then(async client => {
   try {
     await client.query('ALTER TABLE jobs ADD COLUMN IF NOT EXISTS proxy_url TEXT');
     await client.query("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS scope VARCHAR(20) DEFAULT 'exact'");
+    await client.query('ALTER TABLE jobs ADD COLUMN IF NOT EXISTS radius_m INTEGER');
+    await client.query('ALTER TABLE jobs ADD COLUMN IF NOT EXISTS center_lat DOUBLE PRECISION');
+    await client.query('ALTER TABLE jobs ADD COLUMN IF NOT EXISTS center_lon DOUBLE PRECISION');
+    await client.query('ALTER TABLE jobs ADD COLUMN IF NOT EXISTS center_label TEXT');
+    await client.query('ALTER TABLE jobs ADD COLUMN IF NOT EXISTS keyword TEXT');
+    await client.query('CREATE INDEX IF NOT EXISTS idx_results_job_created ON results(job_id, created_at)');
   } catch (err: any) {
     console.log(`PostgreSQL migration skipped: ${err.message}`);
   }
@@ -110,6 +116,12 @@ function initSqlite() {
     sqliteDb?.run("UPDATE users SET username = 'admin' WHERE id = 'admin-001' AND (username IS NULL OR username = '')", () => {});
     sqliteDb?.run('ALTER TABLE jobs ADD COLUMN proxy_url TEXT', () => {});
     sqliteDb?.run("ALTER TABLE jobs ADD COLUMN scope TEXT DEFAULT 'exact'", () => {});
+    sqliteDb?.run('ALTER TABLE jobs ADD COLUMN radius_m INTEGER', () => {});
+    sqliteDb?.run('ALTER TABLE jobs ADD COLUMN center_lat REAL', () => {});
+    sqliteDb?.run('ALTER TABLE jobs ADD COLUMN center_lon REAL', () => {});
+    sqliteDb?.run('ALTER TABLE jobs ADD COLUMN center_label TEXT', () => {});
+    sqliteDb?.run('ALTER TABLE jobs ADD COLUMN keyword TEXT', () => {});
+    sqliteDb?.run('CREATE INDEX IF NOT EXISTS idx_results_job_created ON results(job_id, created_at)', () => {});
     sqliteDb?.run(`
       CREATE TABLE IF NOT EXISTS settings (
         key TEXT PRIMARY KEY,
@@ -202,18 +214,24 @@ export async function query(text: string, params: any[] = []): Promise<{ rows: a
     } else {
       sqliteDb?.run(sqliteSql, finalParams, function (this: sqlite3.RunResult, err) {
         if (err) return reject(err);
+        const changes = this.changes || 1;
         const returningRow: any = { id: generatedId };
-        if (insertMatch) {
+        if (insertMatch && hasReturning) {
+          // Read the inserted row back so RETURNING gives the real stored values
+          // (rebuilding it from the parameter list was off by one column).
+          const table = insertMatch[1].trim();
           const rawCols = insertMatch[2].split(',').map(c => c.trim());
-          const offset = rawCols.some(c => c.toLowerCase() === 'id') ? 0 : 1;
-          rawCols.forEach((col, idx) => {
-            returningRow[col] = params[idx + offset];
+          const idValue = rawCols.some(c => c.toLowerCase() === 'id') ? params[rawCols.findIndex(c => c.toLowerCase() === 'id')] : generatedId;
+          // Honour the RETURNING column list (e.g. never hand back password_hash when it wasn't asked for).
+          const returningCols = (text.match(/RETURNING\s+(.+)$/is)?.[1] || '*').trim();
+          const selectCols = returningCols === '*' ? '*' : returningCols.split(',').map(c => c.trim()).filter(c => /^[a-z_][a-z0-9_]*$/i.test(c)).join(', ') || 'id';
+          sqliteDb?.get(`SELECT ${selectCols} FROM ${table} WHERE id = ?`, [idValue], (selErr, row) => {
+            if (!selErr && row) return resolve({ rows: [row], rowCount: changes });
+            resolve({ rows: [returningRow], rowCount: changes });
           });
-          returningRow.status = returningRow.status || 'pending';
-          returningRow.total_saved = 0;
-          returningRow.cap = returningRow.cap || 0;
+          return;
         }
-        resolve({ rows: [returningRow], rowCount: this.changes || 1 });
+        resolve({ rows: [returningRow], rowCount: changes });
       });
     }
   });

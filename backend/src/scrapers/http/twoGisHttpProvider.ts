@@ -300,9 +300,25 @@ export class TwoGisHttpProvider implements IScraperProvider {
                 category = rubricMatch[1];
               }
 
+              // Map position, needed for radius / map-pin searches.
+              let latitude: number | null = null;
+              let longitude: number | null = null;
+              const pointMatch = html.match(/"point"\s*:\s*\{\s*"lat"\s*:\s*(-?\d+(?:\.\d+)?)\s*,\s*"lon"\s*:\s*(-?\d+(?:\.\d+)?)/)
+                || html.match(/"point"\s*:\s*\{\s*"lon"\s*:\s*(-?\d+(?:\.\d+)?)\s*,\s*"lat"\s*:\s*(-?\d+(?:\.\d+)?)/);
+              if (pointMatch) {
+                const a = Number(pointMatch[1]);
+                const b = Number(pointMatch[2]);
+                const lonFirst = /"point"\s*:\s*\{\s*"lon"/.test(pointMatch[0]);
+                latitude = lonFirst ? b : a;
+                longitude = lonFirst ? a : b;
+                if (Math.abs(latitude) > 90 || Math.abs(longitude) > 180) { latitude = null; longitude = null; }
+              }
+
               const lead: ScrapedLead = {
                 query,
                 place_id: `2gis:${firmPath.replace(/\D/g, '')}`,
+                latitude,
+                longitude,
                 title: rawTitle,
                 category,
                 phone_1: phone1,

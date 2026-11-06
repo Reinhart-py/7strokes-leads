@@ -4,7 +4,23 @@ All notable changes, version upgrades, and development milestones for 7strokes a
 
 ---
 
-## [v2.6.0] — Exact vs Extended Location Search (Current)
+## [v2.7.0] — New Listings Tracking, Place Suggestions, Radius & Map-Pin Search (Current)
+
+### Added
+- **New listings** page (Leads → New listings) for Google Maps and 2GIS:
+  - *First seen in a period*: businesses found in the chosen dates (presets or custom range) that none of your earlier searches had, filtered by source and search text, with a per-day chart, "previously known" count and CSV export.
+  - *Compare two extractions* (e.g. July vs November): new listings, listings no longer found, and listings in both.
+- **Place suggestions** in the location box, like the Google Maps search dropdown (Google Maps + OpenStreetMap). Picking one pins the search to that exact place.
+- **Radius around location**: choose 100 m – 10 km or a custom distance in metres or km; only businesses within that distance of the point are kept.
+- **Pin on the map**: drag a pin (or click the map) and search the keyword within the chosen radius. Map preview with the radius circle also shown for radius searches.
+- 2GIS listings now record their map position.
+
+### Fixed
+- SQLite `RETURNING` rows were rebuilt from the parameter list off by one column, so newly created jobs/users came back with shifted fields; the stored row is now read back (respecting the requested columns).
+
+---
+
+## [v2.6.0] — Exact vs Extended Location Search
 
 ### Added
 - **Search area option** on Find Leads (single and bulk): *Exact location* keeps only businesses inside the typed place; *Extended area* also includes the surroundings (about 3 km around a building or street, the whole city for a city). The choice is saved on each extraction and shown on its card.

@@ -5,9 +5,9 @@ import { executeJob } from './jobExecutor';
 const worker = new Worker(
   'scraper-jobs',
   async (job: Job) => {
-    const { jobId, engine, target, cap, proxy, scope } = job.data;
+    const { jobId, engine, target, cap, proxy, scope, geo } = job.data;
     await executeJob(
-      { jobId, engine, target, cap, proxy, scope },
+      { jobId, engine, target, cap, proxy, scope, geo },
       async (saved: number) => {
         await job.updateProgress(saved);
       }
